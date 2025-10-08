@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Get a list of Swift files that are staged for commit
+files=$(git diff --cached --name-only --diff-filter=ACMR | grep "\.swift$")
+
+if [ -n "$files" ]; then
+  echo "Running SwiftLint on changed Swift files"
+  
+  # Run swiftlint on the staged Swift files
+  swiftlint lint --quiet --strict --path $files
+  
+  if [ $? -ne 0 ]; then
+    echo "SwiftLint found issues with your code. Please fix them before committing."
+    exit 1
+  fi
+fi
+
+exit 0

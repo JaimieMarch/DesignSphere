@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, TestingUI ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  lint:
+    name: Lint Code
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install SwiftLint
+        run: brew install swiftlint
+      
+      - name: Run SwiftLint
+        run: swiftlint lint --strict
+  
+  build-ios:
+    name: Build iOS
+    runs-on: macos-14
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache SwiftPM dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            .build
+            .swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-swiftpm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-swiftpm-
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v3
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-ios-deriveddata-${{ hashFiles('**/*.xcodeproj/**') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ios-deriveddata-${{ hashFiles('**/*.xcodeproj/**') }}-
+            ${{ runner.os }}-ios-deriveddata-
+
+      - name: Install dependencies
+        run: swift package resolve
+
+      - name: Build iOS target
+        run: xcodebuild -project "XR Anatomy.xcodeproj" -scheme "XR Anatomy" -sdk iphonesimulator -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" clean build CODE_SIGNING_ALLOWED=NO
+
+      - name: Run iOS tests (if available)
+        run: |
+          if xcodebuild -project "XR Anatomy.xcodeproj" -scheme "XR Anatomy" -list | grep -q "Test"; then
+            xcodebuild -project "XR Anatomy.xcodeproj" -scheme "XR Anatomy" -sdk iphonesimulator -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" test CODE_SIGNING_ALLOWED=NO
+          else
+            echo "No tests available for iOS target"
+          fi
+  
+  build-visionos:
+    name: Build visionOS
+    runs-on: macos-14
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache SwiftPM dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            .build
+            .swiftpm
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-swiftpm-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-swiftpm-
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v3
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-visionos-deriveddata-${{ hashFiles('**/*.xcodeproj/**') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-visionos-deriveddata-${{ hashFiles('**/*.xcodeproj/**') }}-
+            ${{ runner.os }}-visionos-deriveddata-
+
+      - name: Install dependencies
+        run: swift package resolve
+
+      - name: Build visionOS target
+        run: xcodebuild -project "XR Anatomy.xcodeproj" -scheme "XR Anatomy" -sdk visionos-simulator -destination "platform=visionOS Simulator,name=Apple Vision Pro,OS=latest" clean build CODE_SIGNING_ALLOWED=NO
+
+      - name: Run visionOS tests (if available)
+        run: |
+          if xcodebuild -project "XR Anatomy.xcodeproj" -scheme "XR Anatomy" -list | grep -q "Test"; then
+            xcodebuild -project "XR Anatomy.xcodeproj" -scheme "XR Anatomy" -sdk visionos-simulator -destination "platform=visionOS Simulator,name=Apple Vision Pro,OS=latest" test CODE_SIGNING_ALLOWED=NO
+          else
+            echo "No tests available for visionOS target"
+          fi

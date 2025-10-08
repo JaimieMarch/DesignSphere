@@ -1,0 +1,27 @@
+# Local auto-generated Codex summaries and generator scripts
+codex.md
+CODEBASE_SUMMARY.md
+# Local generator scripts (not checked into Git)
+scripts/
+/build
+
+# macOS noise
+.DS_Store
+
+# Xcode build artifacts
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcuserdatad/
+*.xccheckout
+*.xcscmblueprint
+
+# SwiftPM / SPM
+.swiftpm/
+.build/
+
+# Swift Package-resolved
+Package.resolved
+
+# User-specific Xcode state
+XR\ Share.xcodeproj/xcuserdata/
+AGENTS.md
