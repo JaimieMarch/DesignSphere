@@ -87,7 +87,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 0D64C6572CE003FE00D34085 /* Build configuration list for PBXProject "XR Share" */;
+			buildConfigurationList = 0D64C6572CE003FE00D34085 /* Build configuration list for PBXProject "Demo App" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -127,7 +127,7 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		0D64C6682CE003FF00D34085 /* Debug configuration for PBXProject "XR Share" */ = {
+		0D64C6682CE003FF00D34085 /* Debug configuration for PBXProject "Demo App" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -193,7 +193,7 @@
 			};
 			name = Debug;
 		};
-		0D64C6692CE003FF00D34085 /* Release configuration for PBXProject "XR Share" */ = {
+		0D64C6692CE003FF00D34085 /* Release configuration for PBXProject "Demo App" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -333,11 +333,11 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		0D64C6572CE003FE00D34085 /* Build configuration list for PBXProject "XR Share" */ = {
+		0D64C6572CE003FE00D34085 /* Build configuration list for PBXProject "Demo App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				0D64C6682CE003FF00D34085 /* Debug configuration for PBXProject "XR Share" */,
-				0D64C6692CE003FF00D34085 /* Release configuration for PBXProject "XR Share" */,
+				0D64C6682CE003FF00D34085 /* Debug configuration for PBXProject "Demo App" */,
+				0D64C6692CE003FF00D34085 /* Release configuration for PBXProject "Demo App" */,
 			);
 			defaultConfigurationName = Debug;
 		};

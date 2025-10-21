@@ -18,7 +18,6 @@ struct DemoApp: App {
             StarterView(controller: controller)
         }
         .windowResizability(.automatic)
-        .defaultSize(width: 900, height: 1200)
         
         
 #if os(visionOS)

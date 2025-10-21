@@ -4,308 +4,260 @@ import XRShareCollaboration
 @available(visionOS 26.0, *)
 struct StarterView: View {
     @ObservedObject var controller: CollaborativeSessionController
-
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
-#if os(visionOS)
     @State private var isImmersiveOpen = false
-#endif
 
     @State private var hasInitializedSession = false
     @State private var isActivatingSharePlay = false
     @State private var sharePlayError: String?
 
+    private enum Sorting: String, CaseIterable, Identifiable {
+        case alphabetical = "Alphabetical",
+             dateAdded = "Date Added"
+        var id: String { rawValue }
+    }
+    private enum Category: String, CaseIterable, Identifiable {
+        case seating = "Seating",
+             all = "All",
+             beds = "Beds",
+             storage = "Storage",
+             lighting = "Lighting"
+        var id: String { rawValue }
+    }
+    private enum Source: String, CaseIterable, Identifiable {
+            case presets = "Presets",
+                 scans = "Scans",
+                 imports = "Imports"
+            var id: String { rawValue }
+        }
+    private enum UtilityPanel: Equatable { case none, save, load, settings, measure, scan }
+
+    @State private var selectedSource: Source = .presets
+    @State private var openPanel: UtilityPanel = .none
+    @State private var sortMode: Sorting = .alphabetical
+    @State private var selectedCategory: Category = .all
+    @State private var searchText: String = ""
+
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 28) {
+        ZStack {
+            VStack(spacing: 14) {
+                HStack {
+                    Text("Catalog").font(.largeTitle.bold())
+                    Spacer()
                     
-                    sharePlayCard
-                    sessionStatsCard
-                    availableModelsCard
-                    currentAddedModelsCard
-                }
-                .padding(.horizontal, 32)
-                .padding(.vertical, 40)
-            }
-            .navigationTitle("Demo App")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if controller.isConnected {
-                        Text("Connected")
-                            .font(.footnote)
-                            .foregroundStyle(.green)
-                    } else {
-                        Text("Offline")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 12) {
+                        Picker("", selection: $selectedSource) {
+                            ForEach(Source.allCases) { s in
+                                Text(s.rawValue).tag(s)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 280)
+                        
+                        Picker("", selection: $sortMode) {
+                            ForEach(Sorting.allCases) { mode in
+                                Text(mode.rawValue).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 280)
+                        
+                        HStack(spacing: 6) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(.secondary)
+                                .imageScale(.small)
+                            TextField("Search", text: $searchText)
+                                .textFieldStyle(.plain)
+                                .frame(width: 140)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(.tertiary)
+                        )
                     }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                
+                ScrollView {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
+                        ForEach(filtered(controller.availableModels)) { descriptor in
+                            CatalogCell(name: descriptor.name)
+                                .onTapGesture { controller.addModel(descriptor) }
+                                .contextMenu {
+                                    Button("Add") { controller.addModel(descriptor) }
+                                }
+                        }
+                    }
+                    .padding(16)
+                }
+                .glassBackground(cornerRadius: 24)
+                .shadow(radius: 10)
             }
+            .padding(24)
+            .navigationTitle("Design Sphere")
+            .ornament(
+                visibility: .visible,
+                attachmentAnchor: .scene(.leading),
+                contentAlignment: .leading
+            ) {
+                MinimalOrnament()
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 10)
+                    .glassBackground(cornerRadius: 35)
             }
         }
-#if os(visionOS)
-        .onAppear {
-            isImmersiveOpen = false
-        }
-#endif
-        // Start a local session when app is launched
-        .task {
-            await prepareExperience()
-        }
-        // Error alert for any shareplay errors
+
+        .onAppear { isImmersiveOpen = false }
+        .task { await prepareExperience() }
         .alert("SharePlay", isPresented: Binding(
             get: { sharePlayError != nil },
             set: { if !$0 { sharePlayError = nil } }
         )) {
             Button("OK", role: .cancel) { }
         } message: {
-            if let message = sharePlayError {
-                Text(message)
-            }
+            if let message = sharePlayError { Text(message) }
         }
     }
 
-// MARK: - Section for SharePlay
-    
-    /// Section with the shareplay button to start a shared session
-    private var sharePlayCard: some View {
-        
-        SectionCard(title: "SharePlay") {
-            VStack(alignment: .leading, spacing: 12) {
-                
-                Text("Start a SharePlay session")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                
-                // Can start a shareplay session from the local session
-                HStack(spacing: 16) {
-                    SharePlayLauncher(isActivating: $isActivatingSharePlay, errorMessage: $sharePlayError) {
-                        controller.startSharePlayHosting(named: "Shared Session")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.blue)
-
-                    Spacer()
-                }
-            }
-        }
-    }
-
-    
-    
-// MARK: - Session Stats Section
-    
-    /// Card that displays the participants, number of placed models and loading status of the session
-    private var sessionStatsCard: some View {
-        
-        SectionCard(title: "Session Overview") {
-            HStack(spacing: 20) {
-                StatCard(icon: "person.2.fill", title: "Participants", value: "\(controller.participantCount)")
-                
-                StatCard(icon: "cube.box.fill", title: "Models", value: "\(controller.placedModelSummaries.count)")
-                
-                StatCard(icon: "arrow.down.circle.fill", title: "Loading", value:
-                            progressText)
-            }
-        }
-    }
-    
-    
-
-// MARK: - Available Models To Add Section
-    
-    /// Card that displays the list of available models to add to the session
-    private var availableModelsCard: some View {
-        SectionCard(title: "Available Models") {
-            if controller.availableModels.isEmpty {
-                Text("No USDZ assets were found in the app bundle.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                
-                VStack(spacing: 12) {
-                    
-                    ForEach(controller.availableModels) { descriptor in
-                        
-                        ModelListRow(descriptor: descriptor) {
-                            
-                            controller.addModel(descriptor)
-                        }
-                        if descriptor.id != controller.availableModels.last?.id {
-                            Divider().background(.secondary.opacity(0.2))
-                        }
-                    }
-            }
-        }
-        }
-    }
-
-    /// UI for for rows with each model and a add button
-    private struct ModelListRow: View {
-        let descriptor: CollaborativeSessionController.ModelDescriptor
-        let action: () -> Void
-
-        var body: some View {
-            Button(action: action) {
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(descriptor.name)
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(.primary)
-                    }
-                    Spacer()
-                    
-                    // Add single model
-                    Image(systemName: "plus.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.blue)
-                }
-                .contentShape(Rectangle())
-        }
-            .buttonStyle(.plain)
-        }
-    }
-
-    
-// MARK: - Current Added Models Section
-    
-    /// Card that displays the list of currently added models to the session and button to remove them
-    private var currentAddedModelsCard: some View {
-        
-        SectionCard(title: "Current Added Models") {
-            
-            if controller.placedModelSummaries.isEmpty {
-                Text("No models placed yet, add one from above")
-                
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                
-                
-                
-                
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(controller.placedModelSummaries, id: \.self) { name in
-                        HStack {
-                            Label(name, systemImage: "cube.fill")
-                                .font(.body)
-                            Spacer()
-                            
-                            // Delete single model
-                            Button(role: .destructive) {
-                                controller.removeModel(named: name)
-                            } label: {
-                                Image(systemName: "trash")
-                            }
-                            
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-                        }
-                    }
-                    
-                    // Delete all models
-                    Button(role: .destructive, action: controller.removeAllModels) {
-                        Label("Delete all models", systemImage: "trash")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.regular)
-                }
-            }
-    }
-    }
-
-// MARK: - Helpers
-    
     @MainActor
-
-    // Starts up the local session
     private func prepareExperience() async {
-        // Just run once, subsequent runs will just make sure immersive space is open
         guard hasInitializedSession == false else {
-            
             await ensureImmersiveSpaceOpened()
-            
             return
-            }
-    
+        }
         controller.startLocalSession()
-        
         hasInitializedSession = true
-        
-        // Load and cache the models
         await controller.preloadIfNeeded()
-        
-        // Make sure immersive space is open
         await ensureImmersiveSpaceOpened()
     }
 
-    
-    
     private func ensureImmersiveSpaceOpened() async {
-#if os(visionOS)
         guard isImmersiveOpen == false else { return }
         let result = await openImmersiveSpace(id: "CollaborativeSpace")
         if case .opened = result {
-            await MainActor.run {
-                isImmersiveOpen = true
-            }
+            await MainActor.run { isImmersiveOpen = true }
         }
-#endif
     }
-    
-    
-    private var progressText: String {
-        let percentage = Int(controller.loadingProgress * 100)
-        return controller.loadingProgress >= 1.0 ? "Ready" : "\(percentage)%"
+
+    private func filtered(
+        _ input: [CollaborativeSessionController.ModelDescriptor]
+    ) -> [CollaborativeSessionController.ModelDescriptor] {
+        var result = input
+        
+        switch selectedSource {
+        case .presets, .scans, .imports:
+            break
+        }
+        
+        if !searchText.isEmpty {
+            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+        
+        switch sortMode {
+        case .alphabetical:
+            result.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+        case .dateAdded:
+            break
+        }
+        
+        return result
     }
 }
 
-/// Used for the Session Stats section
-private struct StatCard: View {
+@available(visionOS 26.0, *)
+private struct MinimalOrnament: View {
+    @State private var hoveredButton: String? = nil
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            OrnamentButton(icon: "square.grid.2x2", label: "Grid", isHovered: hoveredButton == "grid")
+                .onHover { hoveredButton = $0 ? "grid" : nil }
+            
+            OrnamentButton(icon: "slider.horizontal.3", label: "Settings", isHovered: hoveredButton == "settings")
+                .onHover { hoveredButton = $0 ? "settings" : nil }
+            
+            OrnamentButton(icon: "person.2", label: "Share", isHovered: hoveredButton == "share")
+                .onHover { hoveredButton = $0 ? "share" : nil }
+        }
+        .padding(4)
+    }
+}
+
+private struct OrnamentButton: View {
     let icon: String
-    let title: String
-    let value: String
-
+    let label: String
+    let isHovered: Bool
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(.secondary)
-
-            Text(value)
-                .font(.title2.bold())
-
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(22)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        }
-}
-
-
-/// Used by the other sections
-private struct SectionCard<Content: View>: View {
-    let title: String
-    @ViewBuilder let content: Content
-
-    init(title: String, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
+        TabView {
+                    Text("List")
+                        .tabItem {
+                            Label("List", systemImage: "checklist")
+                        }
+                    
+                    Text("Favorites")
+                        .tabItem {
+                            Label("Favorites", systemImage: "star")
+                        }
+                }
+//        Button(action: {}) {
+//            VStack(spacing: 4) {
+//                Image(systemName: icon)
+//                    .imageScale(.small)
+//                    .frame(width: 16, height: 16)
+//                
+//                if isHovered {
+//                    Text(label)
+//                        .font(.caption2)
+//                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+//                }
+//            }
+//            .padding(.horizontal, 6)
+//            .padding(.vertical, isHovered ? 8 : 6)
+//            .contentShape(Rectangle())
+//        }
+//        .buttonStyle(.plain)
+//        .background {
+//            if isHovered {
+//                RoundedRectangle(cornerRadius: 8, style: .continuous)
+//                    .fill(.quaternary)
+//            }
+//        }
+//        .animation(.easeInOut(duration: 0.2), value: isHovered)
     }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text(title)
-                .font(.title3.bold())
-            content
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(28)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            }
 }
 
+private struct CatalogCell: View {
+    let name: String
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "cube.fill")
+                .font(.system(size: 44))
+                .foregroundStyle(.secondary)
+                .frame(height: 90)
+            Text(name)
+                .font(.footnote.weight(.medium))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 140)
+        .glassBackground(cornerRadius: 20)
+    }
+}
 
+private extension View {
+    func glassBackground(cornerRadius: CGFloat) -> some View {
+        background(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(.thinMaterial)
+        )
+    }
+}
+
+#Preview {
+    StarterView(controller: CollaborativeSessionController())
+}
