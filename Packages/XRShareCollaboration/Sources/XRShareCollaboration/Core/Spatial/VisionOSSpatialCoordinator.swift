@@ -18,7 +18,7 @@ import ARKit
 /// Coordinates spatial alignment in shareplay visionOS sessions using shared world anchors
 @available(visionOS 26.0, *)
 class VisionOSSpatialCoordinator {
-    private var session: GroupSession<DemoActivity>
+   // private var session: GroupSession<DemoActivity>
     private var rootEntity: Entity?
     private var realityViewContent: RealityViewContent?
     private var worldAnchorEntity: Entity?
@@ -32,9 +32,9 @@ class VisionOSSpatialCoordinator {
     
     var initialAnchorTransform: simd_float4x4?
     
-    required init(session: GroupSession<DemoActivity>) {
-        self.session = session
-    }
+//    required init(session: GroupSession<DemoActivity>) {
+//        self.session = session
+//    }
 
     func configureSession(
         for entity: Entity,
@@ -75,39 +75,39 @@ class VisionOSSpatialCoordinator {
     
     
     
-    func handleAnchorMessage(_ message: AnchorMessage) async {
-
-        switch message.anchorType {
-        case .worldAnchor:
-            if let data = message.anchorData {
-                await loadWorldAnchor(from: data, id: message.anchorID)
-            }
-        case .worldMap:
-            
-            // iOS ARWorldMap is not used on visionOS so we can ignore
-            print("visionOS: Received worldMap anchor message; ignoring (not applicable)")
-        }
-    }
+//    func handleAnchorMessage(_ message: AnchorMessage) async {
+//
+//        switch message.anchorType {
+//        case .worldAnchor:
+//            if let data = message.anchorData {
+//                await loadWorldAnchor(from: data, id: message.anchorID)
+//            }
+//        case .worldMap:
+//            
+//            // iOS ARWorldMap is not used on visionOS so we can ignore
+//            print("visionOS: Received worldMap anchor message; ignoring (not applicable)")
+//        }
+//    }
     
     
     
-    func createAndShareAnchor() async -> AnchorMessage? {
-
-        guard let anchorID = currentAnchorID,
-              let typedAnchors = worldAnchors as? [UUID: WorldAnchor],
-              let worldAnchor = typedAnchors[anchorID] else { return nil }
-
-        do {
-            let data = try NSKeyedArchiver.archivedData(withRootObject: worldAnchor,
-                                                        requiringSecureCoding: false)
-            return AnchorMessage(anchorID: anchorID,
-                                 anchorType: .worldAnchor,
-                                 anchorData: data)
-        } catch {
-            print("visionOS: Failed to archive world anchor – \(error)")
-            return nil
-}
-    }
+//    func createAndShareAnchor() async -> AnchorMessage? {
+//
+//        guard let anchorID = currentAnchorID,
+//              let typedAnchors = worldAnchors as? [UUID: WorldAnchor],
+//              let worldAnchor = typedAnchors[anchorID] else { return nil }
+//
+//        do {
+//            let data = try NSKeyedArchiver.archivedData(withRootObject: worldAnchor,
+//                                                        requiringSecureCoding: false)
+//            return AnchorMessage(anchorID: anchorID,
+//                                 anchorType: .worldAnchor,
+//                                 anchorData: data)
+//        } catch {
+//            print("visionOS: Failed to archive world anchor – \(error)")
+//            return nil
+//}
+//    }
     
     
     

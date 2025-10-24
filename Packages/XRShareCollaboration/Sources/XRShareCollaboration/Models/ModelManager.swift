@@ -387,28 +387,28 @@ final class ModelManager: ObservableObject {
             print("Loaded model \(modelType.rawValue) (InstanceID: \(instanceID)).")
             print("This is the count of the models in model manager \(self.placedModels.count)")
 
-            if let arViewModel = arViewModel, let coordinator = arViewModel.sharePlayCoordinator {
-                let uuid = UUID(uuidString: instanceID) ?? UUID()
-
-                if coordinator.isConnected {
-
-                    Task {
-                        await arViewModel.broadcastAddModel(
-                            modelType: modelType,
-                            instanceID: uuid,
-                            entity: entity
-                        )
-                        print(" Requested addModel via SharePlay: \(modelType.rawValue) (ID: \(uuid))")
-
-                    }
-                    
-                    
-                } else {
-                    print("SharePlay not connected, model \(modelType.rawValue) will be synced when session starts")
-    }
-            } else {
-                 print("ARViewModel or SharePlayCoordinator not available for \(modelType.rawValue)")
-                }
+//            if let arViewModel = arViewModel, let coordinator = arViewModel.sharePlayCoordinator {
+//                let uuid = UUID(uuidString: instanceID) ?? UUID()
+//
+//                if coordinator.isConnected {
+//
+//                    Task {
+//                        await arViewModel.broadcastAddModel(
+//                            modelType: modelType,
+//                            instanceID: uuid,
+//                            entity: entity
+//                        )
+//                        print(" Requested addModel via SharePlay: \(modelType.rawValue) (ID: \(uuid))")
+//
+//                    }
+//                    
+//                    
+//                } else {
+//                    print("SharePlay not connected, model \(modelType.rawValue) will be synced when session starts")
+//    }
+//            } else {
+//                 print("ARViewModel or SharePlayCoordinator not available for \(modelType.rawValue)")
+//                }
 
 
             print("\(modelType.rawValue) chosen – model loaded and selected")
@@ -519,13 +519,13 @@ final class ModelManager: ObservableObject {
         }
         
         // Broadcast remove model in shareplay sessions
-        if broadcast, let arViewModel = model.arViewModel {
-            Task {
-                if let uuid = UUID(uuidString: instanceID) {
-                    await arViewModel.broadcastRemoveModel(instanceID: uuid)
-                }
-    }
-        }
+//        if broadcast, let arViewModel = model.arViewModel {
+//            Task {
+//                if let uuid = UUID(uuidString: instanceID) {
+//                    await arViewModel.broadcastRemoveModel(instanceID: uuid)
+//                }
+//    }
+//        }
         print("Removed model: \(modelTypeName)")
     }
     
@@ -614,9 +614,9 @@ final class ModelManager: ObservableObject {
             if let arViewModel = model.arViewModel,
                let instanceIDString = entity.components[InstanceIDComponent.self]?.id,
                let instanceID = UUID(uuidString: instanceIDString) {
-                Task {
-                    await arViewModel.broadcastModelSelection(instanceID: instanceID)
-                    }
+//                Task {
+//                    await arViewModel.broadcastModelSelection(instanceID: instanceID)
+//                    }
             }
 
             

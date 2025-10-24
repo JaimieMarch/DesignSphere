@@ -24,9 +24,9 @@ struct SharePlayLauncher: View {
         }
         .buttonStyle(.bordered)
         .disabled(isActivating)
-        .sheet(isPresented: $showingShareSheet) {
-            ShareSheetView()
-        }
+//        .sheet(isPresented: $showingShareSheet) {
+//            ShareSheetView()
+//        }
     }
 
     private func activateSharePlay() {
@@ -38,16 +38,16 @@ struct SharePlayLauncher: View {
     }
 }
 
-/// Show apple's shareplay menu (bottom of the window text to the move tab) 
-#if canImport(UIKit)
-@available(visionOS 26.0, *)
-private struct ShareSheetView: UIViewControllerRepresentable {
-    func makeUIViewController(context: Context) -> GroupActivitySharingController {
-        GroupActivitySharingController(preparationHandler: {
-            DemoActivity()
-        })
-    }
-
-    func updateUIViewController(_ controller: GroupActivitySharingController, context: Context) {}
-}
-#endif
+///// Show apple's shareplay menu (bottom of the window text to the move tab) 
+//#if canImport(UIKit)
+//@available(visionOS 26.0, *)
+//private struct ShareSheetView: UIViewControllerRepresentable {
+//    func makeUIViewController(context: Context) -> GroupActivitySharingController {
+//        GroupActivitySharingController(preparationHandler: {
+//            DemoActivity()
+//        })
+//    }
+//
+//    func updateUIViewController(_ controller: GroupActivitySharingController, context: Context) {}
+//}
+//#endif

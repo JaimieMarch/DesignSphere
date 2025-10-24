@@ -19,7 +19,7 @@ import QuartzCore
 @available(visionOS 26.0, *)
 @MainActor
 class ManipulationManager {
-    private var sharePlayCoordinator: SharePlayCoordinator?
+  //  private var sharePlayCoordinator: SharePlayCoordinator?
     private var manipulationSubscriptions: [Entity: AnyCancellable] = [:]
     
     #if os(visionOS)
@@ -31,9 +31,9 @@ class ManipulationManager {
     private let minSendInterval: CFTimeInterval = 1.0 / 30.0
     private let debugTransforms = false
 
-    init(sharePlayCoordinator: SharePlayCoordinator? = nil) {
-        self.sharePlayCoordinator = sharePlayCoordinator
-    }
+//    init(sharePlayCoordinator: SharePlayCoordinator? = nil) {
+//        self.sharePlayCoordinator = sharePlayCoordinator
+//    }
     
     /// Configure an entity for manipulation
     @available(visionOS 26.0, *)
@@ -82,14 +82,14 @@ class ManipulationManager {
             event.entity.components.remove(PhysicsMotionComponent.self)
             event.entity.components.remove(PhysicsBodyComponent.self)
             
-            Task {
-                await self.handleSelection(for: event.entity, instanceID: instanceID)
-                            
-                // Handle ownership change
-                if let participantID = self.sharePlayCoordinator?.localParticipantID {
-                    await self.handleOwnershipChange(for: event.entity, instanceID: instanceID, newOwnerID: participantID)
-                }
-    }
+//            Task {
+//                await self.handleSelection(for: event.entity, instanceID: instanceID)
+//                            
+//                // Handle ownership change
+////                if let participantID = self.sharePlayCoordinator?.localParticipantID {
+////                    await self.handleOwnershipChange(for: event.entity, instanceID: instanceID, newOwnerID: participantID)
+////                }
+//    }
     }
 
         
@@ -114,11 +114,11 @@ class ManipulationManager {
                   let instanceIDString = event.entity.components[InstanceIDComponent.self]?.id,
                   let instanceID = UUID(uuidString: instanceIDString) else { return }
             
-            Task {
-                if let participantID = self.sharePlayCoordinator?.localParticipantID {
-                    await self.handleOwnershipChange(for: event.entity, instanceID: instanceID, newOwnerID: participantID)
-                }
-            }
+//            Task {
+//                if let participantID = self.sharePlayCoordinator?.localParticipantID {
+//                    await self.handleOwnershipChange(for: event.entity, instanceID: instanceID, newOwnerID: participantID)
+//                }
+//            }
         }
         
         contentSubscriptions.append(contentsOf: [didUpdateToken, willBeginToken, willEndToken, handOffToken])
@@ -133,59 +133,59 @@ class ManipulationManager {
     /// Called when a model's transform changes, so when the model is moved, rotated or expanded
     func handleTransformUpdate(for entity: Entity, instanceID: UUID, force: Bool = false) async {
         
-        // Only send to SharePlay if we're connected and have a coordinator
-        guard let coordinator = sharePlayCoordinator,
-              coordinator.isConnected else {
-            if debugTransforms {
-                print("Local session: transform update for id=\(instanceID) pos=\(entity.position(relativeTo: entity.parent)) ( no SharePlay sync)")
-            }
-            return
-        }
+//        // Only send to SharePlay if we're connected and have a coordinator
+//        guard let coordinator = sharePlayCoordinator,
+//              coordinator.isConnected else {
+//            if debugTransforms {
+//                print("Local session: transform update for id=\(instanceID) pos=\(entity.position(relativeTo: entity.parent)) ( no SharePlay sync)")
+//            }
+//            return
+//        }
         
-        let now = CACurrentMediaTime()
-        if !force, let last = lastSendTime[instanceID], (now - last) < minSendInterval {
-            return
-        }
-        lastSendTime[instanceID] = now
+//        let now = CACurrentMediaTime()
+//        if !force, let last = lastSendTime[instanceID], (now - last) < minSendInterval {
+//            return
+//        }
+//        lastSendTime[instanceID] = now
         
         
 
-        // Create transform relative to the shared anchor
-        let reference: Entity? = entity.parent
-        let transform = UniversalTransform(
-            position: entity.position(relativeTo: reference),
-            rotation: entity.orientation(relativeTo: reference),
-            scale: entity.scale(relativeTo: reference),
-            referenceAnchorID: coordinator.currentReferenceAnchorID
-        )
+//        // Create transform relative to the shared anchor
+//        let reference: Entity? = entity.parent
+//        let transform = UniversalTransform(
+//            position: entity.position(relativeTo: reference),
+//            rotation: entity.orientation(relativeTo: reference),
+//            scale: entity.scale(relativeTo: reference),
+//            referenceAnchorID: coordinator.currentReferenceAnchorID
+//        )
         
-        if debugTransforms {
-            print("SharePlay session: send transform: id=\(instanceID) pos=\(transform.position)")
-        }
+//        if debugTransforms {
+//            print("SharePlay session: send transform: id=\(instanceID) pos=\(transform.position)")
+//        }
         
         // Send message to shareplay coordinator
-        await coordinator.sendModelTransform(instanceID: instanceID, transform: transform)
+       // await coordinator.sendModelTransform(instanceID: instanceID, transform: transform)
     }
     
     
     /// Called when a model is selected
-    func handleSelection(for entity: Entity, instanceID: UUID) async {
-        
-        // Only send to SharePlay if we're connected and have a coordinator
-        guard let coordinator = sharePlayCoordinator,
-              coordinator.isConnected,
-              let participantID = coordinator.localParticipantID else {
-            
-            // Otherwise in local session, just handle selection locally
-            print("Local session: model selected id=\(instanceID) (no SharePlay sync)")
-            return
-        }
-        
-        Task {
-            // Send message to shareplay coordinator
-            await coordinator.sendSelectModel(entityID: instanceID, participantID: participantID)
-        }
-    }
+//    func handleSelection(for entity: Entity, instanceID: UUID) async {
+//        
+//        // Only send to SharePlay if we're connected and have a coordinator
+//        guard let coordinator = sharePlayCoordinator,
+//              coordinator.isConnected,
+//              let participantID = coordinator.localParticipantID else {
+//            
+//            // Otherwise in local session, just handle selection locally
+//            print("Local session: model selected id=\(instanceID) (no SharePlay sync)")
+//            return
+//        }
+//        
+//        Task {
+//            // Send message to shareplay coordinator
+//            await coordinator.sendSelectModel(entityID: instanceID, participantID: participantID)
+//        }
+//    }
     
     
     
@@ -195,12 +195,12 @@ class ManipulationManager {
         // Always update local ownership component but only send to SharePlay if it is connected
         entity.components.set(OwnershipComponent(participantID: newOwnerID))
         
-        if let coordinator = sharePlayCoordinator, coordinator.isConnected {
-            print("SharePlay session: ownership change for id=\(instanceID) to owner=\(newOwnerID)")
-            
-        } else {
-            print("Local session: ownership change for id=\(instanceID) to owner=\(newOwnerID) (local only)")
-        }
+//        if let coordinator = sharePlayCoordinator, coordinator.isConnected {
+//            print("SharePlay session: ownership change for id=\(instanceID) to owner=\(newOwnerID)")
+//            
+//        } else {
+//            print("Local session: ownership change for id=\(instanceID) to owner=\(newOwnerID) (local only)")
+//        }
     }
     
     
@@ -234,7 +234,7 @@ class ManipulationManager {
 
         lastSendTime.removeAll()
 
-        sharePlayCoordinator = nil
+        // sharePlayCoordinator = nil
 
         print("ManipulationManager: Reset completed")
     }

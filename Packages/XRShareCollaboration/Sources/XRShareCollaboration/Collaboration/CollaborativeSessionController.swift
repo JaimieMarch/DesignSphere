@@ -77,31 +77,52 @@ public final class CollaborativeSessionController: ObservableObject {
     }
     
     
+//
+//    /// Host shareplay session
+//    public func startSharePlayHosting(named name: String) {
+//        sessionName = name
+//        
+//        Task {
+//            await preloadIfNeeded()
+//            await arViewModel.startSharePlaySession(name: name)
+//        }
+//    }
 
-    /// Host shareplay session
-    public func startSharePlayHosting(named name: String) {
-        sessionName = name
-        
-        Task {
-            await preloadIfNeeded()
-            await arViewModel.startSharePlaySession(name: name)
-        }
-    }
-
+//    
+//    /// Join existing shareplay session
+//    public func joinSharePlaySession() {
+//        Task {
+//            await preloadIfNeeded()
+//           // await arViewModel.joinSharePlaySession()
+//        }
+//    }
     
-    /// Join existing shareplay session
-    public func joinSharePlaySession() {
-        Task {
-            await preloadIfNeeded()
-            await arViewModel.joinSharePlaySession()
-        }
-    }
-
     
-    /// Leave the current sharepaly session
-    public func leaveSharePlaySession() {
-        arViewModel.leaveSharePlaySession()
-    }
+
+//    /// Host shareplay session
+//    public func startSharePlayHosting(named name: String) {
+//        sessionName = name
+//        
+//        Task {
+//            await preloadIfNeeded()
+//            //await arViewModel.startSharePlaySession(name: name)
+//        }
+//    }
+//
+//    
+//    /// Join existing shareplay session
+//    public func joinSharePlaySession() {
+//        Task {
+//            await preloadIfNeeded()
+//            //await arViewModel.joinSharePlaySession()
+//        }
+//    }
+//
+//    
+//    /// Leave the current sharepaly session
+//    public func leaveSharePlaySession() {
+//        //arViewModel.leaveSharePlaySession()
+//    }
 
     
     /// Clears everything in the session
@@ -164,26 +185,26 @@ public final class CollaborativeSessionController: ObservableObject {
 
         
         // If we are in shareplay session, set up the spatial coordiantion for shared world anchor
-        if let shareSession = arViewModel.sharePlayCoordinator?.session {
-            
-            
-            if arViewModel.spatialCoordinator == nil {
-                
-                let coordinator = VisionOSSpatialCoordinator(session: shareSession)
-                coordinator.onAnchorTransformUpdated = { [weak arViewModel] transform in
-                    Task { @MainActor in
-                        
-                        arViewModel?.sharedAnchorEntity.transform = Transform(matrix: transform)
-                    }
-                }
-                
-                arViewModel.spatialCoordinator = coordinator
-                Task {
-                    try? await coordinator.configureWithARKitSession(session)
-                    await coordinator.createSharedWorldAnchor()
-                }
-    }
-        }
+//        if let shareSession = arViewModel.sharePlayCoordinator?.session {
+//            
+//            
+//            if arViewModel.spatialCoordinator == nil {
+//                
+//                let coordinator = VisionOSSpatialCoordinator(session: shareSession)
+//                coordinator.onAnchorTransformUpdated = { [weak arViewModel] transform in
+//                    Task { @MainActor in
+//                        
+//                        arViewModel?.sharedAnchorEntity.transform = Transform(matrix: transform)
+//                    }
+//                }
+//                
+//                arViewModel.spatialCoordinator = coordinator
+//                Task {
+//                    try? await coordinator.configureWithARKitSession(session)
+//                    await coordinator.createSharedWorldAnchor()
+//                }
+//    }
+//        }
     }
 
     
