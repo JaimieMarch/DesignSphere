@@ -10,10 +10,12 @@ struct StarterView: View {
     @State private var hasInitializedSession = false
     @State private var isActivatingSharePlay = false
     @State private var sharePlayError: String?
+    @State private var favoriteModels: Set<String> = []
 
     private enum Sorting: String, CaseIterable, Identifiable {
         case alphabetical = "Alphabetical",
-             dateAdded = "Date Added"
+             dateAdded = "Date Added",
+             favorites = "Favorites"
         var id: String { rawValue }
     }
     private enum Category: String, CaseIterable, Identifiable {
@@ -60,7 +62,7 @@ struct StarterView: View {
                             }
                         }
                         .pickerStyle(.segmented)
-                        .frame(width: 280)
+                        .frame(width: 385)
                         
                         HStack(spacing: 6) {
                             Image(systemName: "magnifyingglass")
@@ -82,13 +84,23 @@ struct StarterView: View {
                 .padding(.top, 16)
                 
                 ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 12) {
                         ForEach(filtered(controller.availableModels)) { descriptor in
-                            CatalogCell(name: descriptor.name)
-                                .onTapGesture { controller.addModel(descriptor) }
-                                .contextMenu {
-                                    Button("Add") { controller.addModel(descriptor) }
+                            CatalogCell(
+                                name: descriptor.name,
+                                isFavorite: favoriteModels.contains(descriptor.name),
+                                onFavoriteToggle: {
+                                    if favoriteModels.contains(descriptor.name) {
+                                        favoriteModels.remove(descriptor.name)
+                                    } else {
+                                        favoriteModels.insert(descriptor.name)
+                                    }
                                 }
+                            )
+                            .onTapGesture { controller.addModel(descriptor) }
+                            .contextMenu {
+                                Button("Add") { controller.addModel(descriptor) }
+                            }
                         }
                     }
                     .padding(16)
@@ -158,6 +170,8 @@ struct StarterView: View {
             result.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
         case .dateAdded:
             break
+        case .favorites:
+            result = result.filter { favoriteModels.contains($0.name) }
         }
         
         return result
@@ -242,10 +256,9 @@ private struct OrnamentView: View {
             default:
                 break
             }
-            selectedTab = oldValue // Reset so button doesn't stay selected
+            selectedTab = oldValue
         }
         
-        // Save/Load Popover
         .popover(isPresented: $showSaveLoadMenu) {
             VStack(spacing: 16) {
                 Text("Save/Load")
@@ -267,7 +280,6 @@ private struct OrnamentView: View {
             .frame(width: 250, height: 150)
         }
         
-        // Settings Sheet
         .sheet(isPresented: $showSettings) {
             VStack(spacing: 20) {
                 Text("Settings")
@@ -285,7 +297,6 @@ private struct OrnamentView: View {
             .frame(width: 400, height: 500)
         }
         
-        // Measurement Options Popover
         .popover(isPresented: $showMeasurementOptions) {
             VStack(spacing: 16) {
                 Text("Measurement Tools")
@@ -307,8 +318,6 @@ private struct OrnamentView: View {
             .frame(width: 250, height: 150)
         }
     }
-    
-    // MARK: - Action Functions (Placeholders)
     
     private func saveProject() {
         print("Save project - NOT YET IMPLEMENTED")
@@ -358,6 +367,9 @@ private struct OrnamentView: View {
 
 private struct CatalogCell: View {
     let name: String
+    let isFavorite: Bool
+    let onFavoriteToggle: () -> Void
+    
     var body: some View {
         VStack(spacing: 8) {
             Image(systemName: "cube.fill")
@@ -368,12 +380,21 @@ private struct CatalogCell: View {
                 .font(.footnote.weight(.medium))
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
-                .frame(height: 32)  // Fixed height for text area
+                .frame(height: 32)
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .frame(height: 200)  // Fixed height instead of minHeight
+        .frame(height: 200)
         .glassBackground(cornerRadius: 20)
+        .overlay(alignment: .topTrailing) {
+            Button(action: onFavoriteToggle) {
+                Image(systemName: isFavorite ? "star.fill" : "star")
+                    .foregroundStyle(isFavorite ? .yellow : .secondary)
+                    .font(.system(size: 16))
+            }
+            .buttonStyle(.plain)
+            .padding(8)
+        }
     }
 }
 
