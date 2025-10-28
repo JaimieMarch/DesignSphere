@@ -261,7 +261,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Demo App Vision/\"";
-				DEVELOPMENT_TEAM = G4W979YVJD;
+				DEVELOPMENT_TEAM = HC2XYK55Y8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = DemoAppVision;
@@ -280,7 +280,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.xrshare.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.DemoApp1234.app;
 				PRODUCT_NAME = DemoAppVision;
 				SDKROOT = xros;
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
@@ -301,7 +301,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Demo App Vision/\"";
-				DEVELOPMENT_TEAM = G4W979YVJD;
+				DEVELOPMENT_TEAM = HC2XYK55Y8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = DemoAppVision;
@@ -319,7 +319,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.xrshare.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.DemoApp1234.app;
 				PRODUCT_NAME = DemoAppVision;
 				SDKROOT = xros;
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
