@@ -109,7 +109,6 @@ struct StarterView: View {
                 .shadow(radius: 10)
             }
             .padding(24)
-            .navigationTitle("Design Sphere")
             .ornament(
                 visibility: .visible,
                 attachmentAnchor: .scene(.leading),
@@ -161,6 +160,7 @@ struct StarterView: View {
             break
         }
         
+        /// TODO: potentially add category search integration via ML
         if !searchText.isEmpty {
             result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
@@ -168,12 +168,11 @@ struct StarterView: View {
         switch sortMode {
         case .alphabetical:
             result.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
-        case .dateAdded:
+        case .dateAdded: /// TODO: discuss potentially removing date added functionality altogether?
             break
         case .favorites:
             result = result.filter { favoriteModels.contains($0.name) }
         }
-        
         return result
     }
 }
@@ -188,70 +187,62 @@ private struct OrnamentView: View {
         TabView(selection: $selectedTab) {
             Color.clear
                 .tabItem {
-                    Label("Save/Load", systemImage: "folder")
+                    Label("Details", systemImage: "folder")
                 }
                 .tag(0)
             
             Color.clear
                 .tabItem {
-                    Label("Settings", systemImage: "gear")
+                    Label("Settings", systemImage: "gearshape")
                 }
                 .tag(1)
             
             Color.clear
                 .tabItem {
-                    Label("Undo", systemImage: "arrow.uturn.backward")
+                    Label("Scan Mode", systemImage: "vision.pro.and.arrow.forward")
                 }
                 .tag(2)
             
             Color.clear
                 .tabItem {
-                    Label("Redo", systemImage: "arrow.uturn.forward")
+                    Label("Focus Mode", systemImage: "eye")
                 }
                 .tag(3)
             
             Color.clear
                 .tabItem {
-                    Label("Focus Mode", systemImage: "eye")
+                    Label("Assistant", systemImage: "microphone")
                 }
                 .tag(4)
             
             Color.clear
                 .tabItem {
-                    Label("AI Assistant", systemImage: "mic")
+                    Label("Measure", systemImage: "ruler")
                 }
                 .tag(5)
             
             Color.clear
                 .tabItem {
-                    Label("Measure", systemImage: "ruler")
-                }
-                .tag(6)
-            
-            Color.clear
-                .tabItem {
                     Label("SharePlay", systemImage: "person.2")
                 }
-                .tag(7)
+                .tag(6)
         }
         .frame(width: 80, height: 400)
         .onChange(of: selectedTab) { oldValue, newValue in
             switch newValue {
-            case 0: // Save/Load
+            case 0: // saveload
                 showSaveLoadMenu = true
             case 1: // Settings
                 showSettings = true
-            case 2: // Undo
-                performUndo()
-            case 3: // Redo
-                performRedo()
-            case 4: // Focus Mode
+            case 2: // Scan mode
+                scanMode()
+            case 3: // Focus Mode
                 enterFocusMode()
-            case 5: // AI Assistant
+            case 4: // AI Assistant
                 activateAIAssistant()
-            case 6: // Measure
+            case 5: // Measure
                 showMeasurementOptions = true
-            case 7: // SharePlay
+            case 6: // SharePlay
                 activateSharePlay()
             default:
                 break
@@ -329,19 +320,14 @@ private struct OrnamentView: View {
         // TODO: Implement load functionality
     }
     
-    private func performUndo() {
-        print("Undo - NOT YET IMPLEMENTED")
-        // TODO: Implement undo
-    }
-    
-    private func performRedo() {
-        print("Redo - NOT YET IMPLEMENTED")
-        // TODO: Implement redo
-    }
-    
     private func enterFocusMode() {
         print("Focus Mode - NOT YET IMPLEMENTED")
         // TODO: Switch to full VR experience
+    }
+    
+    private func scanMode() {
+        print("SCAN MODE _ NOT IMPLEMENTED")
+        // TODO: Implement scan mode
     }
     
     private func activateAIAssistant() {
