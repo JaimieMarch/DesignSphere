@@ -16,9 +16,11 @@ struct DemoApp: App {
     var body: some SwiftUI.Scene {
         WindowGroup("StarterView") {
             StarterView(controller: controller)
+            /// RESIZING IS DISABLED
+            /// ENABLING IT WILL LEAD TO THE ORNAMENT BREAKING
+                .frame(width: 1280, height: 720)
         }
-        .windowResizability(.automatic)
-        
+        .windowResizability(.contentSize)
         
 #if os(visionOS)
         ImmersiveSpace(id: "CollaborativeSpace") {
