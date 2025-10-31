@@ -11,6 +11,7 @@ struct StarterView: View {
     @State private var isActivatingSharePlay = false
     @State private var sharePlayError: String?
     @State private var favoriteModels: Set<String> = []
+    @State private var selectedTab = -1
 
     private enum Sorting: String, CaseIterable, Identifiable {
         case alphabetical = "Alphabetical",
@@ -229,6 +230,7 @@ private struct OrnamentView: View {
         }
         .frame(width: 80, height: 400)
         .onChange(of: selectedTab) { oldValue, newValue in
+            guard newValue >= 0 else { return }
             switch newValue {
             case 0: // saveload
                 showSaveLoadMenu = true
@@ -247,7 +249,7 @@ private struct OrnamentView: View {
             default:
                 break
             }
-            selectedTab = oldValue
+            selectedTab = -1
         }
         
         .popover(isPresented: $showSaveLoadMenu) {
