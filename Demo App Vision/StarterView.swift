@@ -112,9 +112,11 @@ struct StarterView: View {
             .ornament(
                 visibility: .visible,
                 attachmentAnchor: .scene(.leading),
-                contentAlignment: .leading
+                contentAlignment: .trailing
             ) {
                 OrnamentView()
+                    .padding()
+                    .glassBackgroundEffect()
             }
         }
 
@@ -178,176 +180,229 @@ struct StarterView: View {
 }
 
 private struct OrnamentView: View {
-    @State private var selectedTab = 0
+    @State private var hoveredButton: String? = nil
     @State private var showSaveLoadMenu = false
     @State private var showSettings = false
     @State private var showMeasurementOptions = false
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            Color.clear
-                .tabItem {
-                    Label("Details", systemImage: "folder")
-                }
-                .tag(0)
-            
-            Color.clear
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape")
-                }
-                .tag(1)
-            
-            Color.clear
-                .tabItem {
-                    Label("Scan Mode", systemImage: "vision.pro.and.arrow.forward")
-                }
-                .tag(2)
-            
-            Color.clear
-                .tabItem {
-                    Label("Focus Mode", systemImage: "eye")
-                }
-                .tag(3)
-            
-            Color.clear
-                .tabItem {
-                    Label("Assistant", systemImage: "microphone")
-                }
-                .tag(4)
-            
-            Color.clear
-                .tabItem {
-                    Label("Measure", systemImage: "ruler")
-                }
-                .tag(5)
-            
-            Color.clear
-                .tabItem {
-                    Label("SharePlay", systemImage: "person.2")
-                }
-                .tag(6)
-        }
-        .frame(width: 80, height: 400)
-        .onChange(of: selectedTab) { oldValue, newValue in
-            switch newValue {
-            case 0: // saveload
+        VStack(spacing: 8) {
+            // Details button
+            HoverButton(
+                icon: "folder",
+                label: "Details",
+                isHovered: hoveredButton == "details"
+            ) {
                 showSaveLoadMenu = true
-            case 1: // Settings
+            }
+            .onHover { hoveredButton = $0 ? "details" : nil }
+            .popover(isPresented: $showSaveLoadMenu, attachmentAnchor: .point(.trailing)) {
+                SaveLoadMenu()
+            }
+            
+            // Settings button
+            HoverButton(
+                icon: "gearshape",
+                label: "Settings",
+                isHovered: hoveredButton == "settings"
+            ) {
                 showSettings = true
-            case 2: // Scan mode
+            }
+            .onHover { hoveredButton = $0 ? "settings" : nil }
+            .sheet(isPresented: $showSettings) {
+                SettingsPanel(isPresented: $showSettings)
+            }
+            
+            // Scan Mode button
+            HoverButton(
+                icon: "vision.pro.and.arrow.forward",
+                label: "Scan Mode",
+                isHovered: hoveredButton == "scan"
+            ) {
                 scanMode()
-            case 3: // Focus Mode
+            }
+            .onHover { hoveredButton = $0 ? "scan" : nil }
+            
+            // Focus Mode button
+            HoverButton(
+                icon: "eye",
+                label: "Focus Mode",
+                isHovered: hoveredButton == "focus"
+            ) {
                 enterFocusMode()
-            case 4: // AI Assistant
+            }
+            .onHover { hoveredButton = $0 ? "focus" : nil }
+            
+            // Assistant button
+            HoverButton(
+                icon: "microphone",
+                label: "Assistant",
+                isHovered: hoveredButton == "assistant"
+            ) {
                 activateAIAssistant()
-            case 5: // Measure
+            }
+            .onHover { hoveredButton = $0 ? "assistant" : nil }
+            
+            // Measure button
+            HoverButton(
+                icon: "ruler",
+                label: "Measure",
+                isHovered: hoveredButton == "measure"
+            ) {
                 showMeasurementOptions = true
-            case 6: // SharePlay
+            }
+            .onHover { hoveredButton = $0 ? "measure" : nil }
+            .popover(isPresented: $showMeasurementOptions, attachmentAnchor: .point(.trailing)) {
+                MeasurementMenu()
+            }
+            
+            // SharePlay button
+            HoverButton(
+                icon: "person.2",
+                label: "SharePlay",
+                isHovered: hoveredButton == "shareplay"
+            ) {
                 activateSharePlay()
-            default:
-                break
             }
-            selectedTab = oldValue
-        }
-        
-        .popover(isPresented: $showSaveLoadMenu) {
-            VStack(spacing: 16) {
-                Text("Save/Load")
-                    .font(.headline)
-                
-                Button(action: { saveProject() }) {
-                    Label("Save Project", systemImage: "square.and.arrow.down")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                
-                Button(action: { loadProject() }) {
-                    Label("Load Project", systemImage: "square.and.arrow.up")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding()
-            .frame(width: 250, height: 150)
-        }
-        
-        .sheet(isPresented: $showSettings) {
-            VStack(spacing: 20) {
-                Text("Settings")
-                    .font(.title)
-                
-                Text("Settings panel content goes here")
-                    .foregroundStyle(.secondary)
-                
-                Button("Close") {
-                    showSettings = false
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding()
-            .frame(width: 400, height: 500)
-        }
-        
-        .popover(isPresented: $showMeasurementOptions) {
-            VStack(spacing: 16) {
-                Text("Measurement Tools")
-                    .font(.headline)
-                
-                Button(action: { spawnRuler() }) {
-                    Label("Spawn Ruler", systemImage: "ruler")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                
-                Button(action: { toggleMeasurements() }) {
-                    Label("Show Dimensions", systemImage: "arrow.up.left.and.arrow.down.right")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding()
-            .frame(width: 250, height: 150)
+            .onHover { hoveredButton = $0 ? "shareplay" : nil }
         }
     }
     
     private func saveProject() {
         print("Save project - NOT YET IMPLEMENTED")
-        // TODO: Implement save functionality
     }
     
     private func loadProject() {
         print("Load project - NOT YET IMPLEMENTED")
-        // TODO: Implement load functionality
     }
     
     private func enterFocusMode() {
         print("Focus Mode - NOT YET IMPLEMENTED")
-        // TODO: Switch to full VR experience
     }
     
     private func scanMode() {
-        print("SCAN MODE _ NOT IMPLEMENTED")
-        // TODO: Implement scan mode
+        print("SCAN MODE - NOT IMPLEMENTED")
     }
     
     private func activateAIAssistant() {
         print("AI Assistant - NOT YET IMPLEMENTED")
-        // TODO: Activate voice/AI assistant
     }
     
     private func spawnRuler() {
         print("Spawn Ruler - NOT YET IMPLEMENTED")
-        // TODO: Spawn virtual ruler in scene
     }
     
     private func toggleMeasurements() {
         print("Toggle Measurements - NOT YET IMPLEMENTED")
-        // TODO: Show/hide measurements on furniture
     }
     
     private func activateSharePlay() {
         print("SharePlay - NOT YET IMPLEMENTED")
-        // TODO: Activate SharePlay session
+    }
+}
+
+// MARK: - Hover Button Component
+
+private struct HoverButton: View {
+    let icon: String
+    let label: String
+    let isHovered: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .frame(width: 24, height: 24)
+                
+                if isHovered {
+                    Text(label)
+                        .font(.caption)
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
+                }
+            }
+            .padding(.horizontal, isHovered ? 12 : 8)
+            .padding(.vertical, 8)
+            .frame(minWidth: isHovered ? nil : 40, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .background {
+            if isHovered {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(.quaternary)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: isHovered)
+    }
+}
+
+// MARK: - Popup Views
+
+private struct SaveLoadMenu: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Save/Load")
+                .font(.headline)
+            
+            Button(action: { print("Save") }) {
+                Label("Save Project", systemImage: "square.and.arrow.down")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            
+            Button(action: { print("Load") }) {
+                Label("Load Project", systemImage: "square.and.arrow.up")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding()
+        .frame(width: 250, height: 150)
+    }
+}
+
+private struct SettingsPanel: View {
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Settings")
+                .font(.title)
+            
+            Text("Settings panel content goes here")
+                .foregroundStyle(.secondary)
+            
+            Button("Close") {
+                isPresented = false
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding()
+        .frame(width: 400, height: 500)
+    }
+}
+
+private struct MeasurementMenu: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Text("Measurement Tools")
+                .font(.headline)
+            
+            Button(action: { print("Spawn Ruler") }) {
+                Label("Spawn Ruler", systemImage: "ruler")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            
+            Button(action: { print("Toggle Measurements") }) {
+                Label("Show Dimensions", systemImage: "arrow.up.left.and.arrow.down.right")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+        }
+        .padding()
+        .frame(width: 250, height: 150)
     }
 }
 
