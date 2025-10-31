@@ -200,11 +200,6 @@ private struct OrnamentView: View {
                 SaveLoadMenu()
             }
             
-            /// I give up :)
-            Button {   } label: {
-                Label("Trashcan", systemImage: "trash")
-            }
-            
             // Settings button
             HoverButton(
                 icon: "gearshape",
@@ -214,6 +209,7 @@ private struct OrnamentView: View {
                 showSettings = true
             }
             .onHover { hoveredButton = $0 ? "settings" : nil }
+            .help("View settings")
             .sheet(isPresented: $showSettings) {
                 SettingsPanel(isPresented: $showSettings)
             }
