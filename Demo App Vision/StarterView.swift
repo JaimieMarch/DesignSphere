@@ -200,6 +200,11 @@ private struct OrnamentView: View {
                 SaveLoadMenu()
             }
             
+            /// I give up :)
+            Button {   } label: {
+                Label("Trashcan", systemImage: "trash")
+            }
+            
             // Settings button
             HoverButton(
                 icon: "gearshape",
