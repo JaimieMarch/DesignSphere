@@ -110,12 +110,21 @@ struct StarterView: View {
                 .shadow(radius: 10)
             }
             .padding(24)
+            .toolbar {
+                ToolbarItem(placement: .bottomOrnament) {
+                    Button {
+                        print("Tapped")
+                    } label: {
+                        Label("Menu", systemImage: "ellipsis.circle")
+                    }
+                }
+            }
             .ornament(
                 visibility: .visible,
                 attachmentAnchor: .scene(.leading),
                 contentAlignment: .leading
             ) {
-                OrnamentView()
+                TabOrnament()
             }
         }
 
@@ -178,7 +187,7 @@ struct StarterView: View {
     }
 }
 
-private struct OrnamentView: View {
+private struct TabOrnament: View {
     @State private var selectedTab = 0
     @State private var showSaveLoadMenu = false
     @State private var showSettings = false
