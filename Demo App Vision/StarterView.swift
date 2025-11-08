@@ -5,6 +5,8 @@ import XRShareCollaboration
 struct StarterView: View {
     @ObservedObject var controller: CollaborativeSessionController
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
+    // Added: semantic search environment object
+    @EnvironmentObject private var search: SemanticSearch
     @State private var isImmersiveOpen = false
 
     @State private var hasInitializedSession = false
@@ -28,11 +30,11 @@ struct StarterView: View {
         var id: String { rawValue }
     }
     private enum Source: String, CaseIterable, Identifiable {
-            case presets = "Presets",
-                 scans = "Scans",
-                 imports = "Imports"
-            var id: String { rawValue }
-        }
+        case presets = "Presets",
+             scans = "Scans",
+             imports = "Imports"
+        var id: String { rawValue }
+    }
     private enum UtilityPanel: Equatable { case none, save, load, settings, measure, scan }
 
     @State private var selectedSource: Source = .presets
@@ -85,7 +87,10 @@ struct StarterView: View {
                 .padding(.top, 16)
                 
                 ScrollView {
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 12) {
+                    LazyVGrid(
+                        columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4),
+                        spacing: 12
+                    ) {
                         ForEach(filtered(controller.availableModels)) { descriptor in
                             CatalogCell(
                                 name: descriptor.name,
@@ -119,7 +124,11 @@ struct StarterView: View {
             }
         }
 
-        .onAppear { isImmersiveOpen = false }
+        .onAppear {
+            isImmersiveOpen = false
+            // Added: initial semantic index (safe even if empty)
+            search.index(names: controller.availableModels.map(\.name))
+        }
         .task { await prepareExperience() }
         .alert("SharePlay", isPresented: Binding(
             get: { sharePlayError != nil },
@@ -140,6 +149,8 @@ struct StarterView: View {
         controller.startLocalSession()
         hasInitializedSession = true
         await controller.preloadIfNeeded()
+        // Added reindex after preload in case new models loaded
+        search.index(names: controller.availableModels.map(\.name))
         await ensureImmersiveSpaceOpened()
     }
 
@@ -163,7 +174,18 @@ struct StarterView: View {
         
         /// TODO: potentially add category search integration via ML
         if !searchText.isEmpty {
+            
             result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+
+        // Added semantic re-ranking on top of existing filter (non-destructive)
+        if !searchText.isEmpty {
+            let names = result.map(\.name)
+            let rankedNames = search.search(searchText, within: names, topK: names.count)
+            let lookup = Dictionary(uniqueKeysWithValues: result.map { ($0.name, $0) })
+            if !rankedNames.isEmpty {
+                result = rankedNames.compactMap { lookup[$0] }
+            }
         }
         
         switch sortMode {
@@ -393,8 +415,4 @@ private extension View {
                 .fill(.thinMaterial)
         )
     }
-}
-
-#Preview {
-    StarterView(controller: CollaborativeSessionController())
 }
