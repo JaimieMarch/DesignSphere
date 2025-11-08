@@ -12,10 +12,14 @@ import RealityKit
 @main
 struct DemoApp: App {
     @StateObject private var controller = CollaborativeSessionController()
+    // Added semantic search service
+    @StateObject private var search = SemanticSearch()
 
     var body: some SwiftUI.Scene {
         WindowGroup("StarterView") {
             StarterView(controller: controller)
+                // Added inject search into view hierarchy
+                .environmentObject(search)
             /// RESIZING IS DISABLED
             /// ENABLING IT WILL LEAD TO THE ORNAMENT BREAKING
                 .frame(width: 1280, height: 720)
@@ -33,5 +37,3 @@ struct DemoApp: App {
 #endif
     }
 }
-
-
