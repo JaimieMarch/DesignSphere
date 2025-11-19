@@ -172,9 +172,6 @@ struct StarterView: View {
                 transitionOpacity = 0.95
             }
             
-            // Brief hold
-            try? await Task.sleep(nanoseconds: 50_000_000)
-            
             // Change screen
             currentScreen = newTab
             
@@ -392,8 +389,8 @@ private struct HomeScreenContent: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
                     .background(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .fill(.tertiary)
+                        Capsule(style: .continuous)
+                            .fill(.thinMaterial)
                     )
                 }
             }
