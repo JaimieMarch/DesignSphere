@@ -450,7 +450,7 @@ private struct HomeScreenContent: View {
 
 private struct DetailsScreenContent: View {
     @ObservedObject var controller: CollaborativeSessionController
-    @State private var roomName: String = "Living Room"
+    @State private var roomName: String = ""
     
     var body: some View {
         VStack(spacing: 14) {
@@ -489,8 +489,8 @@ private struct DetailsScreenContent: View {
                     .font(.title2)
                     .padding(16)
                     .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(.tertiary)
+                        Capsule(style: .continuous)
+                            .fill(.thinMaterial)
                     )
             }
             .padding(.horizontal, 16)
@@ -643,39 +643,17 @@ private struct PlacedModelCard: View {
 
 
 private struct SettingsScreenContent: View {
-    @State private var gridSize = 4
-    @State private var showThumbnails = true
-    @State private var autoSave = false
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             Text("Settings")
                 .font(.largeTitle.bold())
             
-            VStack(alignment: .leading, spacing: 20) {
-                // Display Settings
-                GroupBox("Display") {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            Text("Grid Size")
-                            Spacer()
-                            Stepper("\(gridSize) columns", value: $gridSize, in: 2...6)
-                                .frame(width: 150)
-                        }
-                        
-                        Toggle("Show Thumbnails", isOn: $showThumbnails)
-                    }
-                    .padding(.vertical, 8)
-                }
-                
-                // Project Settings
-                GroupBox("Project") {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Toggle("Auto-Save", isOn: $autoSave)
-                    }
-                    .padding(.vertical, 8)
-                }
-            }
+            Spacer()
+            
+            Text("Settings will appear here")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
             
             Spacer()
         }
