@@ -13,7 +13,7 @@ import RealityKit
 
 
 @MainActor
-final class ModelManager: ObservableObject {
+public final class ModelManager: ObservableObject {
     @Published var placedModels: [Model] = []
     @Published var modelDict: [Entity: Model] = [:]
     @Published var modelTypes: [ModelType] = []

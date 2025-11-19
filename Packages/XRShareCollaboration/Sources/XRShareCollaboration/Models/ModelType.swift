@@ -14,14 +14,14 @@ import RealityKit
 // MARK: - Model Type Structure
 
 /// Represents a specific type of 3D model type with metadata and loading capabilities
-struct ModelType: Hashable, Identifiable, Codable, Sendable {
-    let rawValue: String
+public struct ModelType: Hashable, Identifiable, Codable, Sendable {
+    public let rawValue: String
     
     // Instead of a random UUID, use the rawValue as the basis for the ID
-    var id: String { rawValue.lowercased() }
+    public var id: String { rawValue.lowercased() }
     
     // Convert rawValue to a more humanreadable format
-    var displayName: String {
+    public var displayName: String {
         let words = rawValue.replacingOccurrences(of: "([a-z])([A-Z0-9])", with: "$1 $2", options: .regularExpression)
         return words.capitalized
     }
@@ -68,11 +68,11 @@ struct ModelType: Hashable, Identifiable, Codable, Sendable {
         }
     }
     
-    static func ==(lhs: ModelType, rhs: ModelType) -> Bool {
+    public static func ==(lhs: ModelType, rhs: ModelType) -> Bool {
         lhs.rawValue.lowercased() == rhs.rawValue.lowercased()
     }
     
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(rawValue.lowercased())
     }
 }

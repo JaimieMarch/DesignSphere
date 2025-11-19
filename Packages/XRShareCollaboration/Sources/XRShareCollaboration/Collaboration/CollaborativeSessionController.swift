@@ -29,13 +29,25 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var availableModels: [ModelDescriptor] = []
     @Published public private(set) var placedModelSummaries: [String] = []
     @Published public private(set) var loadingProgress: Float = 0.0
+    @Published public var selectedModelID: String? = nil
+    @Published public var selectedModelInstanceID: UUID? = nil
+        
+    public var selectedModelIDVar: ModelType? {
+            modelManager.selectedModelID
+        }
+
+    public var selectedModelInstanceIDVar: UUID? {
+            modelManager.selectedModelInstanceID
+        }
 
     public var sessionName: String {
         get { arViewModel.sessionName }
         set { arViewModel.sessionName = newValue}
     }
 
-    
+    public var currentPlacedModels: [Model] {
+            modelManager.placedModels
+        }
     
     public var sessionID: String {
         
@@ -44,7 +56,7 @@ public final class CollaborativeSessionController: ObservableObject {
     }
 
     private let arViewModel: ARViewModel
-    private let modelManager: ModelManager
+    public let modelManager: ModelManager
     #if os(visionOS)
     public let immersiveSession: ARKitSession
     #endif
@@ -75,6 +87,10 @@ public final class CollaborativeSessionController: ObservableObject {
             await preloadIfNeeded()
         }
     }
+    
+    public func returnSelectedModel(named name: String) -> Model? {
+            modelManager.placedModels.first { $0.modelType.displayName == name }
+        }
     
     
 //
@@ -318,6 +334,15 @@ public final class CollaborativeSessionController: ObservableObject {
             }
             .receive(on: DispatchQueue.main)
             .assign(to: &$placedModelSummaries)
+        
+        modelManager.$selectedModelID
+                        .map { $0?.id }
+                        .receive(on: DispatchQueue.main)
+                        .assign(to: &$selectedModelID)
+
+                    modelManager.$selectedModelInstanceID
+                        .receive(on: DispatchQueue.main)
+                        .assign(to: &$selectedModelInstanceID)
     }
 
     

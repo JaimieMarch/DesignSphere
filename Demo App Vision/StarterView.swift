@@ -166,7 +166,7 @@ struct StarterView: View {
             SharePlaySheet(isPresented: $showSharePlaySheet)
         }
         .sheet(isPresented: $showEditSheet) {
-            EditModelSheet(isPresented: $showEditSheet)
+            EditModelSheet(isPresented: $showEditSheet, controller: controller)
         }
     }
     
@@ -924,14 +924,13 @@ private struct SharePlaySheet: View {
 
 private struct EditModelSheet: View {
     @Binding var isPresented: Bool
-    
-    var body: some View {
-        VStack(spacing: 24) {
-            // Add content here
+    @ObservedObject var controller: CollaborativeSessionController
+        
+        var body: some View {
+            EditModelView(controller: controller)
+                .padding(32)
+                .frame(width: 600, height: 700)
         }
-        .padding(32)
-        .frame(width: 400, height: 350)
-    }
 }
 
 // MARK: - Supporting Views

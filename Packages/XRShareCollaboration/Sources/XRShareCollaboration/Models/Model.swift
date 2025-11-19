@@ -16,7 +16,7 @@ import simd
 
 /// Represents a 3D anatomical model with loading and placement capabilities
 @MainActor
-final class Model: ObservableObject, Identifiable {
+public final class Model: ObservableObject, Identifiable {
     
     // Track the loading state for the model entity
     enum LoadingState: Equatable {
@@ -35,7 +35,7 @@ final class Model: ObservableObject, Identifiable {
     }
     
     let modelType: ModelType
-    @Published var modelEntity: ModelEntity?
+    @Published public var modelEntity: ModelEntity?
     @Published var loadingState: LoadingState = .notStarted
     
     // Properties for scene placement
@@ -51,7 +51,7 @@ final class Model: ObservableObject, Identifiable {
     var cancellables = Set<AnyCancellable>()
     
     // Unique identifier for each model instance
-    let id = UUID()
+    public var id: UUID = UUID()
     
     // Use ModelType for type identification
     var typeId: ModelType { modelType }
