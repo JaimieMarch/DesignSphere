@@ -24,6 +24,7 @@ struct StarterView: View {
     @State private var showFocusModeSheet = false
     @State private var showAIAssistantSheet = false
     @State private var showSharePlaySheet = false
+    @State private var showEditSheet = false
     
     // Screen tabs that change the main content
     // see: tabview ornament implementation
@@ -134,7 +135,9 @@ struct StarterView: View {
                     showMeasurementOptions: $showMeasurementOptions,
                     showFocusModeSheet: $showFocusModeSheet,
                     showAIAssistantSheet: $showAIAssistantSheet,
-                    showSharePlaySheet: $showSharePlaySheet
+                    showSharePlaySheet: $showSharePlaySheet,
+                    showEditSheet: $showEditSheet
+                    
                 )
             }
         }
@@ -161,6 +164,9 @@ struct StarterView: View {
         }
         .sheet(isPresented: $showSharePlaySheet) {
             SharePlaySheet(isPresented: $showSharePlaySheet)
+        }
+        .sheet(isPresented: $showEditSheet) {
+            EditModelSheet(isPresented: $showEditSheet)
         }
     }
     
@@ -214,6 +220,8 @@ private struct OrnamentView2: View {
     @Binding var showFocusModeSheet: Bool
     @Binding var showAIAssistantSheet: Bool
     @Binding var showSharePlaySheet: Bool
+    @Binding var showEditSheet: Bool
+    
     
     var body: some View {
         Color.clear
@@ -256,10 +264,10 @@ private struct OrnamentView2: View {
                         .buttonStyle(.borderless)
                         .buttonBorderShape(.circle)
                         
-                        Menu {
-                            Button("Item 1"){}
+                        Button {
+                            showEditSheet = true
                         } label: {
-                            Image(systemName: "ellipsis.circle")
+                            Image(systemName: "pencil")
                                 .frame(width: 28, height: 28)
                         }
                         .buttonStyle(.borderless)
@@ -911,6 +919,18 @@ private struct SharePlaySheet: View {
     
     private func joinSharePlay() {
         print("Join SharePlay with code: \(sessionCode) - NOT YET IMPLEMENTED")
+    }
+}
+
+private struct EditModelSheet: View {
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // Add content here
+        }
+        .padding(32)
+        .frame(width: 400, height: 350)
     }
 }
 
