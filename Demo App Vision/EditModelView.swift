@@ -116,9 +116,9 @@ struct EditModelView: View {
                let entity = model.modelEntity {
                 
                 let scale = entity.scale
-                modelDepth = scale.x
+                modelWidth = scale.x
                 modelHeight = scale.y
-                modelWidth = scale.z
+                modelDepth = scale.z
             }
         }
         .onChange(of: modelWidth) { _, newValue in
