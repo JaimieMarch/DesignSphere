@@ -119,6 +119,11 @@ struct EditModelView: View {
                 modelWidth = scale.x
                 modelHeight = scale.y
                 modelDepth = scale.z
+                
+                let position = entity.position
+                X = Double(position.x)
+                Y = Double(position.y)
+                Z = Double(position.z)
             }
         }
         .onChange(of: modelWidth) { _, newValue in
@@ -132,6 +137,18 @@ struct EditModelView: View {
         .onChange(of: modelDepth) { _, newValue in
             modelDepth = newValue
             updateEntityScale()
+        }
+        .onChange(of: X) { _, newValue in
+            X = newValue
+            updateEntityPosition()
+        }
+        .onChange(of: Y) { _, newValue in
+            Y = newValue
+            updateEntityPosition()
+        }
+        .onChange(of: Z) { _, newValue in
+            Z = newValue
+            updateEntityPosition()
         }
 
     }
@@ -163,7 +180,7 @@ struct EditModelView: View {
                 Text("\(Int(value.wrappedValue))")
                     .foregroundStyle(.secondary)
             }
-            Slider(value: value, in: -100...100)
+            Slider(value: value, in: -10...10, step: 0.001)
                 .tint(.white)
                 .controlSize(.large)
         }
@@ -188,5 +205,18 @@ struct EditModelView: View {
               let entity = model.modelEntity else { return }
         entity.scale = SIMD3<Float>(modelWidth, modelHeight, modelDepth)
     }
+    
+    private func updateEntityPosition() {
+        guard let modelID = controller.selectedModelIDVar?.displayName,
+              let model = controller.returnSelectedModel(named: modelID),
+              let entity = model.modelEntity else { return }
+        
+        entity.position = SIMD3<Float>(
+            Float(X),
+            Float(Y),
+            Float(Z)
+        )
+    }
+    
 }
 
