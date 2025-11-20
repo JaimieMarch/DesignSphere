@@ -142,12 +142,16 @@ struct EditModelView: View {
             HStack {
                 Text(title).font(.headline)
                 Spacer()
-                Text("\(Int(value.wrappedValue)) cm")
+                Text("\(Int(value.wrappedValue * 100)) cm")
                     .foregroundStyle(.secondary)
             }
-            Slider(value: value, in: 0...100)
-                .tint(.white)
-                .controlSize(.large)
+
+            Slider(value: Binding(
+                get: { value.wrappedValue * 100 },
+                set: { value.wrappedValue = $0 / 100 }
+            ), in: 0...100)
+            .tint(.white)
+            .controlSize(.large)
         }
     }
 
