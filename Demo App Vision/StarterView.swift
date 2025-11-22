@@ -446,8 +446,6 @@ private struct HomeScreenContent: View {
     }
 }
 
-
-
 private struct DetailsScreenContent: View {
     @ObservedObject var controller: CollaborativeSessionController
     @State private var roomName: String = ""
