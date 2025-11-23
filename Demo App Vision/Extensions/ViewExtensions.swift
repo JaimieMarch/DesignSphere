@@ -1,6 +1,7 @@
 // Just helps to prevent repeating this Apple centric glass effect across pages
 // Reusable via:
 // .glassbackground
+// Helps keep the app's visuals consistent
 
 import SwiftUI
 

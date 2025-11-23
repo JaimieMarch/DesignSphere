@@ -1,3 +1,8 @@
+// Bottom toolbar
+
+// Each button uses a binding toggle to show the corresponding sheet
+// Styling is directly attached to each button
+
 import SwiftUI
 
 struct ToolbarOrnament: View {
