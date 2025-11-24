@@ -1,9 +1,7 @@
 //
 //  EditModelView.swift
 //  Demo App Vision
-//
-//  Created by Jaimie on 2025-11-19.
-//
+
 
 import SwiftUI
 import RealityKit
@@ -27,6 +25,7 @@ struct EditModelView: View {
     @State private var Z: Double = 0
     @State private var selectedColor: Color = .blue
     @State private var customColor: Color = .cyan
+    @State private var selectedEntity: Entity? = nil
 
     private let presetColors: [Color] = [.red, .green, .blue, .orange, .purple]
 
@@ -66,39 +65,104 @@ struct EditModelView: View {
                     coordinateSlider(title: "Z Position", value: $Z)
                 } else {
                     VStack(spacing: 12) {
-                        Text("Colour").bold()
-                        Grid {
-                            GridRow {
-                                ForEach(0..<3, id: \.self) { index in
-                                    colorCircle(presetColors[index])
+                        Text("Colour")
+                            .bold()
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 16) {
+
+                                ForEach(presetColors, id: \.self) { color in
+                                    colorCircle(color)
                                 }
-                            }
-                            GridRow {
-                                ForEach(3..<5, id: \.self) { index in
-                                    colorCircle(presetColors[index])
-                                }
-                                ColorPicker("", selection: $customColor)
+                 ColorPicker("", selection: $customColor, supportsOpacity: false)
                                     .labelsHidden()
+                                    .frame(width: 77, height: 77)
+                                    .clipShape(Circle())
                                     .onChange(of: customColor) {
                                         selectedColor = customColor
+                                        var mat = PhysicallyBasedMaterial()
+                                                    mat.baseColor = .init(tint: UIColor(selectedColor))
+
+                                                    selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                                        
+                                        
                                     }
+                                    .overlay(
+                                        Circle().stroke(
+                                            selectedColor == customColor ? .white : .gray.opacity(0.4),
+                                            lineWidth: selectedColor == customColor ? 3 : 1
+                                        )
+                                    )
+
+                
+                                Button {
+                              
+                                    if !presetColors.contains(customColor) {
+        
+                                        selectedColor = customColor
+                                        
+                                    }
+                                } label: {
+                                    Image(systemName: "plus")
+                                        .font(.title2)
+                                        .frame(width: 66, height: 66)
+                                        .background(.ultraThinMaterial)
+                                        .clipShape(Circle())
+                                }
                             }
+                            .padding(.horizontal)
                         }
                     }
+                    VStack(spacing: 12) {
+                        Text("Material")
+                            .bold()
+                        HStack(spacing: 12) {
+                            Button {
+                            
+                                } label: {
+                                    Text("Wood")
+                                        .frame(maxWidth: .infinity, minHeight: 50)
+                                        .background(Color.gray.opacity(0.2))
+                                        .cornerRadius(10)
+                                }
+                            Button {} label: {
+                                    Text("Metal")
+                                        .frame(maxWidth: .infinity, minHeight: 50)
+                                        .background(Color.gray.opacity(0.2))
+                                        .cornerRadius(10)
+                                }
+                        }
+                        HStack(spacing: 12) {
+                            Button {
+                                } label: {
+                                    Text("Material 2")
+                                        .frame(maxWidth: .infinity, minHeight: 50)
+                                        .background(Color.gray.opacity(0.2))
+                                        .cornerRadius(10)
+                                }
+                            Button {                                } label: {
+                                    Text("Material 3")
+                                        .frame(maxWidth: .infinity, minHeight: 50)
+                                        .background(Color.gray.opacity(0.2))
+                                        .cornerRadius(10)
+                                }
+                        }
+                    }
+                    
+    
                 }
             }
             .padding(.top, 8)
 
             Spacer()
+            
 
           
             Button(action: { dismiss() }) {
-                Label("Close", systemImage: "xmark.circle.fill")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                Text("Close")
+                  
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.bordered)
         }
         .padding(32)
         .frame(width: 600, height: 700)
@@ -114,6 +178,8 @@ struct EditModelView: View {
             if let modelID = controller.selectedModelIDVar?.displayName,
                let model = controller.returnSelectedModel(named: modelID),
                let entity = model.modelEntity {
+                
+                selectedEntity = entity
                 
                 let scale = entity.scale
                 modelWidth = scale.x
@@ -177,10 +243,10 @@ struct EditModelView: View {
             HStack {
                 Text(title).font(.headline)
                 Spacer()
-                Text("\(Int(value.wrappedValue))")
-                    .foregroundStyle(.secondary)
-            }
-            Slider(value: value, in: -10...10, step: 0.001)
+                Text(String(format: "%.2f", value.wrappedValue))
+                .foregroundStyle(.secondary)            }
+            
+            Slider(value: value, in: -1...1, step: 0.001)
                 .tint(.white)
                 .controlSize(.large)
         }
@@ -195,7 +261,14 @@ struct EditModelView: View {
                     .stroke(lineWidth: selectedColor == color ? 3 : 1)
                     .foregroundStyle(selectedColor == color ? .white : .gray.opacity(0.4))
             )
-            .onTapGesture { selectedColor = color }
+            .onTapGesture {
+                selectedColor = color
+
+                var mat = PhysicallyBasedMaterial()
+                            mat.baseColor = .init(tint: UIColor(color))
+
+                            selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+            }
             .shadow(radius: selectedColor == color ? 3 : 0)
     }
 
@@ -211,12 +284,10 @@ struct EditModelView: View {
               let model = controller.returnSelectedModel(named: modelID),
               let entity = model.modelEntity else { return }
         
-        entity.position = SIMD3<Float>(
-            Float(X),
-            Float(Y),
-            Float(Z)
-        )
+        entity.position = SIMD3<Float>(Float(X),Float(Y),Float(Z))
     }
+    
+    
     
 }
 
