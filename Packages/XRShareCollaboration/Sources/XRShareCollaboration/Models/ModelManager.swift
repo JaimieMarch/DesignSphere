@@ -476,9 +476,13 @@ public final class ModelManager: ObservableObject {
                 }
                 modelEntity.components.set(InputTargetComponent(allowedInputTypes: .all))
                 modelEntity.components.set(HoverEffectComponent())
+                
+                
             }
 
             #endif
+            
+            
         }
     }
 

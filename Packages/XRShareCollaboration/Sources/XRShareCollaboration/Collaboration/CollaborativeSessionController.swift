@@ -88,9 +88,10 @@ public final class CollaborativeSessionController: ObservableObject {
         }
     }
     
-    public func returnSelectedModel(named name: String) -> Model? {
-            modelManager.placedModels.first { $0.modelType.displayName == name }
-        }
+    public func returnSelectedModel() -> Model? {
+        guard let instanceID = modelManager.selectedModelInstanceID else { return nil }
+        return modelManager.placedModels.first { $0.id == instanceID }
+    }
     
     
 //

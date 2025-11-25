@@ -175,8 +175,7 @@ struct EditModelView: View {
         .padding()
         .onAppear {
         
-            if let modelID = controller.selectedModelIDVar?.displayName,
-               let model = controller.returnSelectedModel(named: modelID),
+               if let model = controller.returnSelectedModel(),
                let entity = model.modelEntity {
                 
                 selectedEntity = entity
@@ -191,6 +190,9 @@ struct EditModelView: View {
                 Y = Double(position.y)
                 Z = Double(position.z)
             }
+        }
+        .onChange(of: controller.selectedModelInstanceIDVar) { _ in
+            updateSelectedEntity()
         }
         .onChange(of: modelWidth) { _, newValue in
             modelWidth = newValue
@@ -216,6 +218,7 @@ struct EditModelView: View {
             Z = newValue
             updateEntityPosition()
         }
+        
 
     }
 
@@ -273,19 +276,39 @@ struct EditModelView: View {
     }
 
     private func updateEntityScale() {
-        guard let modelID = controller.selectedModelIDVar?.displayName,
-              let model = controller.returnSelectedModel(named: modelID),
+            guard let model = controller.returnSelectedModel(),
               let entity = model.modelEntity else { return }
         entity.scale = SIMD3<Float>(modelWidth, modelHeight, modelDepth)
     }
     
     private func updateEntityPosition() {
-        guard let modelID = controller.selectedModelIDVar?.displayName,
-              let model = controller.returnSelectedModel(named: modelID),
+              guard let model = controller.returnSelectedModel(),
               let entity = model.modelEntity else { return }
         
         entity.position = SIMD3<Float>(Float(X),Float(Y),Float(Z))
     }
+    
+    private func updateSelectedEntity() {
+        guard let model = controller.returnSelectedModel(),
+              let entity = model.modelEntity else {
+                  selectedEntity = nil
+                  return
+              }
+        
+        selectedEntity = entity
+        
+        let scale = entity.scale
+        modelWidth = scale.x
+        modelHeight = scale.y
+        modelDepth = scale.z
+        
+        let position = entity.position
+        X = Double(position.x)
+        Y = Double(position.y)
+        Z = Double(position.z)
+
+    }
+
     
     
     
