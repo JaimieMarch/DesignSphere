@@ -11,23 +11,7 @@ import Foundation
 import RealityKit
 
 
-// MARK: - Model Type Structure
 
-public enum Classification: String, Codable, Sendable {
-    case wall
-    case ceiling
-    case table
-    case seat
-    case any
-}
-
-// MARK: - Placement Plane
-
-public enum PlacementPlane: String, Codable, Sendable {
-    case horizontal
-    case vertical
-    case any
-}
 
 /// Represents a specific type of 3D model type with metadata and loading capabilities
 public struct ModelType: Hashable, Identifiable, Sendable {
@@ -94,7 +78,7 @@ public struct ModelType: Hashable, Identifiable, Sendable {
                 return [ModelType(rawValue: "placeholder")]
             }
 
-            // 2. Metadata lookup table (define only once)
+    
             let metadata: [String: (AnchoringComponent.Target.Classification, AnchoringComponent.Target.Alignment, Bool, Bool)] = [
 
                 "chair": (.floor, .horizontal, true, false),
@@ -104,7 +88,7 @@ public struct ModelType: Hashable, Identifiable, Sendable {
                 "painting": (.wall, .vertical, false, false)
             ]
 
-            // 3. Build models with metadata OR fallback defaults
+
             let sortedKeys = canonicalNames.keys.sorted()
 
             let models = sortedKeys.compactMap { key -> ModelType? in
@@ -120,7 +104,7 @@ public struct ModelType: Hashable, Identifiable, Sendable {
                     )
                 }
 
-                // Fallback defaults for unclassified models
+                // Fallback if unclassified
                 return ModelType(rawValue: originalName)
             }
 
