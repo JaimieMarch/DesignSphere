@@ -11,48 +11,19 @@ import Foundation
 import RealityKit
 
 
-// MARK: - Placement Surface Types
-
-/// Defines possible placement surfaces for models
-public enum PlacementSurface: Sendable {
-    case floor // gravity-bound items (chairs, tables, etc.)
-    case wall // wall mounted items (TVs, art, etc.)
-    case ceiling // for lighting/fans, other upper-mounted items
-    case surface // stackable decor (vases, picture frames, etc.)
-    case free // default behavior (can be placed anywhere)
-}
-
-
 // MARK: - Model Type Structure
 
 /// Represents a specific type of 3D model type with metadata and loading capabilities
 public struct ModelType: Hashable, Identifiable, Codable, Sendable {
     public let rawValue: String
-    
+
     // Instead of a random UUID, use the rawValue as the basis for the ID
     public var id: String { rawValue.lowercased() }
-    
+
     // Convert rawValue to a more humanreadable format
     public var displayName: String {
         let words = rawValue.replacingOccurrences(of: "([a-z])([A-Z0-9])", with: "$1 $2", options: .regularExpression)
         return words.capitalized
-    }
-
-    // Determines the preferred placement surface based on model type
-    // current only using raw item values
-    public var preferredSurface: PlacementSurface {
-        switch rawValue.lowercased() {
-        case "chair", "stool", "sofa", "couch", "coffee_table", "closet", "dinner_table":
-            return .floor
-        case "vase":
-            return .surface
-        case "65_in_tv":
-            return .wall
-        case "chandelier":
-            return .ceiling
-        default:
-            return .free
-        }
     }
 
     /// Models that are already at real-world scale and shouldn't be normalized

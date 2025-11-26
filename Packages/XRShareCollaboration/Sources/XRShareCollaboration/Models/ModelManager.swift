@@ -103,93 +103,6 @@ public final class ModelManager: ObservableObject {
     #endif
     
 
-    #if os(visionOS)
-    /// Automatically finds appropriate surfaces based on model type
-    /// Replaced the old placement logic
-    private func planeAwarePlacement(
-        for modelType: ModelType,
-        entity: ModelEntity,
-        anchor: AnchorEntity,
-        arViewModel: ARViewModel?
-    ) async -> SIMD3<Float> {
-
-        // Try to find best plane automatically based on model's preferred surface
-        if let autoPlane = await findBestPlane(for: modelType.preferredSurface) {
-            return anchor.convert(position: autoPlane, from: nil)
-        }
-
-        // Fallback to head-relative placement if no plane found
-        // Don't know how this works if the user isn't looking at the given surface
-        return await resolvedInitialPlacement(anchor: anchor, arViewModel: arViewModel)
-    }
-
-    /// Helper - finds the plane for the given model type
-    private func findBestPlane(for surface: PlacementSurface) async -> SIMD3<Float>? {
-
-        // Special handling for surface items - try table first, fallback to floor
-        // The idea is that a vase is placed at the uppermost floor level available
-        if surface == .surface {
-            // First, try to find a table (highest horizontal surface)
-            if let tablePosition = await tryFindPlane(alignment: .horizontal, classification: .table) {
-                print("Surface item: Found table at y=\(tablePosition.y)")
-                return tablePosition
-            }
-
-            // If no table, fallback to floor
-            if let floorPosition = await tryFindPlane(alignment: .horizontal, classification: .floor) {
-                print("Surface item: No table found, using floor at y=\(floorPosition.y)")
-                return floorPosition
-            }
-
-            return nil
-        }
-
-        // For all other surface types, use their specific classification
-        let alignment: AnchoringComponent.Target.Alignment
-        let classification: AnchoringComponent.Target.Classification
-
-        switch surface {
-        case .floor:
-            alignment = .horizontal
-            classification = .floor
-        case .ceiling:
-            alignment = .horizontal
-            classification = .ceiling
-        case .wall:
-            alignment = .vertical
-            classification = .wall
-        case .free, .surface:
-            return nil
-        }
-
-        return await tryFindPlane(alignment: alignment, classification: classification)
-    }
-
-    /// Helper to attempt finding a specific plane type
-    private func tryFindPlane(alignment: AnchoringComponent.Target.Alignment,
-                             classification: AnchoringComponent.Target.Classification) async -> SIMD3<Float>? {
-        // Create anchor that auto-detects the plane
-        let planeAnchor = AnchorEntity(
-            .plane(alignment, classification: classification, minimumBounds: [0.3, 0.3])
-        )
-
-        // Wait for anchor to lock onto a plane
-        var attempts = 0
-        while !planeAnchor.isAnchored && attempts < 30 {
-            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms
-            attempts += 1
-        }
-
-        if planeAnchor.isAnchored {
-            let position = planeAnchor.position(relativeTo: nil)
-            planeAnchor.removeFromParent()
-            return position
-        }
-
-        planeAnchor.removeFromParent()
-        return nil
-    }
-    #endif
 
     private func placementOffset(for entity: ModelEntity) -> SIMD3<Float> {
         if let component = entity.components[ModelBoundsComponent.self] {
@@ -440,17 +353,8 @@ public final class ModelManager: ObservableObject {
             let instanceID = idComp.id
 
             if let anchor = arViewModel?.sharedAnchorEntity {
-                #if os(visionOS)
-                // Use plane-aware placement
-                let initialPosition = await planeAwarePlacement(
-                    for: modelType,
-                    entity: entity,
-                    anchor: anchor,
-                    arViewModel: arViewModel
-                )
-                #else
+                // Use simple head-relative placement
                 let initialPosition = await resolvedInitialPlacement(anchor: anchor, arViewModel: arViewModel)
-                #endif
 
                 let placementOffset = placementOffset(for: entity)
                 let translatedPosition = initialPosition - placementOffset
@@ -460,13 +364,7 @@ public final class ModelManager: ObservableObject {
                 entity.move(to: updatedTransform, relativeTo: anchor, duration: 0)
                 model.position = entity.position(relativeTo: anchor)
 
-                // Store placement constraints for movement restrictions
-                entity.components.set(PlacementConstraintComponent(
-                    placementSurface: modelType.preferredSurface,
-                    anchorPosition: translatedPosition
-                ))
-
-                print("Placed \(modelType.rawValue) on \(modelType.preferredSurface): base=\(initialPosition) pivot=\(translatedPosition), isAnchored=\(anchor.isAnchored), scene? \(entity.scene != nil)")
+                print("Placed \(modelType.rawValue) at position: base=\(initialPosition) pivot=\(translatedPosition), isAnchored=\(anchor.isAnchored), scene? \(entity.scene != nil)")
 
                 // Check for collisions and reposition if needed
                 self.positionModelWithCollisionAvoidance(entity: entity, anchor: anchor)
@@ -606,7 +504,6 @@ public final class ModelManager: ObservableObject {
         entity.components.remove(InputTargetComponent.self)
         entity.components.remove(ModelTypeComponent.self)
         entity.components.remove(LastTransformComponent.self)
-        entity.components.remove(PlacementConstraintComponent.self)
     
     
         // Remove from parent after cleanup
