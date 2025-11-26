@@ -1,15 +1,22 @@
 import SwiftUI
 
-struct MeasurementSheet: View {
+struct MeasurementView: View {
     @Binding var isPresented: Bool
     @State private var measurementUnit = "inches"
     @State private var showDimensions = false
     
     var body: some View {
         VStack(spacing: 24) {
-            Text("Measurement Tools")
-                .font(.title)
-                .bold()
+            // Header section matching other sheets
+            VStack(spacing: 16) {
+                Image(systemName: "ruler")
+                    .font(.system(size: 60))
+                    .foregroundStyle(.secondary)
+                
+                Text("Measurement Tools")
+                    .font(.title)
+                    .bold()
+            }
             
             VStack(spacing: 20) {
                 Picker("Unit", selection: $measurementUnit) {
@@ -42,13 +49,20 @@ struct MeasurementSheet: View {
             
             Spacer()
             
-            Button("Close") {
-                isPresented = false
+            Button(action: { isPresented = false }) {
+                Label("Close", systemImage: "xmark.circle.fill")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
         .padding(32)
-        .frame(width: 400, height: 400)
+        .frame(width: 600, height: 700)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.1)))
+        .shadow(radius: 5)
+        .padding()
     }
     
     private func spawnRuler() {
