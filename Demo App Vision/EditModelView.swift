@@ -54,12 +54,15 @@ struct EditModelView: View {
             }
             .pickerStyle(.segmented)
 
-            VStack(spacing: 16) {
+            VStack(spacing: 20) {
                 if selectedTab == 0 {
                     sizeSlider(title: "Width", value: $modelWidth)
+                        .padding(.vertical, 8)
                     sizeSlider(title: "Height", value: $modelHeight)
+                        .padding(.vertical, 8)
                     sizeSlider(title: "Depth", value: $modelDepth)
-                    .padding(.bottom, 10)
+                        .padding(.vertical, 8)
+                    Spacer(minLength:12)
                     Button {
                         removeSelectedModel()
                         dismiss()
@@ -70,11 +73,14 @@ struct EditModelView: View {
                             .background(Color.red.opacity(0.15))
                             .cornerRadius(10)
                     }
-                    .padding(.bottom, 8)
+                    .padding(.top, 8)
                 } else if selectedTab == 1 {
                     coordinateSlider(title: "X Position", value: $X)
+                        .padding(.vertical, 8)
                     coordinateSlider(title: "Y Position", value: $Y)
+                        .padding(.vertical, 8)
                     coordinateSlider(title: "Z Position", value: $Z)
+                        .padding(.vertical, 8)
                 } else {
                     VStack(spacing: 12) {
                         Text("Colour")
@@ -97,7 +103,6 @@ struct EditModelView: View {
 
                                                     selectedEntity?.replaceAndStoreOldMaterials(material: mat)
                                         
-                                        
                                     }
                                     .overlay(
                                         Circle().stroke(
@@ -105,8 +110,6 @@ struct EditModelView: View {
                                             lineWidth: selectedColor == customColor ? 3 : 1
                                         )
                                     )
-
-                
                                 Button {
                               
                                     if !presetColors.contains(customColor) {
@@ -158,8 +161,6 @@ struct EditModelView: View {
                                     .background(Color.gray.opacity(0.2))
                                     .cornerRadius(10)
                             }
-                            
-                            
                         }
                         .padding(.bottom, 14)
                         Button {
@@ -172,17 +173,12 @@ struct EditModelView: View {
                         }
                         .padding(.bottom, 6)
                     }
-                    
-                    
-                    
-    
                 }
             }
             .padding(.top, 8)
 
             Spacer()
             
-          
             Button(action: { dismiss() }) {
                 Text("Close")
                   
@@ -263,6 +259,8 @@ struct EditModelView: View {
             ), in: 0...100)
             .tint(.white)
             .controlSize(.large)
+            .padding(.top, 4)
+            .padding(.bottom, 4)
         }
     }
 
@@ -277,6 +275,8 @@ struct EditModelView: View {
             Slider(value: value, in: -1...1, step: 0.001)
                 .tint(.white)
                 .controlSize(.large)
+                .padding(.top, 4)      
+                .padding(.bottom, 4)
         }
     }
 
@@ -339,7 +339,5 @@ struct EditModelView: View {
         controller.removeModelById(withInstanceID: model.id)
     }
 
-    
-    
 }
 
