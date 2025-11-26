@@ -61,8 +61,8 @@ struct DetailsScreen: View {
                     Text("Placed Models")
                         .font(.headline)
                     Spacer()
-                    if !controller.placedModelSummaries.isEmpty {
-                        Text("\(controller.placedModelSummaries.count)")
+                    if !controller.placedModelDescriptors.isEmpty {
+                        Text("\(controller.placedModelDescriptors.count)")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 12)
@@ -79,7 +79,7 @@ struct DetailsScreen: View {
 
                 // Scrollable Content Area
                 ScrollView {
-                    if controller.placedModelSummaries.isEmpty {
+                    if controller.placedModelDescriptors.isEmpty {
                         // Empty state
                         VStack(spacing: 16) {
                             Image(systemName: "cube.transparent")
@@ -100,11 +100,12 @@ struct DetailsScreen: View {
                     } else {
                         // Models grid
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
-                            ForEach(controller.placedModelSummaries, id: \.self) { modelName in
+                            ForEach(controller.placedModelDescriptors) { descriptor in
                                 PlacedModelCard(
-                                    name: modelName,
+                                    name: descriptor.name,
+                                    modelType: descriptor.type,
                                     onRemove: {
-                                        controller.removeModel(named: modelName)
+                                        controller.removeModel(named: descriptor.name)
                                     }
                                 )
                             }
@@ -113,7 +114,7 @@ struct DetailsScreen: View {
                     }
                 }
 
-                if !controller.placedModelSummaries.isEmpty {
+                if !controller.placedModelDescriptors.isEmpty {
                     Divider()
 
                     Button(action: { controller.removeAllModels() }) {

@@ -2,20 +2,32 @@
 // Each model is shown in the catalog based on these definitions
 
 import SwiftUI
+import XRShareCollaboration
 
 struct CatalogCell: View {
     // the name and favorite state
     let name: String
     let isFavorite: Bool
     let onFavoriteToggle: () -> Void
-    
+    let modelType: ModelType?
+
     var body: some View {
         VStack(spacing: 8) {
-            // image background
-            Image(systemName: "cube.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.secondary)
+            // Display thumbnail using QLThumbnailGenerator cached preview
+            if let modelType = modelType {
+                ModelPreviewView(
+                    modelType: modelType,
+                    size: CGSize(width: 160, height: 130),
+                    showBackground: false
+                )
                 .frame(height: 130)
+            } else {
+                // Fallback to placeholder if model type not found
+                Image(systemName: "cube.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.secondary)
+                    .frame(height: 130)
+            }
             // name under
             Text(name)
                 .font(.footnote.weight(.medium))

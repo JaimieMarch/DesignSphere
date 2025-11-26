@@ -15,22 +15,22 @@ import UIKit
 // MARK: - Model Preview
 
 /// Cache backed model preview for a single ModelType
-struct UnifiedModelPreview: View {
-    
+public struct UnifiedModelPreview: View {
+
     let modelType: ModelType
     let size: CGSize
     let showBackground: Bool
-    
+
     // The thumbnail image to display for the model once loaded
     @State private var thumbnail: Image? = nil
-    
-    init(modelType: ModelType, size: CGSize = CGSize(width: 80, height: 80), showBackground: Bool = true) {
+
+    public init(modelType: ModelType, size: CGSize = CGSize(width: 80, height: 80), showBackground: Bool = true) {
         self.modelType = modelType
         self.size = size
         self.showBackground = showBackground
     }
-    
-    var body: some View {
+
+    public var body: some View {
         ZStack {
             if showBackground {
                 RoundedRectangle(cornerRadius: 8)
@@ -78,24 +78,24 @@ struct UnifiedModelPreview: View {
 // MARK: - Model Preview View
 
 /// Model Preview that creates a cached thumbnail for the given ModelType
-struct ModelPreviewView: View {
-    
-    
+public struct ModelPreviewView: View {
+
+
     let modelType: ModelType
     let size: CGSize
     let showBackground: Bool
     let preferThumbnails: Bool
-    
-    init(modelType: ModelType, size: CGSize = CGSize(width: 80, height: 80), showBackground: Bool = true, preferThumbnails: Bool = true) {
-        
-        
+
+    public init(modelType: ModelType, size: CGSize = CGSize(width: 80, height: 80), showBackground: Bool = true, preferThumbnails: Bool = true) {
+
+
         self.modelType = modelType
         self.size = size
         self.showBackground = showBackground
         self.preferThumbnails = preferThumbnails
     }
-    
-    var body: some View {
+
+    public var body: some View {
         
         UnifiedModelPreview(modelType: modelType, size: size, showBackground: showBackground)
         

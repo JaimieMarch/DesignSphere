@@ -14,7 +14,7 @@ public final class CollaborativeSessionController: ObservableObject {
     public struct ModelDescriptor: Identifiable, Hashable {
         public let id: String
         public let name: String
-        fileprivate let type: ModelType
+        public let type: ModelType
 
         fileprivate init(type: ModelType) {
             self.id = type.id
@@ -22,12 +22,25 @@ public final class CollaborativeSessionController: ObservableObject {
             self.type = type
         }
     }
-    
+
+    /// Descriptor for models that have been placed in the scene
+    public struct PlacedModelDescriptor: Identifiable, Hashable {
+        public let id: UUID
+        public let name: String
+        public let type: ModelType
+
+        fileprivate init(id: UUID, name: String, type: ModelType) {
+            self.id = id
+            self.name = name
+            self.type = type
+        }
+    }
 
     @Published public private(set) var isConnected: Bool = false
     @Published public private(set) var participantCount: Int = 0
     @Published public private(set) var availableModels: [ModelDescriptor] = []
     @Published public private(set) var placedModelSummaries: [String] = []
+    @Published public private(set) var placedModelDescriptors: [PlacedModelDescriptor] = []
     @Published public private(set) var loadingProgress: Float = 0.0
     @Published public var selectedModelID: String? = nil
     @Published public var selectedModelInstanceID: UUID? = nil
@@ -324,7 +337,7 @@ public final class CollaborativeSessionController: ObservableObject {
             }
             .store(in: &cancellables)
 
-        
+
         modelManager.$placedModels
             .map { models in
                 models.compactMap { model in
@@ -333,7 +346,20 @@ public final class CollaborativeSessionController: ObservableObject {
             }
             .receive(on: DispatchQueue.main)
             .assign(to: &$placedModelSummaries)
-        
+
+        modelManager.$placedModels
+            .map { models in
+                models.map { model in
+                    PlacedModelDescriptor(
+                        id: model.id,
+                        name: model.modelType.displayName,
+                        type: model.modelType
+                    )
+                }
+            }
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$placedModelDescriptors)
+
         modelManager.$selectedModelID
                         .map { $0?.id }
                         .receive(on: DispatchQueue.main)

@@ -87,7 +87,8 @@ struct HomeScreen: View {
                                 } else {
                                     favoriteModels.insert(descriptor.name)
                                 }
-                            }
+                            },
+                            modelType: descriptor.type
                         )
                         .onTapGesture { controller.addModel(descriptor) }
                         .contextMenu {

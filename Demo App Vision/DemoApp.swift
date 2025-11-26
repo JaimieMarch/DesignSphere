@@ -16,8 +16,7 @@ struct DemoApp: App {
     var body: some SwiftUI.Scene {
         WindowGroup("StarterView") {
             StarterView(controller: controller)
-            /// RESIZING IS DISABLED
-            /// ENABLING IT WILL LEAD TO THE ORNAMENT BREAKING
+            /// Resizing is disabled intentionally.
                 .frame(width: 1280, height: 720)
         }
         .windowResizability(.contentSize)

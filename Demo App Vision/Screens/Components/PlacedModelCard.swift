@@ -1,19 +1,24 @@
 
 
 import SwiftUI
+import XRShareCollaboration
 
 struct PlacedModelCard: View {
     let name: String
+    let modelType: ModelType
     let onRemove: () -> Void
     @State private var isHovered = false
-    
+
     var body: some View {
         VStack(spacing: 8) {
             ZStack(alignment: .topTrailing) {
-                Image(systemName: "cube.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.blue)
-                    .frame(height: 100)
+                // Display thumbnail using QLThumbnailGenerator cached preview
+                ModelPreviewView(
+                    modelType: modelType,
+                    size: CGSize(width: 140, height: 100),
+                    showBackground: false
+                )
+                .frame(height: 100)
                 
                 // Remove button appears on hover
                 if isHovered {
