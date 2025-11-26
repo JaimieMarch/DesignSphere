@@ -36,8 +36,10 @@ public struct ModelType: Hashable, Identifiable, Codable, Sendable {
             // problem for another day.
         case "chair", "stool", "sofa", "couch", "coffee_table", "closet", "dinner_table":
             return true
-        case "vase", "65_in_tv", "chandelier":
+        case "vase", "65_in_tv":
             return true
+        case "chandelier":
+            return false
         default:
             return false
             // In the case we have other models, we still might need to normalize the size
@@ -67,7 +69,7 @@ public struct ModelType: Hashable, Identifiable, Codable, Sendable {
     
     /// Discovers all available model types by scanning bundle resouces
     static func allCases() -> [ModelType] {
-        
+
         var canonicalNames: [String: String] = [:]
         for url in Bundle.xrShareUSDZResources() {
             let name = url.deletingPathExtension().lastPathComponent
@@ -75,9 +77,8 @@ public struct ModelType: Hashable, Identifiable, Codable, Sendable {
         }
 
         guard !canonicalNames.isEmpty else {
-            
-            // Return a default placeholder to prevent any crashes
-            return [ModelType(rawValue: "placeholder")]
+            // Return empty array if no models found
+            return []
         }
 
         let sortedKeys = canonicalNames.keys.sorted()
