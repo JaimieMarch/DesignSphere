@@ -38,3 +38,14 @@ struct ModelBoundsComponent: Component {
     var extents: SIMD3<Float>
     var placementOffset: SIMD3<Float>
 }
+
+/// Component to store placement constraints for movement restrictions
+struct PlacementConstraintComponent: Component {
+    let placementSurface: PlacementSurface
+    let anchorPosition: SIMD3<Float>
+
+    init(placementSurface: PlacementSurface, anchorPosition: SIMD3<Float>) {
+        self.placementSurface = placementSurface
+        self.anchorPosition = anchorPosition
+    }
+}

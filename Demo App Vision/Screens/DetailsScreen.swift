@@ -56,8 +56,7 @@ struct DetailsScreen: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
             
-            // Placed Models Section
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(spacing: 0) {
                 HStack {
                     Text("Placed Models")
                         .font(.headline)
@@ -74,65 +73,60 @@ struct DetailsScreen: View {
                             )
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                
-                if controller.placedModelSummaries.isEmpty {
-                    // Empty state
-                    VStack(spacing: 16) {
-                        Image(systemName: "cube.transparent")
-                            .font(.system(size: 64))
-                            .foregroundStyle(.tertiary)
-                        
-                        Text("No models in scene")
-                            .font(.title3)
-                            .foregroundStyle(.secondary)
-                        
-                        Text("Add models from the catalog to get started")
-                            .font(.subheadline)
-                            .foregroundStyle(.tertiary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 60)
-                    .padding(.horizontal, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(.quaternary.opacity(0.5))
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
-                } else {
-                    // Models grid with scroll view
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
-                                ForEach(controller.placedModelSummaries, id: \.self) { modelName in
-                                    PlacedModelCard(
-                                        name: modelName,
-                                        onRemove: {
-                                            controller.removeModel(named: modelName)
-                                        }
-                                    )
-                                }
+                .padding(16)
+
+                Divider()
+
+                // Scrollable Content Area
+                ScrollView {
+                    if controller.placedModelSummaries.isEmpty {
+                        // Empty state
+                        VStack(spacing: 16) {
+                            Image(systemName: "cube.transparent")
+                                .font(.system(size: 64))
+                                .foregroundStyle(.tertiary)
+
+                            Text("No models in scene")
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+
+                            Text("Add models from the catalog to get started")
+                                .font(.subheadline)
+                                .foregroundStyle(.tertiary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 80)
+                    } else {
+                        // Models grid
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
+                            ForEach(controller.placedModelSummaries, id: \.self) { modelName in
+                                PlacedModelCard(
+                                    name: modelName,
+                                    onRemove: {
+                                        controller.removeModel(named: modelName)
+                                    }
+                                )
                             }
-                            
-                            // Remove all button
-                            Button(action: { controller.removeAllModels() }) {
-                                HStack {
-                                    Image(systemName: "trash.fill")
-                                    Text("Clear All Models")
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                            }
-                            .buttonStyle(.bordered)
-                            .tint(.red)
-                            .padding(.top, 8)
-                            .padding(.bottom, 8)
                         }
                         .padding(16)
                     }
+                }
+
+                if !controller.placedModelSummaries.isEmpty {
+                    Divider()
+
+                    Button(action: { controller.removeAllModels() }) {
+                        HStack {
+                            Image(systemName: "trash.fill")
+                            Text("Clear All Models")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .padding(16)
                 }
             }
             .glassBackground(cornerRadius: 24)

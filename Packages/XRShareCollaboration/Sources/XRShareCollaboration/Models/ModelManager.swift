@@ -460,6 +460,12 @@ public final class ModelManager: ObservableObject {
                 entity.move(to: updatedTransform, relativeTo: anchor, duration: 0)
                 model.position = entity.position(relativeTo: anchor)
 
+                // Store placement constraints for movement restrictions
+                entity.components.set(PlacementConstraintComponent(
+                    placementSurface: modelType.preferredSurface,
+                    anchorPosition: translatedPosition
+                ))
+
                 print("Placed \(modelType.rawValue) on \(modelType.preferredSurface): base=\(initialPosition) pivot=\(translatedPosition), isAnchored=\(anchor.isAnchored), scene? \(entity.scene != nil)")
 
                 // Check for collisions and reposition if needed
@@ -600,6 +606,7 @@ public final class ModelManager: ObservableObject {
         entity.components.remove(InputTargetComponent.self)
         entity.components.remove(ModelTypeComponent.self)
         entity.components.remove(LastTransformComponent.self)
+        entity.components.remove(PlacementConstraintComponent.self)
     
     
         // Remove from parent after cleanup

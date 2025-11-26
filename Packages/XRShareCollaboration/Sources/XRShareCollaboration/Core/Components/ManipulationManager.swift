@@ -132,7 +132,34 @@ class ManipulationManager {
     
     /// Called when a model's transform changes, so when the model is moved, rotated or expanded
     func handleTransformUpdate(for entity: Entity, instanceID: UUID, force: Bool = false) async {
-        
+
+        // Apply placement constraints based on surface type
+        if let constraint = entity.components[PlacementConstraintComponent.self] {
+            let currentPosition = entity.position(relativeTo: entity.parent)
+            var constrainedPosition = currentPosition
+
+            switch constraint.placementSurface {
+            case .floor, .ceiling, .surface:
+                // Lock Y axis - only allow horizontal (X/Z) movement
+                constrainedPosition.y = constraint.anchorPosition.y
+
+            case .wall:
+                // Lock Z axis - only allow movement on wall plane (X/Y)
+                constrainedPosition.z = constraint.anchorPosition.z
+
+            case .free:
+                // No constraints - allow free movement
+                break
+            }
+
+            // Apply the constrained position if it changed
+            if constrainedPosition != currentPosition {
+                var constrainedTransform = entity.transform
+                constrainedTransform.translation = constrainedPosition
+                entity.move(to: constrainedTransform, relativeTo: entity.parent, duration: 0)
+            }
+        }
+
 //        // Only send to SharePlay if we're connected and have a coordinator
 //        guard let coordinator = sharePlayCoordinator,
 //              coordinator.isConnected else {
