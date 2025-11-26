@@ -50,7 +50,6 @@ public final class CollaborativeSessionController: ObservableObject {
         }
     
     public var sessionID: String {
-        
         get {arViewModel.sessionID }
         set { arViewModel.sessionID = newValue }
     }

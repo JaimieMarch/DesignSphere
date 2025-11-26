@@ -1,5 +1,5 @@
 // Defines each cell inside the catalog home view
-// Each model is shown in the catalog based on these defenitions
+// Each model is shown in the catalog based on these definitions
 
 import SwiftUI
 
