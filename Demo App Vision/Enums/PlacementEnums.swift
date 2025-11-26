@@ -1,9 +1,11 @@
 // Defines possible placement positions for models
 
-enum PlacementType {
-    case floor
-    case wall
-    case ceiling
-    case surface // account for stackable decor (think vase or pictureframe)
-    case anywhere
+import Foundation
+
+enum PlacementSurface {
+    case floor // gravity-bound items
+    case wall // wall mounted items
+    case ceiling // for lighting/fans, other upper-mounted items
+    case surface // account for stackable decor (think vase or pictureframe) 
+    case free // default behavior
 }
