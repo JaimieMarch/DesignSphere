@@ -136,7 +136,8 @@ struct StarterView: View {
                     showFocusModeSheet: $showFocusModeSheet,
                     showAIAssistantSheet: $showAIAssistantSheet,
                     showSharePlaySheet: $showSharePlaySheet,
-                    showEditSheet: $showEditSheet
+                    showEditSheet: $showEditSheet,
+                    controller: controller
                     
                 )
             }
@@ -221,6 +222,7 @@ private struct OrnamentView2: View {
     @Binding var showAIAssistantSheet: Bool
     @Binding var showSharePlaySheet: Bool
     @Binding var showEditSheet: Bool
+    @ObservedObject var controller: CollaborativeSessionController
     
     
     var body: some View {
@@ -269,7 +271,9 @@ private struct OrnamentView2: View {
                         } label: {
                             Image(systemName: "pencil")
                                 .frame(width: 28, height: 28)
+                             
                         }
+                        .disabled(controller.selectedModelIDVar == nil)
                         .buttonStyle(.borderless)
                         .buttonBorderShape(.circle)
                     }

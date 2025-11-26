@@ -134,20 +134,34 @@ struct EditModelView: View {
                         }
                         HStack(spacing: 12) {
                             Button {
-                                } label: {
-                                    Text("Material 2")
-                                        .frame(maxWidth: .infinity, minHeight: 50)
-                                        .background(Color.gray.opacity(0.2))
-                                        .cornerRadius(10)
-                                }
+                            } label: {
+                                Text("Plastic")
+                                    .frame(maxWidth: .infinity, minHeight: 50)
+                                    .background(Color.gray.opacity(0.2))
+                                    .cornerRadius(10)
+                            }
                             Button {                                } label: {
-                                    Text("Material 3")
-                                        .frame(maxWidth: .infinity, minHeight: 50)
-                                        .background(Color.gray.opacity(0.2))
-                                        .cornerRadius(10)
-                                }
+                                Text("Leather")
+                                    .frame(maxWidth: .infinity, minHeight: 50)
+                                    .background(Color.gray.opacity(0.2))
+                                    .cornerRadius(10)
+                            }
+                            
+                            
                         }
+                        .padding(.bottom, 8)
+                        Button {
+                            selectedEntity?.restoreOriginalMaterials()
+                        } label: {
+                            Text("Restore")
+                                .frame(maxWidth: .infinity, minHeight: 50)
+                                .background(Color.gray.opacity(0.15))
+                                .cornerRadius(10)
+                        }
+                        .padding(.bottom, 8)
                     }
+                    
+                    
                     
     
                 }
@@ -156,7 +170,15 @@ struct EditModelView: View {
 
             Spacer()
             
-
+//            Button {
+//                controller.removeModel(named: controller.selectedModelIDVar?.displayName ?? "")
+//            } label: {
+//                Text("Remove Furniture")
+//                    .frame(maxWidth: .infinity, minHeight: 50)
+//                    .background(Color.red.opacity(0.15))
+//                    .cornerRadius(10)
+//            }
+//            .padding(.bottom, 8)
           
             Button(action: { dismiss() }) {
                 Text("Close")
@@ -228,7 +250,7 @@ struct EditModelView: View {
             HStack {
                 Text(title).font(.headline)
                 Spacer()
-                Text("\(Int(value.wrappedValue * 100)) cm")
+                Text("\(Int(value.wrappedValue * 100)) jm")
                     .foregroundStyle(.secondary)
             }
 

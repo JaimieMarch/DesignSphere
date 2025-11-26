@@ -44,25 +44,25 @@ extension Entity {
         if var modelComponent = modelComponent {
             let count = modelComponent.materials.count
 
-            var saveMaterialComponent = SaveOriginalMaterialComponent()
-            saveMaterialComponent.originalMaterials = modelComponent.materials
-            components.set(saveMaterialComponent)
+            if components[SaveOriginalMaterialComponent.self] == nil {
+                        var saveMaterialComponent = SaveOriginalMaterialComponent()
+                        saveMaterialComponent.originalMaterials = modelComponent.materials
+                        components.set(saveMaterialComponent)
+                    }
 
             var mats: [RealityKit.Material] = []
             for i in 0..<count {
-                // this is quite custom logic, disabled by default
+   
                 if copyPBRInputs {
                     if var newMaterial = material as? PhysicallyBasedMaterial,
                        let oldMaterial = modelComponent.materials[i] as? PhysicallyBasedMaterial {
 
-                        // --- FIXED / RealityKit-compatible version ---
-
-                        // copy all parameters EXCEPT baseColor
+            
                         var temp = oldMaterial
                         temp.baseColor = newMaterial.baseColor
                         newMaterial = temp
 
-                        // ----------------------------------------------
+
 
                         mats.append(newMaterial)
                     }
