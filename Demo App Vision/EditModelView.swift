@@ -59,6 +59,18 @@ struct EditModelView: View {
                     sizeSlider(title: "Width", value: $modelWidth)
                     sizeSlider(title: "Height", value: $modelHeight)
                     sizeSlider(title: "Depth", value: $modelDepth)
+                    .padding(.bottom, 10)
+                    Button {
+                        removeSelectedModel()
+                        dismiss()
+                            
+                    } label: {
+                        Text("Remove Furniture")
+                            .frame(maxWidth: .infinity, minHeight: 50)
+                            .background(Color.red.opacity(0.15))
+                            .cornerRadius(10)
+                    }
+                    .padding(.bottom, 8)
                 } else if selectedTab == 1 {
                     coordinateSlider(title: "X Position", value: $X)
                     coordinateSlider(title: "Y Position", value: $Y)
@@ -135,7 +147,7 @@ struct EditModelView: View {
                         HStack(spacing: 12) {
                             Button {
                             } label: {
-                                Text("Plastic")
+                                Text("Fabric")
                                     .frame(maxWidth: .infinity, minHeight: 50)
                                     .background(Color.gray.opacity(0.2))
                                     .cornerRadius(10)
@@ -149,7 +161,7 @@ struct EditModelView: View {
                             
                             
                         }
-                        .padding(.bottom, 8)
+                        .padding(.bottom, 14)
                         Button {
                             selectedEntity?.restoreOriginalMaterials()
                         } label: {
@@ -158,7 +170,7 @@ struct EditModelView: View {
                                 .background(Color.gray.opacity(0.15))
                                 .cornerRadius(10)
                         }
-                        .padding(.bottom, 8)
+                        .padding(.bottom, 6)
                     }
                     
                     
@@ -170,15 +182,6 @@ struct EditModelView: View {
 
             Spacer()
             
-//            Button {
-//                controller.removeModel(named: controller.selectedModelIDVar?.displayName ?? "")
-//            } label: {
-//                Text("Remove Furniture")
-//                    .frame(maxWidth: .infinity, minHeight: 50)
-//                    .background(Color.red.opacity(0.15))
-//                    .cornerRadius(10)
-//            }
-//            .padding(.bottom, 8)
           
             Button(action: { dismiss() }) {
                 Text("Close")
@@ -250,7 +253,7 @@ struct EditModelView: View {
             HStack {
                 Text(title).font(.headline)
                 Spacer()
-                Text("\(Int(value.wrappedValue * 100)) jm")
+                Text("\(Int(value.wrappedValue * 100)) cm")
                     .foregroundStyle(.secondary)
             }
 
@@ -330,8 +333,12 @@ struct EditModelView: View {
         Z = Double(position.z)
 
     }
-
     
+    private func removeSelectedModel() {
+        guard let model = controller.returnSelectedModel() else { return }
+        controller.removeModelById(withInstanceID: model.id)
+    }
+
     
     
 }

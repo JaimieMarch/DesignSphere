@@ -173,6 +173,12 @@ public final class CollaborativeSessionController: ObservableObject {
             modelManager.removeModel(model, broadcast: true)
         }
     }
+    
+    public func removeModelById(withInstanceID id: UUID) {
+        if let model = modelManager.placedModels.first(where: { $0.id == id }) {
+            modelManager.removeModel(model, broadcast: true)
+        }
+    }
 
     
     /// Makes sure that all the models and thumnails are preloaded
