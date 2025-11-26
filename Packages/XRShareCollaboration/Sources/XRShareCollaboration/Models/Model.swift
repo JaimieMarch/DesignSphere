@@ -196,6 +196,13 @@ public final class Model: ObservableObject, Identifiable {
     
     /// Normalize  the model size so that it fits within a target bounding box
     private func normalizeModelSize(entity: ModelEntity) {
+        // Skip normalization for models that are already at real-world scale
+        if modelType.preserveRealWorldScale {
+            Self.updatePlacementMetadata(for: entity, modelType: modelType)
+            print("Model \(modelType.rawValue) is not normalized.")
+            return
+        }
+
         let targetSize: Float = 0.25 // same initial size of 25 cm
 
         if let result = Self.calculateNormalization(for: entity, targetSize: targetSize) {
