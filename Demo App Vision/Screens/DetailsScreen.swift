@@ -101,9 +101,12 @@ struct DetailsScreen: View {
                         // Models grid
                         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
                             ForEach(controller.placedModelDescriptors) { descriptor in
-                                PlacedModelCard(
+                                CatalogCell(
                                     name: descriptor.name,
+                                    isFavorite: false,
+                                    onFavoriteToggle: {},
                                     modelType: descriptor.type,
+                                    showRemove: true,
                                     onRemove: {
                                         controller.removeModel(named: descriptor.name)
                                     }
