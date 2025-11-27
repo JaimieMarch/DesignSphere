@@ -31,6 +31,8 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var loadingProgress: Float = 0.0
     @Published public var selectedModelID: String? = nil
     @Published public var selectedModelInstanceID: UUID? = nil
+    @Published public var pendingMaterialUpdate: (entityID: UUID, material: RealityKit.Material)?
+
         
     public var selectedModelIDVar: ModelType? {
             modelManager.selectedModelID
@@ -191,6 +193,12 @@ public final class CollaborativeSessionController: ObservableObject {
         }
         await arViewModel.loadModels()
     }
+    
+    public func setMaterial(for entityID: UUID, to material: RealityKit.Material) {
+        pendingMaterialUpdate = (entityID, material)
+    }
+    
+    
 
     
     
@@ -282,6 +290,25 @@ public final class CollaborativeSessionController: ObservableObject {
     }
             return false
         }
+        
+        if let job = pendingMaterialUpdate {
+                
+                if let placedModel = modelManager.placedModels.first(where: { $0.id == job.entityID }),
+                   let entity = placedModel.modelEntity {
+
+                    // Mutate a COPY of ModelComponent
+                    if var modelComponent = entity.model {
+                        modelComponent.materials = Array(
+                            repeating: job.material,
+                            count: modelComponent.materials.count
+                        )
+                        entity.model = modelComponent
+                    }
+                }
+
+                pendingMaterialUpdate = nil
+            }
+
 
         if let manipulationManager = arViewModel.manipulationManager {
             manipulationManager.setupManipulationEventHandlers(for: content)

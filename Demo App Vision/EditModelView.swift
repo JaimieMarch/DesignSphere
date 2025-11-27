@@ -101,7 +101,10 @@ struct EditModelView: View {
                                         var mat = PhysicallyBasedMaterial()
                                                     mat.baseColor = .init(tint: UIColor(selectedColor))
 
-                                                    selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                                        if let id = controller.selectedModelInstanceIDVar {
+                                            controller.setMaterial(for: id, to: mat)
+                                            //                  }          selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                                        }
                                         
                                     }
                                     .overlay(
@@ -275,7 +278,7 @@ struct EditModelView: View {
             Slider(value: value, in: -1...1, step: 0.001)
                 .tint(.white)
                 .controlSize(.large)
-                .padding(.top, 4)      
+                .padding(.top, 4)
                 .padding(.bottom, 4)
         }
     }
@@ -291,12 +294,13 @@ struct EditModelView: View {
             )
             .onTapGesture {
                 selectedColor = color
-
+                
                 var mat = PhysicallyBasedMaterial()
-                            mat.baseColor = .init(tint: UIColor(color))
-
-                            selectedEntity?.replaceAndStoreOldMaterials(material: mat)
-            }
+                mat.baseColor = .init(tint: UIColor(color))
+                if let id = controller.selectedModelInstanceIDVar {
+                    controller.setMaterial(for: id, to: mat)
+                    //                  }          selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                }}
             .shadow(radius: selectedColor == color ? 3 : 0)
     }
 
