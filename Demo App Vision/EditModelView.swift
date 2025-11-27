@@ -100,12 +100,14 @@ struct EditModelView: View {
                                         selectedColor = customColor
                                         var mat = PhysicallyBasedMaterial()
                                                     mat.baseColor = .init(tint: UIColor(selectedColor))
-
-                                        if let id = controller.selectedModelInstanceIDVar {
-                                            controller.setMaterial(for: id, to: mat)
-                                            //                  }          selectedEntity?.replaceAndStoreOldMaterials(material: mat)
-                                        }
                                         
+                                        selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+
+//                                        if let id = controller.selectedModelInstanceIDVar {
+//                                            controller.setMaterial(for: id, to: mat)
+//                                            //                  }          selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+//                                        }
+//                                        
                                     }
                                     .overlay(
                                         Circle().stroke(
@@ -189,7 +191,7 @@ struct EditModelView: View {
             .buttonStyle(.bordered)
         }
         .padding(32)
-        .frame(width: 600, height: 700)
+        .frame(width: 600, height: 800)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
@@ -297,10 +299,12 @@ struct EditModelView: View {
                 
                 var mat = PhysicallyBasedMaterial()
                 mat.baseColor = .init(tint: UIColor(color))
-                if let id = controller.selectedModelInstanceIDVar {
-                    controller.setMaterial(for: id, to: mat)
-                    //                  }          selectedEntity?.replaceAndStoreOldMaterials(material: mat)
-                }}
+                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+//                if let id = controller.selectedModelInstanceIDVar {
+//                    controller.setMaterial(for: id, to: mat)
+//                    //                  }          selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+//                }
+            }
             .shadow(radius: selectedColor == color ? 3 : 0)
     }
 
