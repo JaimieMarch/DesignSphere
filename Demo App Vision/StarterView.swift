@@ -119,7 +119,8 @@ struct StarterView: View {
                     showFocusModeSheet: $showFocusModeSheet,
                     showAIAssistantSheet: $showAIAssistantSheet,
                     showSharePlaySheet: $showSharePlaySheet,
-                    showEditSheet: $showEditSheet
+                    showEditSheet: $showEditSheet,
+                    controller: controller
                 )
             }
         }

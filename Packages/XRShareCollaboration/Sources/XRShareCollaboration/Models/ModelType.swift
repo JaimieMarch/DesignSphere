@@ -11,10 +11,10 @@ import Foundation
 import RealityKit
 
 
-// MARK: - Model Type Structure
+
 
 /// Represents a specific type of 3D model type with metadata and loading capabilities
-public struct ModelType: Hashable, Identifiable, Codable, Sendable {
+public struct ModelType: Hashable, Identifiable, Sendable {
     public let rawValue: String
 
     // Instead of a random UUID, use the rawValue as the basis for the ID
@@ -25,6 +25,22 @@ public struct ModelType: Hashable, Identifiable, Codable, Sendable {
         let words = rawValue.replacingOccurrences(of: "([a-z])([A-Z0-9])", with: "$1 $2", options: .regularExpression)
         return words.capitalized
     }
+
+    public var classification: AnchoringComponent.Target.Classification = .any
+    public var plane: AnchoringComponent.Target.Alignment = .any
+    public var canStack: Bool = false
+    public var needsPhysics: Bool = false
+
+    public init(rawValue: String,
+                    classification: AnchoringComponent.Target.Classification = .any,
+                    plane: AnchoringComponent.Target.Alignment = .horizontal,
+                    needsPhysics: Bool = false,
+                canStack: Bool = false) {
+            self.rawValue = rawValue
+            self.classification = classification
+            self.plane = plane
+            self.needsPhysics = needsPhysics
+        }
 
     /// Models that are already at real-world scale and shouldn't be normalized
     /// Set to true for models created in Reality Composer Pro with proper measurements
@@ -70,22 +86,50 @@ public struct ModelType: Hashable, Identifiable, Codable, Sendable {
     /// Discovers all available model types by scanning bundle resouces
     static func allCases() -> [ModelType] {
 
-        var canonicalNames: [String: String] = [:]
-        for url in Bundle.xrShareUSDZResources() {
-            let name = url.deletingPathExtension().lastPathComponent
-            canonicalNames[name.lowercased()] = name
-        }
+            // 1. Scan bundle for USDZ files
+            var canonicalNames: [String: String] = [:]
 
-        guard !canonicalNames.isEmpty else {
-            // Return empty array if no models found
-            return []
-        }
+            for url in Bundle.xrShareUSDZResources() {
+                let name = url.deletingPathExtension().lastPathComponent
+                canonicalNames[name.lowercased()] = name
+            }
 
-        let sortedKeys = canonicalNames.keys.sorted()
-        return sortedKeys.compactMap { key in
-            canonicalNames[key].map { ModelType(rawValue: $0) }
+            guard !canonicalNames.isEmpty else {
+                return [ModelType(rawValue: "placeholder")]
+            }
+
+
+            let metadata: [String: (AnchoringComponent.Target.Classification, AnchoringComponent.Target.Alignment, Bool, Bool)] = [
+
+                "chair": (.floor, .horizontal, true, false),
+                "poster": (.wall, .vertical, false, true),
+                "table": (.floor, .horizontal, true, false),
+                "lamp": (.table, .horizontal, false, false),
+                "painting": (.wall, .vertical, false, false)
+            ]
+
+
+            let sortedKeys = canonicalNames.keys.sorted()
+
+            let models = sortedKeys.compactMap { key -> ModelType? in
+                guard let originalName = canonicalNames[key] else { return nil }
+
+                if let m = metadata[key] {
+                    return ModelType(
+                        rawValue: originalName,
+                        classification: m.0,
+                        plane: m.1,
+                        needsPhysics: m.2,
+                        canStack: m.3
+                    )
+                }
+
+                // Fallback if unclassified
+                return ModelType(rawValue: originalName)
+            }
+
+            return models
         }
-    }
     
     public static func ==(lhs: ModelType, rhs: ModelType) -> Bool {
         lhs.rawValue.lowercased() == rhs.rawValue.lowercased()

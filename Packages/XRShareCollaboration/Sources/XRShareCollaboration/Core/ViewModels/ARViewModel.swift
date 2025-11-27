@@ -75,7 +75,11 @@ class ARViewModel: NSObject, ObservableObject {
     @available(visionOS 26.0, *)
     var manipulationManager: ManipulationManager? {
         get { _manipulationManagerAny as? ManipulationManager }
-        set { _manipulationManagerAny = newValue }
+        set {
+            _manipulationManagerAny = newValue
+      
+            newValue?.arViewModel = self
+        }
     }
 
     // VisionOS spatial coordinator wiring

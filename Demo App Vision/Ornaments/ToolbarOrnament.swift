@@ -4,6 +4,7 @@
 // Styling is directly attached to each button
 
 import SwiftUI
+import XRShareCollaboration
 
 struct ToolbarOrnament: View {
     @Binding var showMeasurementOptions: Bool
@@ -11,6 +12,7 @@ struct ToolbarOrnament: View {
     @Binding var showAIAssistantSheet: Bool
     @Binding var showSharePlaySheet: Bool
     @Binding var showEditSheet: Bool
+    @ObservedObject var controller: CollaborativeSessionController
     
     var body: some View {
         Color.clear
@@ -59,6 +61,7 @@ struct ToolbarOrnament: View {
                             Image(systemName: "pencil")
                                 .frame(width: 28, height: 28)
                         }
+                        .disabled(controller.selectedModelIDVar == nil)
                         .buttonStyle(.borderless)
                         .buttonBorderShape(.circle)
                     }

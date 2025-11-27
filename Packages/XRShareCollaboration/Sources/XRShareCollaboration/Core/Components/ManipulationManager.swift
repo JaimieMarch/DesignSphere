@@ -30,11 +30,12 @@ class ManipulationManager {
     private var lastSendTime: [UUID: CFTimeInterval] = [:]
     private let minSendInterval: CFTimeInterval = 1.0 / 30.0
     private let debugTransforms = false
+    weak var arViewModel: ARViewModel?
 
 //    init(sharePlayCoordinator: SharePlayCoordinator? = nil) {
 //        self.sharePlayCoordinator = sharePlayCoordinator
 //    }
-    
+
     /// Configure an entity for manipulation
     @available(visionOS 26.0, *)
     func configureModelForManipulation(entity: Entity) {
@@ -52,6 +53,9 @@ class ManipulationManager {
         }
         entity.components.set(InputTargetComponent(allowedInputTypes: .all))
         entity.components.set(HoverEffectComponent(.spotlight(.default)))
+        
+        
+        
         
 
     }
@@ -81,6 +85,12 @@ class ManipulationManager {
             
             event.entity.components.remove(PhysicsMotionComponent.self)
             event.entity.components.remove(PhysicsBodyComponent.self)
+            
+            if let modelManager = self.arViewModel?.modelManager {
+                    Task { @MainActor in
+                        modelManager.selectModel(entity: event.entity)
+                    }
+                }
             
 //            Task {
 //                await self.handleSelection(for: event.entity, instanceID: instanceID)

@@ -37,6 +37,9 @@ public final class Model: ObservableObject, Identifiable {
     let modelType: ModelType
     @Published public var modelEntity: ModelEntity?
     @Published var loadingState: LoadingState = .notStarted
+    public var classification: AnchoringComponent.Target.Classification { modelType.classification }
+    public var plane: AnchoringComponent.Target.Alignment { modelType.plane }
+    public var canStack: Bool { modelType.canStack }
     
     // Properties for scene placement
     @Published var position: SIMD3<Float> = SIMD3<Float>(repeating: 0)
