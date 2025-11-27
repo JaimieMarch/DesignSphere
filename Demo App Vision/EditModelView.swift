@@ -138,14 +138,28 @@ struct EditModelView: View {
                             .bold()
                         HStack(spacing: 12) {
                             Button {
+                                var mat = PhysicallyBasedMaterial()
+                                mat.baseColor = .init(tint: UIColor(.red))
+                                mat.roughness = 0.8
+                                mat.metallic = 0.1
+                                mat.normal = .init(texture: .init(try! .load(named: "leather")))
+                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
                             
                                 } label: {
-                                    Text("Wood")
+                                    Text("Leather")
                                         .frame(maxWidth: .infinity, minHeight: 50)
                                         .background(Color.gray.opacity(0.2))
                                         .cornerRadius(10)
                                 }
-                            Button {} label: {
+                            Button {
+                                var mat = PhysicallyBasedMaterial()
+                                mat.baseColor = .init(tint: UIColor(.red))
+                                mat.roughness = 0.2
+                                mat.metallic = 1.0
+                                mat.specular = 0.5
+                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                                
+                            } label: {
                                     Text("Metal")
                                         .frame(maxWidth: .infinity, minHeight: 50)
                                         .background(Color.gray.opacity(0.2))
@@ -154,14 +168,27 @@ struct EditModelView: View {
                         }
                         HStack(spacing: 12) {
                             Button {
+                                var mat = PhysicallyBasedMaterial()
+                                mat.baseColor = .init(tint: UIColor(.red))
+                                mat.roughness = 0.85
+                                mat.metallic = 0.0
+                                mat.normal = .init(texture: .init(try! .load(named: "fabric")))
+                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
                             } label: {
                                 Text("Fabric")
                                     .frame(maxWidth: .infinity, minHeight: 50)
                                     .background(Color.gray.opacity(0.2))
                                     .cornerRadius(10)
                             }
-                            Button {                                } label: {
-                                Text("Leather")
+                            Button {
+                                var mat = PhysicallyBasedMaterial()
+                                mat.baseColor = .init(tint: UIColor(.red))
+                                mat.roughness = 0.6
+                                mat.metallic = 0.0
+                                mat.normal = .init(texture: .init(try! .load(named: "wood_grain")))
+                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                            } label: {
+                                Text("Wood")
                                     .frame(maxWidth: .infinity, minHeight: 50)
                                     .background(Color.gray.opacity(0.2))
                                     .cornerRadius(10)
