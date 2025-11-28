@@ -99,7 +99,7 @@ struct DetailsScreen: View {
                         .padding(.vertical, 80)
                     } else {
                         // Models grid
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3), spacing: 12) {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 12) {
                             ForEach(controller.placedModelDescriptors) { descriptor in
                                 CatalogCell(
                                     name: descriptor.name,
