@@ -100,12 +100,14 @@ struct EditModelView: View {
                                         selectedColor = customColor
                                         var mat = PhysicallyBasedMaterial()
                                                     mat.baseColor = .init(tint: UIColor(selectedColor))
-
-                                        if let id = controller.selectedModelInstanceIDVar {
-                                            controller.setMaterial(for: id, to: mat)
-                                            //                  }          selectedEntity?.replaceAndStoreOldMaterials(material: mat)
-                                        }
                                         
+                                        selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+
+//                                        if let id = controller.selectedModelInstanceIDVar {
+//                                            controller.setMaterial(for: id, to: mat)
+//                                            //                  }          selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+//                                        }
+//                                        
                                     }
                                     .overlay(
                                         Circle().stroke(
@@ -136,14 +138,28 @@ struct EditModelView: View {
                             .bold()
                         HStack(spacing: 12) {
                             Button {
+                                var mat = PhysicallyBasedMaterial()
+                                mat.baseColor = .init(tint: UIColor(.red))
+                                mat.roughness = 0.8
+                                mat.metallic = 0.1
+                                mat.normal = .init(texture: .init(try! .load(named: "leather")))
+                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
                             
                                 } label: {
-                                    Text("Wood")
+                                    Text("Leather")
                                         .frame(maxWidth: .infinity, minHeight: 50)
                                         .background(Color.gray.opacity(0.2))
                                         .cornerRadius(10)
                                 }
-                            Button {} label: {
+                            Button {
+                                var mat = PhysicallyBasedMaterial()
+                                mat.baseColor = .init(tint: UIColor(.red))
+                                mat.roughness = 0.2
+                                mat.metallic = 1.0
+                                mat.specular = 0.5
+                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                                
+                            } label: {
                                     Text("Metal")
                                         .frame(maxWidth: .infinity, minHeight: 50)
                                         .background(Color.gray.opacity(0.2))
@@ -152,14 +168,27 @@ struct EditModelView: View {
                         }
                         HStack(spacing: 12) {
                             Button {
+                                var mat = PhysicallyBasedMaterial()
+                                mat.baseColor = .init(tint: UIColor(.red))
+                                mat.roughness = 0.85
+                                mat.metallic = 0.0
+                                mat.normal = .init(texture: .init(try! .load(named: "fabric")))
+                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
                             } label: {
                                 Text("Fabric")
                                     .frame(maxWidth: .infinity, minHeight: 50)
                                     .background(Color.gray.opacity(0.2))
                                     .cornerRadius(10)
                             }
-                            Button {                                } label: {
-                                Text("Leather")
+                            Button {
+                                var mat = PhysicallyBasedMaterial()
+                                mat.baseColor = .init(tint: UIColor(.red))
+                                mat.roughness = 0.6
+                                mat.metallic = 0.0
+                                mat.normal = .init(texture: .init(try! .load(named: "wood_grain")))
+                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                            } label: {
+                                Text("Wood")
                                     .frame(maxWidth: .infinity, minHeight: 50)
                                     .background(Color.gray.opacity(0.2))
                                     .cornerRadius(10)
@@ -189,7 +218,7 @@ struct EditModelView: View {
             .buttonStyle(.bordered)
         }
         .padding(32)
-        .frame(width: 600, height: 700)
+        .frame(width: 600, height: 800)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
@@ -297,10 +326,12 @@ struct EditModelView: View {
                 
                 var mat = PhysicallyBasedMaterial()
                 mat.baseColor = .init(tint: UIColor(color))
-                if let id = controller.selectedModelInstanceIDVar {
-                    controller.setMaterial(for: id, to: mat)
-                    //                  }          selectedEntity?.replaceAndStoreOldMaterials(material: mat)
-                }}
+                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+//                if let id = controller.selectedModelInstanceIDVar {
+//                    controller.setMaterial(for: id, to: mat)
+//                    //                  }          selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+//                }
+            }
             .shadow(radius: selectedColor == color ? 3 : 0)
     }
 

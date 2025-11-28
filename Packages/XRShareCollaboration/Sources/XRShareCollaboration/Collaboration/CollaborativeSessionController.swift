@@ -302,24 +302,24 @@ public final class CollaborativeSessionController: ObservableObject {
     }
             return false
         }
-        
-        if let job = pendingMaterialUpdate {
-                
-                if let placedModel = modelManager.placedModels.first(where: { $0.id == job.entityID }),
-                   let entity = placedModel.modelEntity {
-
-                    // Mutate a COPY of ModelComponent
-                    if var modelComponent = entity.model {
-                        modelComponent.materials = Array(
-                            repeating: job.material,
-                            count: modelComponent.materials.count
-                        )
-                        entity.model = modelComponent
-                    }
-                }
-
-                pendingMaterialUpdate = nil
-            }
+//        
+//        if let job = pendingMaterialUpdate {
+//                
+//                if let placedModel = modelManager.placedModels.first(where: { $0.id == job.entityID }),
+//                   let entity = placedModel.modelEntity {
+//
+//                    // Mutate a COPY of ModelComponent
+//                    if var modelComponent = entity.model {
+//                        modelComponent.materials = Array(
+//                            repeating: job.material,
+//                            count: modelComponent.materials.count
+//                        )
+//                        entity.model = modelComponent
+//                    }
+//                }
+//
+//                pendingMaterialUpdate = nil
+//            }
 
 
         if let manipulationManager = arViewModel.manipulationManager {
