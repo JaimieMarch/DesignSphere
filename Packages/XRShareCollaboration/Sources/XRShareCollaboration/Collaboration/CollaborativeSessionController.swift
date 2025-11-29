@@ -73,6 +73,8 @@ public final class CollaborativeSessionController: ObservableObject {
     public let modelManager: ModelManager
     #if os(visionOS)
     public let immersiveSession: ARKitSession
+    private var worldTrackingProvider: WorldTrackingProvider?
+    private var isSessionRunning: Bool = false
     #endif
     private var cancellables: Set<AnyCancellable> = []
 
@@ -101,7 +103,38 @@ public final class CollaborativeSessionController: ObservableObject {
             await preloadIfNeeded()
         }
     }
-    
+
+    #if os(visionOS)
+    /// Start ARKit session with world tracking 
+    public func startWorldTracking() async throws {
+        guard !isSessionRunning else {
+            print("ARKit session already running")
+            return
+        }
+
+        // Create world tracking provider
+        let provider = WorldTrackingProvider()
+        worldTrackingProvider = provider
+
+        // Run the session with world tracking
+        try await immersiveSession.run([provider])
+        isSessionRunning = true
+
+        print("Started ARKit session with WorldTracking - world anchors will persist")
+    }
+
+    /// Stop the ARKit session
+    public func stopWorldTracking() async {
+        guard isSessionRunning else { return }
+
+        immersiveSession.stop()
+        worldTrackingProvider = nil
+        isSessionRunning = false
+
+        print("Stopped ARKit session and WorldTracking")
+    }
+    #endif
+
     public func returnSelectedModel() -> Model? {
         guard let instanceID = modelManager.selectedModelInstanceID else { return nil }
         return modelManager.placedModels.first { $0.id == instanceID }

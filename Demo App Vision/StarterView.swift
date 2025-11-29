@@ -193,6 +193,13 @@ struct StarterView: View {
         let result = await openImmersiveSpace(id: "CollaborativeSpace")
         if case .opened = result {
             await MainActor.run { isImmersiveOpen = true }
+
+            // Start world tracking for world anchor persistence
+            do {
+                try await controller.startWorldTracking()
+            } catch {
+                print("Failed to start world tracking: \(error)")
+            }
         }
     }
 }
