@@ -13,7 +13,12 @@ struct StarterView: View {
     @State private var isActivatingSharePlay = false
     @State private var sharePlayError: String?
     @State private var favoriteModels: Set<String> = []
-    
+
+    // Loading states
+    @State private var isLoading = true
+    @State private var loadingProgress: Float = 0.0
+    @State private var loadingMessage = "Initializing..."
+
     // Navigation states to show which screen is active at a time
     @State private var currentScreen: ScreenTab = .home
     @State private var contentScale: CGFloat = 1.0
@@ -124,7 +129,10 @@ struct StarterView: View {
                 )
             }
         }
-        .onAppear { isImmersiveOpen = false }
+        .onAppear {
+            isImmersiveOpen = false
+            isLoading = true
+        }
         .task { await prepareExperience() }
         .alert("SharePlay", isPresented: Binding(
             get: { sharePlayError != nil },
@@ -150,6 +158,13 @@ struct StarterView: View {
         }
         .sheet(isPresented: $showEditSheet) {
             EditModelSheet(isPresented: $showEditSheet, controller: controller)
+        }
+        .overlay {
+            LoadingScreen(
+                isLoading: $isLoading,
+                loadingProgress: $loadingProgress,
+                loadingMessage: $loadingMessage
+            )
         }
     }
     
@@ -180,12 +195,32 @@ struct StarterView: View {
     private func prepareExperience() async {
         guard hasInitializedSession == false else {
             await ensureImmersiveSpaceOpened()
+            isLoading = false
             return
         }
+
+        loadingMessage = "Starting session..."
+        loadingProgress = 0.1
         controller.startLocalSession()
         hasInitializedSession = true
-        await controller.preloadIfNeeded()
+
+        loadingMessage = "Opening immersive space..."
+        loadingProgress = 0.5
         await ensureImmersiveSpaceOpened()
+
+        loadingMessage = "Loading models..."
+        loadingProgress = 0.7
+        // Preload models AFTER opening immersive space for faster perceived startup
+        await controller.preloadIfNeeded()
+
+        loadingMessage = "Ready!"
+        loadingProgress = 1.0
+
+        // Hide loading screen after brief delay
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        withAnimation {
+            isLoading = false
+        }
     }
     
     private func ensureImmersiveSpaceOpened() async {
