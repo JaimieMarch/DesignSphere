@@ -84,7 +84,7 @@ public struct ModelType: Hashable, Identifiable, Sendable {
     }
     
     /// Discovers all available model types by scanning bundle resouces
-    static func allCases() -> [ModelType] {
+    public static func allCases() -> [ModelType] {
 
             // 1. Scan bundle for USDZ files
             var canonicalNames: [String: String] = [:]

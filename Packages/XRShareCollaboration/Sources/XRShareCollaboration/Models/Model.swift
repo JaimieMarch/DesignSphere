@@ -34,7 +34,7 @@ public final class Model: ObservableObject, Identifiable {
         }
     }
     
-    let modelType: ModelType
+    public let modelType: ModelType
     @Published public var modelEntity: ModelEntity?
     @Published var loadingState: LoadingState = .notStarted
     public var classification: AnchoringComponent.Target.Classification { modelType.classification }

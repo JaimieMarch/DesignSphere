@@ -3,8 +3,12 @@ import XRShareCollaboration
 
 struct DetailsScreen: View {
     @ObservedObject var controller: CollaborativeSessionController
+    @StateObject private var projectManager = ProjectManager()
     @State private var roomName: String = ""
-    
+    @State private var showLoadSheet: Bool = false
+    @State private var showAlert: Bool = false
+    @State private var alertMessage: String = ""
+
     var body: some View {
         VStack(spacing: 14) {
             // Header with room name
@@ -19,8 +23,9 @@ struct DetailsScreen: View {
                             .padding(.vertical, 8)
                     }
                     .buttonStyle(.borderedProminent)
-                    
-                    Button(action: { loadProject() }) {
+                    .disabled(roomName.isEmpty)
+
+                    Button(action: { showLoadSheet = true }) {
                         Label("Load", systemImage: "square.and.arrow.up")
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
@@ -137,14 +142,86 @@ struct DetailsScreen: View {
             .shadow(radius: 10)
         }
         .padding(24)
+        .sheet(isPresented: $showLoadSheet) {
+            LoadProjectSheet(
+                projectManager: projectManager,
+                onLoadProject: { selectedRoomName in
+                    showLoadSheet = false
+                    loadProject(roomName: selectedRoomName)
+                }
+            )
+        }
+        .alert("Project", isPresented: $showAlert) {
+            Button("OK") { }
+        } message: {
+            Text(alertMessage)
+        }
     }
-    
+
     private func saveProject() {
-        print("Save project: \(roomName) - NOT YET IMPLEMENTED")
+        guard !roomName.isEmpty else {
+            alertMessage = "Please enter a room name"
+            showAlert = true
+            return
+        }
+
+        Task {
+            do {
+                #if os(visionOS)
+                // Create or get the world anchor for this room
+                let worldAnchorID: UUID?
+                if let existingAnchorID = projectManager.currentWorldAnchorID {
+                    worldAnchorID = existingAnchorID
+                } else {
+                    worldAnchorID = try await projectManager.createWorldAnchor(controller: controller)
+                }
+
+                // Save the project to JSON
+                try projectManager.saveProject(
+                    roomName: roomName,
+                    placedModels: controller.currentPlacedModels,
+                    worldAnchorID: worldAnchorID,
+                    sharedAnchor: controller.sharedAnchorEntity
+                )
+
+                alertMessage = "Project '\(roomName)' saved successfully!"
+                showAlert = true
+                #else
+                alertMessage = "World anchor saving is only available on visionOS"
+                showAlert = true
+                #endif
+            } catch {
+                alertMessage = "Failed to save project: \(error.localizedDescription)"
+                showAlert = true
+            }
+        }
     }
-    
-    private func loadProject() {
-        print("Load project - NOT YET IMPLEMENTED")
+
+    private func loadProject(roomName: String) {
+        Task {
+            do {
+                // Load the project from JSON
+                let worldAnchorID = try await projectManager.loadProject(
+                    roomName: roomName,
+                    controller: controller,
+                    sharedAnchor: controller.sharedAnchorEntity
+                )
+
+                // Update the room name field
+                self.roomName = roomName
+
+                if let anchorID = worldAnchorID {
+                    alertMessage = "Project '\(roomName)' loaded! World anchor ID: \(anchorID.uuidString.prefix(8))..."
+                } else {
+                    alertMessage = "Project '\(roomName)' loaded successfully!"
+                }
+
+                showAlert = true
+            } catch {
+                alertMessage = "Failed to load project: \(error.localizedDescription)"
+                showAlert = true
+            }
+        }
     }
     
     private func exportProject() {

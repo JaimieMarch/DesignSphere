@@ -207,7 +207,42 @@ public final class CollaborativeSessionController: ObservableObject {
         modelManager.loadModel(for: descriptor.type, arViewModel: arViewModel)
     }
 
-    
+    /// Load a model at specific position, rotation, and scale 
+    public func loadModelAtPosition(
+        modelType: ModelType,
+        instanceID: UUID,
+        position: SIMD3<Float>,
+        rotation: simd_quatf,
+        scale: SIMD3<Float>
+    ) async -> Model? {
+        let model = await Model.load(modelType: modelType, arViewModel: arViewModel)
+
+        guard let entity = model.modelEntity else {
+            print("Warning: Failed to load entity for '\(modelType.displayName)'")
+            return nil
+        }
+
+        // Set the instance ID for each individual model
+        entity.components.set(InstanceIDComponent(id: instanceID.uuidString))
+
+        // Add to the shared anchor
+        sharedAnchorEntity.addChild(entity)
+
+        // Apply the saved transform relative to shared anchor
+        // Apple natively uses SIMD to store vector data for 3d entities
+        // see: realitykit entity definition from developer docs
+        entity.setPosition(position, relativeTo: sharedAnchorEntity)
+        entity.setOrientation(rotation, relativeTo: sharedAnchorEntity)
+        entity.setScale(scale, relativeTo: sharedAnchorEntity)
+
+        // Add to model manager
+        modelManager.placedModels.append(model)
+        modelManager.modelDict[entity] = model
+
+        return model
+    }
+
+
     /// Remove all the models from the session
     public func removeAllModels() {
         modelManager.reset(broadcast: true)
