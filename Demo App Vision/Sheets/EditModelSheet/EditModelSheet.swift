@@ -8,6 +8,6 @@ struct EditModelSheet: View {
     var body: some View {
         EditModelView(controller: controller)
             .padding(32)
-            .frame(width: 600, height: 800)
+            .frame(width: 600, height: 850)
     }
 }
