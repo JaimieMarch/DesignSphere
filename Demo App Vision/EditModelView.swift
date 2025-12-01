@@ -196,7 +196,7 @@ struct EditModelView: View {
                 .buttonStyle(.bordered)
             }
             .padding(32)
-            .frame(width: 600, height: 850)
+            .frame(width: 700, height: 850)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
