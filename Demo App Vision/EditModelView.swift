@@ -27,7 +27,7 @@ struct EditModelView: View {
     @State private var customColor: Color = .cyan
     @State private var selectedEntity: Entity? = nil
     
-    private let presetColors: [Color] = [.green, .blue, .orange, .purple]
+    private let presetColors: [Color] = [.red, .green, .blue, .orange, .purple]
     
     var body: some View {
         VStack(spacing: 24) {
