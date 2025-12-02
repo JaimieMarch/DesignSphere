@@ -290,6 +290,8 @@ struct EditModelView: View {
                                     .foregroundStyle(.primary)
                             )
                     }
+                    Spacer()
+                        .frame(width: 20)
                     
                     HStack {
                         TextField(
@@ -318,6 +320,8 @@ struct EditModelView: View {
                             .font(.title3)
                             .foregroundStyle(.secondary)
                     }
+                    Spacer()
+                        .frame(width: 20)
                     
                     Button {
                         value.wrappedValue = min(maxValue, value.wrappedValue + 1)
@@ -364,6 +368,8 @@ struct EditModelView: View {
                                 .foregroundStyle(.primary)
                         )
                 }
+                Spacer()
+                    .frame(width: 20)
                 
                 HStack {
                     TextField(
@@ -388,7 +394,8 @@ struct EditModelView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     
                 }
-                
+                Spacer()
+                    .frame(width: 20)
 
                 Button {
                     value.wrappedValue = min(4.0, value.wrappedValue + 0.01)
