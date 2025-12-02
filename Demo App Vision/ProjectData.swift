@@ -15,6 +15,19 @@ struct ProjectData: Codable {
         let position: Vector3
         let rotation: Quaternion
         let scale: Vector3
+        let material: SavedMaterial?
+    }
+
+    /// Represents saved material properties
+    struct SavedMaterial: Codable {
+        let baseColorR: Float
+        let baseColorG: Float
+        let baseColorB: Float
+        let baseColorA: Float
+        let roughness: Float?
+        let metallic: Float?
+        let specular: Float?
+        let normalTextureName: String?
     }
 
     /// Helper struct for encoding SIMD3<Float>

@@ -2,6 +2,7 @@ import Foundation
 import ARKit
 import RealityKit
 import XRShareCollaboration
+import UIKit
 
 @MainActor
 class ProjectManager: ObservableObject {
@@ -34,6 +35,99 @@ class ProjectManager: ObservableObject {
         return projectsDirectory.appendingPathComponent("\(sanitized).json")
     }
 
+    // MARK: - Material Helpers
+
+    /// Extracts material data from an entity for saving
+    private func extractMaterialData(from entity: Entity) -> ProjectData.SavedMaterial? {
+        // Check if entity has a ModelComponent with materials
+        guard let modelComponent = entity.components[ModelComponent.self],
+              !modelComponent.materials.isEmpty else {
+            return nil
+        }
+
+        // Get the first material (typically all materials are the same after editing)
+        guard let pbrMaterial = modelComponent.materials.first as? PhysicallyBasedMaterial else {
+            return nil
+        }
+
+        // Extract base color
+        let baseColor = pbrMaterial.baseColor.tint
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        baseColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+
+        // Extract roughness, metallic, and specular
+        let roughness = pbrMaterial.roughness.scale
+        let metallic = pbrMaterial.metallic.scale
+        let specular = pbrMaterial.specular.scale
+
+        // Identify material type based on roughness/metallic values (from EditModelView)
+        // Wood: roughness=0.6, metallic=0.0
+        // Metal: roughness=0.2, metallic=1.0
+        // Fabric: roughness=0.85, metallic=0.0
+        // Leather: roughness=0.8, metallic=0.2
+        var textureName: String? = nil
+        if pbrMaterial.normal.texture != nil {
+            let epsilon: Float = 0.01
+            if abs(roughness - 0.6) < epsilon && abs(metallic - 0.0) < epsilon {
+                textureName = "wood_grain"
+            } else if abs(roughness - 0.85) < epsilon && abs(metallic - 0.0) < epsilon {
+                textureName = "fabric"
+            } else if abs(roughness - 0.8) < epsilon && abs(metallic - 0.2) < epsilon {
+                textureName = "leather"
+            }
+        }
+
+        return ProjectData.SavedMaterial(
+            baseColorR: Float(r),
+            baseColorG: Float(g),
+            baseColorB: Float(b),
+            baseColorA: Float(a),
+            roughness: roughness,
+            metallic: metallic,
+            specular: specular,
+            normalTextureName: textureName
+        )
+    }
+
+    /// Applies saved material data to an entity
+    private func applyMaterialData(_ savedMaterial: ProjectData.SavedMaterial, to entity: Entity) {
+        // Reconstruct the PhysicallyBasedMaterial from saved data
+        var mat = PhysicallyBasedMaterial()
+
+        // Restore base color
+        let color = UIColor(
+            red: CGFloat(savedMaterial.baseColorR),
+            green: CGFloat(savedMaterial.baseColorG),
+            blue: CGFloat(savedMaterial.baseColorB),
+            alpha: CGFloat(savedMaterial.baseColorA)
+        )
+        mat.baseColor = .init(tint: color)
+
+        // Restore roughness, metallic, and specular if available
+        if let roughness = savedMaterial.roughness {
+            mat.roughness = PhysicallyBasedMaterial.Roughness(floatLiteral: roughness)
+        }
+        if let metallic = savedMaterial.metallic {
+            mat.metallic = PhysicallyBasedMaterial.Metallic(floatLiteral: metallic)
+        }
+        if let specular = savedMaterial.specular {
+            mat.specular = PhysicallyBasedMaterial.Specular(floatLiteral: specular)
+        }
+
+        // Restore normal texture if available
+        if let textureName = savedMaterial.normalTextureName {
+            do {
+                let texture = try TextureResource.load(named: textureName)
+                mat.normal = .init(texture: .init(texture))
+            } catch {
+                print("Warning: Failed to load texture '\(textureName)': \(error)")
+            }
+        }
+
+        // Apply the material using the existing replaceAndStoreOldMaterials method
+        entity.replaceAndStoreOldMaterials(material: mat)
+    }
+
     // MARK: - World Anchor Management
 
     #if os(visionOS)
@@ -63,12 +157,16 @@ class ProjectManager: ObservableObject {
         let savedModels = placedModels.compactMap { model -> ProjectData.SavedModel? in
             guard let entity = model.modelEntity else { return nil }
 
+            // Extract material data if entity has custom materials
+            let savedMaterial = extractMaterialData(from: entity)
+
             return ProjectData.SavedModel(
                 id: model.id,
                 modelTypeName: model.modelType.rawValue,
                 position: ProjectData.Vector3(entity.position(relativeTo: sharedAnchor)),
                 rotation: ProjectData.Quaternion(entity.orientation(relativeTo: sharedAnchor)),
-                scale: ProjectData.Vector3(entity.scale(relativeTo: sharedAnchor))
+                scale: ProjectData.Vector3(entity.scale(relativeTo: sharedAnchor)),
+                material: savedMaterial
             )
         }
 
@@ -144,14 +242,21 @@ class ProjectManager: ObservableObject {
             }
 
             // Load the model through the controller with saved transform
-            if await controller.loadModelAtPosition(
+            if let loadedModel = await controller.loadModelAtPosition(
                 modelType: modelType,
                 instanceID: savedModel.id,
                 position: savedModel.position.simd3,
                 rotation: savedModel.rotation.quatf,
                 scale: savedModel.scale.simd3
-            ) != nil {
+            ) {
                 print("Loaded model: \(modelType.displayName) at position: \(savedModel.position.simd3)")
+
+                // Restore material if saved
+                if let savedMaterial = savedModel.material,
+                   let entity = loadedModel.modelEntity {
+                    applyMaterialData(savedMaterial, to: entity)
+                    print("Restored custom material for \(modelType.displayName)")
+                }
             } else {
                 print("Warning: Failed to load model '\(modelType.displayName)'")
             }
