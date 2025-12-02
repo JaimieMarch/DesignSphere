@@ -26,6 +26,7 @@ struct EditModelView: View {
     @State private var selectedColor: Color = .gray
     @State private var customColor: Color = .cyan
     @State private var selectedEntity: Entity? = nil
+    @State private var ogSize: SIMD3<Float>? = nil
     
     private let presetColors: [Color] = [.red, .green, .blue, .orange, .purple]
     
@@ -211,11 +212,18 @@ struct EditModelView: View {
                     
                     selectedEntity = entity
                     
-                    let scale = entity.scale
-                    modelWidth = scale.x
-                    modelHeight = scale.y
-                    modelDepth = scale.z
+                    let bounds = entity.visualBounds(relativeTo: entity)
+
+                    let size = bounds.max - bounds.min
                     
+                    if ogSize == nil {
+                        ogSize = size
+                    }
+
+                    modelWidth  = size.x * 100
+                    modelHeight = size.y * 100
+                    modelDepth  = size.z * 100
+
                     let position = entity.position
                     X = Double(position.x)
                     Y = Double(position.y)
@@ -271,7 +279,7 @@ struct EditModelView: View {
                 HStack(spacing: 18) {
                     
                     Button {
-                        value.wrappedValue = max(minValue, value.wrappedValue - 0.01)
+                        value.wrappedValue = max(minValue, value.wrappedValue - 1)
                     } label: {
                         RoundedRectangle(cornerRadius: 14)
                             .fill(.thinMaterial)
@@ -288,11 +296,11 @@ struct EditModelView: View {
                             "",
                             text: Binding(
                                 get: {
-                                    String(format: "%.2f", value.wrappedValue * 100)
+                                    String(format: "%.2f", value.wrappedValue )
                                 },
                                 set: { newText in
                                     if let cmValue = Float(newText) {
-                                        value.wrappedValue = cmValue / 100
+                                        value.wrappedValue = cmValue
                                     }
                                 }
                             )
@@ -312,7 +320,7 @@ struct EditModelView: View {
                     }
                     
                     Button {
-                        value.wrappedValue = min(maxValue, value.wrappedValue + 0.01)
+                        value.wrappedValue = min(maxValue, value.wrappedValue + 1)
                     } label: {
                         RoundedRectangle(cornerRadius: 14)
                             .fill(.thinMaterial)
@@ -436,11 +444,23 @@ struct EditModelView: View {
                 }
                 .shadow(radius: selectedColor == color ? 3 : 0)
         }
-        
+            
         private func updateEntityScale() {
             guard let model = controller.returnSelectedModel(),
-                  let entity = model.modelEntity else { return }
-            entity.scale = SIMD3<Float>(modelWidth, modelHeight, modelDepth)
+                  let entity = model.modelEntity,
+                  let og = ogSize else { return }
+            
+            
+            let changeWidth  = modelWidth  / 100
+            let changeHeight = modelHeight / 100
+            let changeDepth  = modelDepth  / 100
+
+          
+            let scaleX = changeWidth  / og.x
+            let scaleY = changeHeight / og.y
+            let scaleZ = changeDepth  / og.z
+
+            entity.scale = SIMD3<Float>(scaleX, scaleY, scaleZ)
         }
         
         private func updateEntityPosition() {
@@ -459,10 +479,13 @@ struct EditModelView: View {
             
             selectedEntity = entity
             
-            let scale = entity.scale
-            modelWidth = scale.x
-            modelHeight = scale.y
-            modelDepth = scale.z
+            let bounds = entity.visualBounds(relativeTo: nil)
+            let size = bounds.max - bounds.min
+
+               
+            modelWidth  = size.x * 100
+            modelHeight = size.y * 100
+            modelDepth  = size.z * 100
             
             let position = entity.position
             X = Double(position.x)
