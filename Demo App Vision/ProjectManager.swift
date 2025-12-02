@@ -60,20 +60,23 @@ class ProjectManager: ObservableObject {
         let metallic = pbrMaterial.metallic.scale
         let specular = pbrMaterial.specular.scale
 
-        // Identify material type based on roughness/metallic values (from EditModelView)
-        // Wood: roughness=0.6, metallic=0.0
-        // Metal: roughness=0.2, metallic=1.0
-        // Fabric: roughness=0.85, metallic=0.0
-        // Leather: roughness=0.8, metallic=0.2
-        var textureName: String? = nil
-        if pbrMaterial.normal.texture != nil {
-            let epsilon: Float = 0.01
-            if abs(roughness - 0.6) < epsilon && abs(metallic - 0.0) < epsilon {
-                textureName = "wood_grain"
-            } else if abs(roughness - 0.85) < epsilon && abs(metallic - 0.0) < epsilon {
-                textureName = "fabric"
-            } else if abs(roughness - 0.8) < epsilon && abs(metallic - 0.2) < epsilon {
-                textureName = "leather"
+        // Read material type from component (set explicitly in EditModelView)
+        var materialType: ProjectData.MaterialType? = nil
+        if let materialTypeComp = entity.components[MaterialTypeComponent.self] {
+            // Map string to enum
+            switch materialTypeComp.materialType {
+            case "wood":
+                materialType = .wood
+            case "metal":
+                materialType = .metal
+            case "fabric":
+                materialType = .fabric
+            case "leather":
+                materialType = .leather
+            case "custom":
+                materialType = .custom
+            default:
+                materialType = nil
             }
         }
 
@@ -85,8 +88,22 @@ class ProjectManager: ObservableObject {
             roughness: roughness,
             metallic: metallic,
             specular: specular,
-            normalTextureName: textureName
+            materialType: materialType
         )
+    }
+
+    /// Extracts original unscaled bounds from entity for dimension tracking
+    private func extractOriginalBounds(from entity: Entity) -> ProjectData.Vector3? {
+        // Get bounds relative to the entity itself (unscaled)
+        let bounds = entity.visualBounds(relativeTo: entity)
+        let size = bounds.max - bounds.min
+
+        // Only save if bounds are valid
+        guard size.x > 0 && size.y > 0 && size.z > 0 else {
+            return nil
+        }
+
+        return ProjectData.Vector3(size)
     }
 
     /// Applies saved material data to an entity
@@ -114,18 +131,52 @@ class ProjectManager: ObservableObject {
             mat.specular = PhysicallyBasedMaterial.Specular(floatLiteral: specular)
         }
 
-        // Restore normal texture if available
-        if let textureName = savedMaterial.normalTextureName {
-            do {
-                let texture = try TextureResource.load(named: textureName)
-                mat.normal = .init(texture: .init(texture))
-            } catch {
-                print("Warning: Failed to load texture '\(textureName)': \(error)")
+        // Restore material type and texture based on explicit type
+        var materialTypeString: String? = nil
+        if let materialType = savedMaterial.materialType {
+            switch materialType {
+            case .wood:
+                materialTypeString = "wood"
+                do {
+                    let texture = try TextureResource.load(named: "wood_grain")
+                    mat.normal = .init(texture: .init(texture))
+                } catch {
+                    print("Warning: Failed to load wood texture: \(error)")
+                }
+            case .metal:
+                materialTypeString = "metal"
+                // Metal has no normal texture, just metallic properties (already restored above)
+                break
+            case .fabric:
+                materialTypeString = "fabric"
+                do {
+                    let texture = try TextureResource.load(named: "fabric")
+                    mat.normal = .init(texture: .init(texture))
+                } catch {
+                    print("Warning: Failed to load fabric texture: \(error)")
+                }
+            case .leather:
+                materialTypeString = "leather"
+                do {
+                    let texture = try TextureResource.load(named: "leather")
+                    mat.normal = .init(texture: .init(texture))
+                } catch {
+                    print("Warning: Failed to load leather texture: \(error)")
+                }
+            case .custom:
+                materialTypeString = "custom"
+                // Custom color only, no texture
+                break
             }
         }
 
         // Apply the material using the existing replaceAndStoreOldMaterials method
         entity.replaceAndStoreOldMaterials(material: mat)
+
+        // Set the MaterialTypeComponent so future saves don't need epsilon detection
+        if let typeString = materialTypeString {
+            entity.components.set(MaterialTypeComponent(materialType: typeString))
+        }
     }
 
     // MARK: - World Anchor Management
@@ -160,13 +211,17 @@ class ProjectManager: ObservableObject {
             // Extract material data if entity has custom materials
             let savedMaterial = extractMaterialData(from: entity)
 
+            // Extract original unscaled bounds for accurate dimension editing
+            let originalBounds = extractOriginalBounds(from: entity)
+
             return ProjectData.SavedModel(
                 id: model.id,
                 modelTypeName: model.modelType.rawValue,
                 position: ProjectData.Vector3(entity.position(relativeTo: sharedAnchor)),
                 rotation: ProjectData.Quaternion(entity.orientation(relativeTo: sharedAnchor)),
                 scale: ProjectData.Vector3(entity.scale(relativeTo: sharedAnchor)),
-                material: savedMaterial
+                material: savedMaterial,
+                originalBounds: originalBounds
             )
         }
 
@@ -250,6 +305,13 @@ class ProjectManager: ObservableObject {
                 scale: savedModel.scale.simd3
             ) {
                 print("Loaded model: \(modelType.displayName) at position: \(savedModel.position.simd3)")
+
+                // Restore original bounds if saved (for accurate dimension editing)
+                if let originalBounds = savedModel.originalBounds,
+                   let entity = loadedModel.modelEntity {
+                    entity.components.set(OriginalBoundsComponent(originalSize: originalBounds.simd3))
+                    print("Restored original bounds for \(modelType.displayName): \(originalBounds.simd3)")
+                }
 
                 // Restore material if saved
                 if let savedMaterial = savedModel.material,

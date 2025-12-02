@@ -16,6 +16,16 @@ struct ProjectData: Codable {
         let rotation: Quaternion
         let scale: Vector3
         let material: SavedMaterial?
+        let originalBounds: Vector3?  // Stores original unscaled dimensions for accurate editing
+    }
+
+    /// Material type for explicit tracking
+    enum MaterialType: String, Codable {
+        case wood
+        case metal
+        case fabric
+        case leather
+        case custom  // For color-only or user-modified materials
     }
 
     /// Represents saved material properties
@@ -27,7 +37,7 @@ struct ProjectData: Codable {
         let roughness: Float?
         let metallic: Float?
         let specular: Float?
-        let normalTextureName: String?
+        let materialType: MaterialType?  // Explicit material type instead of inferring
     }
 
     /// Helper struct for encoding SIMD3<Float>

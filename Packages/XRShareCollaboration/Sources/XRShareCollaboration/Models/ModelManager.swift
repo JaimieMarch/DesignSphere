@@ -338,6 +338,11 @@ public final class ModelManager: ObservableObject {
             // Normalize model size
             normalizeModelSizeForVisionOS(entity, modelType: modelType)
 
+            // Store original unscaled bounds for accurate dimension editing
+            let originalBounds = entity.visualBounds(relativeTo: entity)
+            let originalSize = originalBounds.max - originalBounds.min
+            entity.components.set(OriginalBoundsComponent(originalSize: originalSize))
+
             // Automatically select newly loaded model
             self.selectedModelID = modelType
             self.selectedModelInstanceID = model.id

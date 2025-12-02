@@ -106,6 +106,7 @@ struct EditModelView: View {
                                         var mat = PhysicallyBasedMaterial()
                                         mat.baseColor = .init(tint: UIColor(selectedColor))
                                         selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                                        selectedEntity?.components.set(MaterialTypeComponent(materialType: "custom"))
                                     }
                                     .overlay(
                                         Circle().stroke(
@@ -137,8 +138,9 @@ struct EditModelView: View {
                                 mat.metallic = 0.0
                                 mat.normal = .init(texture: .init(try! .load(named: "wood_grain")))
                                 selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                                selectedEntity?.components.set(MaterialTypeComponent(materialType: "wood"))
                             }
-                            
+
                             materialButton("Metal", icon: "shippingbox.fill") {
                                 var mat = PhysicallyBasedMaterial()
                                 mat.baseColor = .init(tint: UIColor(selectedColor))
@@ -146,6 +148,7 @@ struct EditModelView: View {
                                 mat.metallic = 1.0
                                 mat.specular = 0.5
                                 selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                                selectedEntity?.components.set(MaterialTypeComponent(materialType: "metal"))
                             }
                         }
                         
@@ -157,8 +160,9 @@ struct EditModelView: View {
                                 mat.metallic = 0.0
                                 mat.normal = .init(texture: .init(try! .load(named: "fabric")))
                                 selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                                selectedEntity?.components.set(MaterialTypeComponent(materialType: "fabric"))
                             }
-                            
+
                             materialButton("Leather", icon: "seal.fill") {
                                 var mat = PhysicallyBasedMaterial()
                                 mat.baseColor = .init(tint: UIColor(selectedColor))
@@ -166,11 +170,13 @@ struct EditModelView: View {
                                 mat.metallic = 0.2
                                 mat.normal = .init(texture: .init(try! .load(named: "leather")))
                                 selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                                selectedEntity?.components.set(MaterialTypeComponent(materialType: "leather"))
                             }
                         }
                         
                         Button {
                             selectedEntity?.restoreOriginalMaterials()
+                            selectedEntity?.components.remove(MaterialTypeComponent.self)
                             selectedColor = .gray
                         } label: {
                             Text("Restore")
@@ -209,20 +215,26 @@ struct EditModelView: View {
                 
                 if let model = controller.returnSelectedModel(),
                    let entity = model.modelEntity {
-                    
-                    selectedEntity = entity
-                    
-                    let bounds = entity.visualBounds(relativeTo: entity)
 
-                    let size = bounds.max - bounds.min
-                    
-                    if ogSize == nil {
+                    selectedEntity = entity
+
+                    // Try to get original bounds from component (set during load)
+                    if let originalBoundsComp = entity.components[OriginalBoundsComponent.self] {
+                        ogSize = originalBoundsComp.originalSize
+                    } else {
+                        // Fallback: calculate from current bounds
+                        let bounds = entity.visualBounds(relativeTo: entity)
+                        let size = bounds.max - bounds.min
                         ogSize = size
                     }
 
-                    modelWidth  = size.x * 100
-                    modelHeight = size.y * 100
-                    modelDepth  = size.z * 100
+                    // Calculate current displayed dimensions
+                    let currentBounds = entity.visualBounds(relativeTo: nil)
+                    let currentSize = currentBounds.max - currentBounds.min
+
+                    modelWidth  = currentSize.x * 100
+                    modelHeight = currentSize.y * 100
+                    modelDepth  = currentSize.z * 100
 
                     let position = entity.position
                     X = Double(position.x)
@@ -440,10 +452,11 @@ struct EditModelView: View {
                 )
                 .onTapGesture {
                     selectedColor = color
-                    
+
                     var mat = PhysicallyBasedMaterial()
                     mat.baseColor = .init(tint: UIColor(color))
                     selectedEntity?.replaceAndStoreOldMaterials(material: mat)
+                    selectedEntity?.components.set(MaterialTypeComponent(materialType: "custom"))
                     //                if let id = controller.selectedModelInstanceIDVar {
                     //                    controller.setMaterial(for: id, to: mat)
                     //
@@ -483,22 +496,32 @@ struct EditModelView: View {
                 selectedEntity = nil
                 return
             }
-            
-            selectedEntity = entity
-            
-            let bounds = entity.visualBounds(relativeTo: nil)
-            let size = bounds.max - bounds.min
 
-               
-            modelWidth  = size.x * 100
-            modelHeight = size.y * 100
-            modelDepth  = size.z * 100
-            
+            selectedEntity = entity
+
+            // Try to get original bounds from component (set during load)
+            if let originalBoundsComp = entity.components[OriginalBoundsComponent.self] {
+                ogSize = originalBoundsComp.originalSize
+            } else {
+                // Fallback: calculate from current bounds
+                let bounds = entity.visualBounds(relativeTo: entity)
+                let size = bounds.max - bounds.min
+                ogSize = size
+            }
+
+            // Calculate current displayed dimensions
+            let currentBounds = entity.visualBounds(relativeTo: nil)
+            let currentSize = currentBounds.max - currentBounds.min
+
+            modelWidth  = currentSize.x * 100
+            modelHeight = currentSize.y * 100
+            modelDepth  = currentSize.z * 100
+
             let position = entity.position
             X = Double(position.x)
             Y = Double(position.y)
             Z = Double(position.z)
-            
+
         }
         
         private func removeSelectedModel() {

@@ -38,3 +38,21 @@ struct ModelBoundsComponent: Component {
     var extents: SIMD3<Float>
     var placementOffset: SIMD3<Float>
 }
+
+/// Stores original unscaled dimensions for accurate editing
+public struct OriginalBoundsComponent: Component {
+    public var originalSize: SIMD3<Float>
+
+    public init(originalSize: SIMD3<Float>) {
+        self.originalSize = originalSize
+    }
+}
+
+/// Tracks the applied material type for explicit persistence
+public struct MaterialTypeComponent: Component {
+    public var materialType: String  // "wood", "metal", "fabric", "leather", "custom"
+
+    public init(materialType: String) {
+        self.materialType = materialType
+    }
+}
