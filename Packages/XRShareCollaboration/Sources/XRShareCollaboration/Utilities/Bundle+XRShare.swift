@@ -9,11 +9,15 @@ public extension Bundle {
         buckets.append(contentsOf: Bundle.allBundles)
         buckets.append(contentsOf: Bundle.allFrameworks)
         buckets.append(Bundle.main)
-        return uniqueBundles(buckets)
+        return uniqueBundles(buckets).filter { bundle in
+            !bundle.bundlePath.contains("/System/Library")
+        }
     }
     #else
     private static var xrShareBundleCandidates: [Bundle] {
-        uniqueBundles([Bundle.main] + Bundle.allBundles + Bundle.allFrameworks)
+        uniqueBundles([Bundle.main] + Bundle.allBundles + Bundle.allFrameworks).filter { bundle in
+            !bundle.bundlePath.contains("/System/Library")
+        }
     }
     #endif
 
