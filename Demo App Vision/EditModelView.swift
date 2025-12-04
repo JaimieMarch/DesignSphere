@@ -242,31 +242,25 @@ struct EditModelView: View {
                     Z = Double(position.z)
                 }
             }
-            .onChange(of: controller.selectedModelInstanceIDVar) { _ in
+            .onChange(of: controller.selectedModelInstanceIDVar) {
                 updateSelectedEntity()
             }
-            .onChange(of: modelWidth) { _, newValue in
-                modelWidth = newValue
+            .onChange(of: modelWidth) {
                 updateEntityScale()
             }
-            .onChange(of: modelHeight) { _, newValue in
-                modelHeight = newValue
+            .onChange(of: modelHeight) {
                 updateEntityScale()
             }
-            .onChange(of: modelDepth) { _, newValue in
-                modelDepth = newValue
+            .onChange(of: modelDepth) {
                 updateEntityScale()
             }
-            .onChange(of: X) { _, newValue in
-                X = newValue
+            .onChange(of: X) {
                 updateEntityPosition()
             }
-            .onChange(of: Y) { _, newValue in
-                Y = newValue
+            .onChange(of: Y) {
                 updateEntityPosition()
             }
-            .onChange(of: Z) { _, newValue in
-                Z = newValue
+            .onChange(of: Z) {
                 updateEntityPosition()
             }
             

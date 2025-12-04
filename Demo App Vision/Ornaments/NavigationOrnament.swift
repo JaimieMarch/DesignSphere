@@ -10,7 +10,8 @@ struct NavigationOrnament: View {
     
     // default selected tab
     @State private var selectedTab: Int = 0
-    
+    @State private var previousTab: Int = 0
+
     // avoid looped interactions - can't change while changing
     @State private var isChangingTab = false
     
@@ -29,18 +30,20 @@ struct NavigationOrnament: View {
         .frame(width: 80, height: 450)
         .onAppear {
             selectedTab = currentScreen.rawValue
+            previousTab = currentScreen.rawValue
         }
         // when another tab is selected
-        .onChange(of: selectedTab) { oldValue, newValue in
+        .onChange(of: selectedTab) {
             guard !isChangingTab else { return }
-            handleTabChange(oldValue, newValue)
+            handleTabChange(previousTab, selectedTab)
+            previousTab = selectedTab
         }
-        .onChange(of: currentScreen) { oldValue, newValue in
-            if selectedTab != newValue.rawValue {
+        .onChange(of: currentScreen) {
+            if selectedTab != currentScreen.rawValue {
                 // turn on the boolean
                 // this stops onChange(selectedTab)
                 isChangingTab = true
-                selectedTab = newValue.rawValue
+                selectedTab = currentScreen.rawValue
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     isChangingTab = false
                 }
