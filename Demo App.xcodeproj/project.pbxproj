@@ -264,7 +264,7 @@
 				DEVELOPMENT_TEAM = HC2XYK55Y8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = DemoAppVision;
+				INFOPLIST_KEY_CFBundleDisplayName = DesignSphere;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSAccessoryTrackingUsageDescription = "We use accessory tracking to recognize and track supported objects";
 				INFOPLIST_KEY_NSBonjourServices = "_xr-anatomy._tcp _xr-anatomy._udp";
@@ -304,7 +304,7 @@
 				DEVELOPMENT_TEAM = HC2XYK55Y8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = DemoAppVision;
+				INFOPLIST_KEY_CFBundleDisplayName = DesignSphere;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSAccessoryTrackingUsageDescription = "We use accessory tracking to recognize and track supported objects";
 				INFOPLIST_KEY_NSBonjourServices = "_xr-anatomy._tcp _xr-anatomy._udp";
