@@ -1,16 +1,18 @@
+//
+// App's logical coordination is done here
+// This is the main controller for sessions
+//
+
 import SwiftUI
 import Combine
 import RealityKit
-#if canImport(ARKit)
 import ARKit
-#endif
 
 @MainActor
-
-/// Main controller for local and shareplay sessions
 public final class CollaborativeSessionController: ObservableObject {
     
-    /// Model descriptor for models that can be placed
+    // Model descriptor for models that can be placed
+    // Conceptual models are available as a "class" of item as can be seen in the catalog
     public struct ModelDescriptor: Identifiable, Hashable {
         public let id: String
         public let name: String
@@ -23,7 +25,8 @@ public final class CollaborativeSessionController: ObservableObject {
         }
     }
 
-    /// Descriptor for models that have been placed in the scene
+    // Descriptor for models that have been placed in the scene
+    // The "object" deriving from the above "class" - the real entity
     public struct PlacedModelDescriptor: Identifiable, Hashable {
         public let id: UUID
         public let name: String
@@ -71,12 +74,14 @@ public final class CollaborativeSessionController: ObservableObject {
 
     private let arViewModel: ARViewModel
     public let modelManager: ModelManager
-    #if os(visionOS)
     public let immersiveSession: ARKitSession
     private var worldTrackingProvider: WorldTrackingProvider?
     private var isSessionRunning: Bool = false
-    #endif
     private var cancellables: Set<AnyCancellable> = []
+
+    // Surface snapping system
+    public let surfaceDetectionManager: SurfaceDetectionManager
+    public private(set) var surfaceSnapManager: SurfaceSnapManager?
 
     /// Wires everything together
     public init() {
@@ -86,9 +91,20 @@ public final class CollaborativeSessionController: ObservableObject {
 
         self.arViewModel = arViewModel
         self.modelManager = modelManager
+
+        // Initialize surface detection manager
+        self.surfaceDetectionManager = SurfaceDetectionManager()
+
         #if os(visionOS)
         self.immersiveSession = ARKitSession()
+
+        // Wire up manipulation manager with controller reference
+        if #available(visionOS 26.0, *) {
+            arViewModel.manipulationManager?.controller = self
+            arViewModel.manipulationManager?.arViewModel = arViewModel
+        }
         #endif
+
         bindState()
         refreshAvailableModels()
     }
@@ -104,8 +120,7 @@ public final class CollaborativeSessionController: ObservableObject {
         }
     }
 
-    #if os(visionOS)
-    /// Start ARKit session with world tracking 
+    /// Start ARKit session with world tracking and surface detection
     public func startWorldTracking() async throws {
         guard !isSessionRunning else {
             print("ARKit session already running")
@@ -121,19 +136,23 @@ public final class CollaborativeSessionController: ObservableObject {
         isSessionRunning = true
 
         print("Started ARKit session with WorldTracking - world anchors will persist")
+
+        // Start surface detection
+        try await surfaceDetectionManager.startDetection(session: immersiveSession)
+        print("Started surface detection for snapping")
     }
 
     /// Stop the ARKit session
     public func stopWorldTracking() async {
         guard isSessionRunning else { return }
 
+        surfaceDetectionManager.stopDetection()
         immersiveSession.stop()
         worldTrackingProvider = nil
         isSessionRunning = false
 
         print("Stopped ARKit session and WorldTracking")
     }
-    #endif
 
     public func returnSelectedModel() -> Model? {
         guard let instanceID = modelManager.selectedModelInstanceID else { return nil }
@@ -252,12 +271,14 @@ public final class CollaborativeSessionController: ObservableObject {
     /// Remove a single model from the session
     public func removeModel(named name: String) {
         if let model = modelManager.placedModels.first(where: { $0.modelType.displayName == name }) {
+            clearSnapBehavior(for: model.id)
             modelManager.removeModel(model, broadcast: true)
         }
     }
-    
+
     public func removeModelById(withInstanceID id: UUID) {
         if let model = modelManager.placedModels.first(where: { $0.id == id }) {
+            clearSnapBehavior(for: id)
             modelManager.removeModel(model, broadcast: true)
         }
     }
@@ -277,11 +298,53 @@ public final class CollaborativeSessionController: ObservableObject {
     public func setMaterial(for entityID: UUID, to material: RealityKit.Material) {
         pendingMaterialUpdate = (entityID, material)
     }
-    
-    
 
-    
-    
+    /// Apply surface snapping to entity position during drag
+    public func applySnapping(
+        to entity: Entity,
+        entityID: UUID,
+        modelType: ModelType,
+        dragPosition: SIMD3<Float>
+    ) -> SIMD3<Float> {
+        guard let snapManager = surfaceSnapManager else {
+            return dragPosition
+        }
+
+        let placementType = ObjectPlacementType.from(modelType: modelType)
+
+        // Apply appropriate snapping based on object type
+        switch placementType {
+        case .wallMounted:
+            return snapManager.updateVerticalSnap(
+                entity: entity,
+                entityID: entityID,
+                modelType: modelType,
+                dragPosition: dragPosition
+            )
+        case .furniture, .decorative, .lighting:
+            return snapManager.updateHorizontalSnap(
+                entity: entity,
+                entityID: entityID,
+                modelType: modelType,
+                dragPosition: dragPosition
+            )
+        }
+    }
+
+    /// Get snap behavior for a model
+    public func getSnapBehavior(for entityID: UUID) -> SnapBehavior? {
+        return surfaceSnapManager?.getSnapBehavior(for: entityID)
+    }
+
+    /// Clear snap behavior when model is removed
+    public func clearSnapBehavior(for entityID: UUID) {
+        surfaceSnapManager?.clearSnapBehavior(for: entityID)
+    }
+
+
+
+
+
 // MARK: - RealityView
 
     #if os(visionOS)
@@ -294,7 +357,14 @@ public final class CollaborativeSessionController: ObservableObject {
         }
         arViewModel.sharedAnchorEntity.isEnabled = true
 
-        
+        // Initialize surface snap manager with the shared anchor
+        if surfaceSnapManager == nil {
+            let snapManager = SurfaceSnapManager(surfaceDetectionManager: surfaceDetectionManager)
+            snapManager.initializePreview(parent: arViewModel.sharedAnchorEntity)
+            surfaceSnapManager = snapManager
+            print("Initialized surface snap manager")
+        }
+
         // If we are in shareplay session, set up the spatial coordiantion for shared world anchor
 //        if let shareSession = arViewModel.sharePlayCoordinator?.session {
 //            

@@ -21,7 +21,7 @@ import QuartzCore
 class ManipulationManager {
   //  private var sharePlayCoordinator: SharePlayCoordinator?
     private var manipulationSubscriptions: [Entity: AnyCancellable] = [:]
-    
+
     #if os(visionOS)
     private var didInstallSubscriptions = false
     private var contentSubscriptions: [EventSubscription] = []
@@ -31,6 +31,9 @@ class ManipulationManager {
     private let minSendInterval: CFTimeInterval = 1.0 / 30.0
     private let debugTransforms = false
     weak var arViewModel: ARViewModel?
+
+    // Reference to controller for surface snapping
+    weak var controller: CollaborativeSessionController?
 
 //    init(sharePlayCoordinator: SharePlayCoordinator? = nil) {
 //        self.sharePlayCoordinator = sharePlayCoordinator
@@ -143,6 +146,26 @@ class ManipulationManager {
     /// Called when a model's transform changes, so when the model is moved, rotated or expanded
     func handleTransformUpdate(for entity: Entity, instanceID: UUID, force: Bool = false) async {
 
+        // Apply surface snapping if controller is available
+        if let controller = controller,
+           let modelManager = arViewModel?.modelManager,
+           let model = modelManager.placedModels.first(where: { $0.id == instanceID }) {
+
+            // Get current drag position relative to parent
+            let currentPosition = entity.position(relativeTo: entity.parent)
+
+            // Apply snapping - this returns the adjusted position
+            let snappedPosition = controller.applySnapping(
+                to: entity,
+                entityID: instanceID,
+                modelType: model.modelType,
+                dragPosition: currentPosition
+            )
+
+            // Update entity position with snapped result
+            entity.setPosition(snappedPosition, relativeTo: entity.parent)
+        }
+
 //        // Only send to SharePlay if we're connected and have a coordinator
 //        guard let coordinator = sharePlayCoordinator,
 //              coordinator.isConnected else {
@@ -151,14 +174,14 @@ class ManipulationManager {
 //            }
 //            return
 //        }
-        
+
 //        let now = CACurrentMediaTime()
 //        if !force, let last = lastSendTime[instanceID], (now - last) < minSendInterval {
 //            return
 //        }
 //        lastSendTime[instanceID] = now
-        
-        
+
+
 
 //        // Create transform relative to the shared anchor
 //        let reference: Entity? = entity.parent
@@ -168,11 +191,11 @@ class ManipulationManager {
 //            scale: entity.scale(relativeTo: reference),
 //            referenceAnchorID: coordinator.currentReferenceAnchorID
 //        )
-        
+
 //        if debugTransforms {
 //            print("SharePlay session: send transform: id=\(instanceID) pos=\(transform.position)")
 //        }
-        
+
         // Send message to shareplay coordinator
        // await coordinator.sendModelTransform(instanceID: instanceID, transform: transform)
     }
