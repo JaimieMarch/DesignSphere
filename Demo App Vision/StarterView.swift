@@ -13,6 +13,7 @@ struct StarterView: View {
     @State private var isActivatingSharePlay = false
     @State private var sharePlayError: String?
     @State private var favoriteModels: Set<String> = []
+    private let favoritesDefaultsKey = "favoriteModels"
 
     // Loading states
     @State private var isLoading = true
@@ -132,8 +133,12 @@ struct StarterView: View {
         .onAppear {
             isImmersiveOpen = false
             isLoading = true
+            loadFavorites()
         }
         .task { await prepareExperience() }
+        .onChange(of: favoriteModels) { _, newValue in
+            saveFavorites(newValue)
+        }
         .alert("SharePlay", isPresented: Binding(
             get: { sharePlayError != nil },
             set: { if !$0 { sharePlayError = nil } }
@@ -166,6 +171,16 @@ struct StarterView: View {
                 loadingMessage: $loadingMessage
             )
         }
+    }
+    
+    private func loadFavorites() {
+        if let stored = UserDefaults.standard.array(forKey: favoritesDefaultsKey) as? [String] {
+            favoriteModels = Set(stored)
+        }
+    }
+    
+    private func saveFavorites(_ favorites: Set<String>) {
+        UserDefaults.standard.set(Array(favorites), forKey: favoritesDefaultsKey)
     }
     
     private func performTabTransition(to newTab: ScreenTab) {
