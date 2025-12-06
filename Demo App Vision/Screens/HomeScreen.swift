@@ -98,6 +98,7 @@ struct HomeScreen: View {
                 }
                 .padding(16)
             }
+            .clipShape(RoundedRectangle(cornerRadius: 24))
             .glassBackground(cornerRadius: 24)
             .shadow(radius: 10)
         }
