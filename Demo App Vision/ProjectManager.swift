@@ -8,9 +8,13 @@ import UIKit
 class ProjectManager: ObservableObject {
     @Published var savedProjects: [ProjectData] = []
     @Published var currentWorldAnchorID: UUID?
+    @Published var currentProjectName: String?
+    @Published var isStreamingProject: Bool = false
+    @Published var streamingProgress: Double = 0
 
     // app data is sandboxed **************************
     private let fileManager = FileManager.default
+    private let anchorProvider = WorldAnchorProvider.shared
     private var projectsDirectory: URL {
         let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return documentsPath.appendingPathComponent("DesignSphereProjects", isDirectory: true)
@@ -31,8 +35,16 @@ class ProjectManager: ObservableObject {
     }
 
     private func projectFileURL(for roomName: String) -> URL {
-        let sanitized = roomName.replacingOccurrences(of: "/", with: "-")
+        let sanitized = sanitize(roomName: roomName)
         return projectsDirectory.appendingPathComponent("\(sanitized).json")
+    }
+
+    private func sanitize(roomName: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " _-"))
+        let filtered = roomName.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" }
+        let collapsed = String(filtered).replacingOccurrences(of: "--", with: "-")
+        let trimmed = collapsed.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Project" : trimmed
     }
 
     // MARK: - Material Helpers
@@ -184,14 +196,12 @@ class ProjectManager: ObservableObject {
     #if os(visionOS)
     /// Creates and saves a persistent world anchor for the current room
     func createWorldAnchor(controller: CollaborativeSessionController) async throws -> UUID {
-        // Create a world anchor at the origin
-        let worldAnchor = WorldAnchor(originFromAnchorTransform: matrix_identity_float4x4)
-
-        // Save the anchor ID for persistence
-        currentWorldAnchorID = worldAnchor.id
-
-        print("Created world anchor with ID: \(worldAnchor.id)")
-        return worldAnchor.id
+        let anchorID = UUID()
+        let transform = controller.sharedAnchorEntity.transform.matrix
+        anchorProvider.saveAnchor(id: anchorID, transform: transform)
+        currentWorldAnchorID = anchorID
+        print("Created persistent world anchor with ID: \(anchorID)")
+        return anchorID
     }
     #endif
 
@@ -229,12 +239,17 @@ class ProjectManager: ObservableObject {
         let fileURL = projectFileURL(for: roomName)
         let now = Date()
 
+        if let anchorID = worldAnchorID {
+            anchorProvider.saveAnchor(id: anchorID, transform: sharedAnchor.transform.matrix)
+        }
+
         let project: ProjectData
         if let existingData = try? Data(contentsOf: fileURL),
            var existingProject = try? JSONDecoder().decode(ProjectData.self, from: existingData) {
             // Update existing project
             existingProject.dateModified = now
             existingProject.models = savedModels
+            existingProject.roomName = roomName
             project = existingProject
             print("Updating existing project: \(roomName)")
         } else {
@@ -261,6 +276,7 @@ class ProjectManager: ObservableObject {
 
         // Refresh the project list
         loadProjectList()
+        currentProjectName = roomName
     }
 
     // MARK: - Load Project
@@ -281,15 +297,30 @@ class ProjectManager: ObservableObject {
         let project = try decoder.decode(ProjectData.self, from: jsonData)
 
         // Clear existing models
-        controller.removeAllModels()
+        await controller.removeAllModels()
+        await MainActor.run {
+            isStreamingProject = true
+            streamingProgress = 0
+        }
+        defer {
+            Task { @MainActor in
+                self.isStreamingProject = false
+                self.streamingProgress = 0
+            }
+        }
 
-        // Wait for cleanup
-        try await Task.sleep(nanoseconds: 500_000_000)
+        if let anchorID = project.worldAnchorID,
+           let anchorTransform = anchorProvider.transform(for: anchorID) {
+            await MainActor.run {
+                sharedAnchor.transform = Transform(matrix: anchorTransform)
+            }
+            currentWorldAnchorID = anchorID
+        }
 
         print("Loading \(project.models.count) models for project '\(roomName)'")
 
         // Load each model
-        for savedModel in project.models {
+        for (index, savedModel) in project.models.enumerated() {
             // Find the model type
             guard let modelType = ModelType.allCases().first(where: { $0.rawValue == savedModel.modelTypeName }) else {
                 print("Warning: Unknown model type '\(savedModel.modelTypeName)'")
@@ -322,9 +353,15 @@ class ProjectManager: ObservableObject {
             } else {
                 print("Warning: Failed to load model '\(modelType.displayName)'")
             }
+
+            let progress = Double(index + 1) / Double(max(project.models.count, 1))
+            await MainActor.run {
+                streamingProgress = progress
+            }
         }
 
         print("Project '\(roomName)' loaded successfully")
+        currentProjectName = project.roomName
         return project.worldAnchorID
     }
 
@@ -361,9 +398,18 @@ class ProjectManager: ObservableObject {
     /// Deletes a project by room name
     func deleteProject(roomName: String) throws {
         let fileURL = projectFileURL(for: roomName)
+        if let data = try? Data(contentsOf: fileURL),
+           let project = try? JSONDecoder().decode(ProjectData.self, from: data),
+           let anchorID = project.worldAnchorID {
+            anchorProvider.removeAnchor(id: anchorID)
+        }
         try fileManager.removeItem(at: fileURL)
         print("Deleted project '\(roomName)'")
         loadProjectList()
+        if currentProjectName == roomName {
+            currentProjectName = nil
+            currentWorldAnchorID = nil
+        }
     }
 
     /// Gets a list of all saved project names

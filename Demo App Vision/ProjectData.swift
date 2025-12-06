@@ -3,7 +3,7 @@ import simd
 
 /// Represents a saved project with all its models and world anchor
 struct ProjectData: Codable {
-    let roomName: String
+    var roomName: String
     let worldAnchorID: UUID?
     let dateCreated: Date
     var dateModified: Date

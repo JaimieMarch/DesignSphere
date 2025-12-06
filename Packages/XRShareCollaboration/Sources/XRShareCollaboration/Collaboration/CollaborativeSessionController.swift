@@ -244,8 +244,10 @@ public final class CollaborativeSessionController: ObservableObject {
 
 
     /// Remove all the models from the session
-    public func removeAllModels() {
-        modelManager.reset(broadcast: true)
+    public func removeAllModels() async {
+        await MainActor.run {
+            modelManager.reset(broadcast: true)
+        }
     }
 
     
@@ -463,4 +465,3 @@ public final class CollaborativeSessionController: ObservableObject {
         availableModels = modelManager.modelTypes.map(ModelDescriptor.init)
     }
 }
-

@@ -8,6 +8,8 @@ struct DetailsScreen: View {
     @State private var showLoadSheet: Bool = false
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
+    @State private var showOverwriteConfirmation: Bool = false
+    @State private var pendingSaveRoomName: String = ""
 
     var body: some View {
         VStack(spacing: 14) {
@@ -75,6 +77,17 @@ struct DetailsScreen: View {
 
                 Divider()
 
+                if projectManager.isStreamingProject {
+                    VStack(spacing: 8) {
+                        ProgressView(value: projectManager.streamingProgress)
+                        Text("Restoring models \(Int(projectManager.streamingProgress * 100))%")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+
                 // Scrollable Content Area
                 ScrollView {
                     if controller.placedModelDescriptors.isEmpty {
@@ -118,7 +131,9 @@ struct DetailsScreen: View {
                 if !controller.placedModelDescriptors.isEmpty {
                     Divider()
 
-                    Button(action: { controller.removeAllModels() }) {
+                    Button(action: {
+                        Task { await controller.removeAllModels() }
+                    }) {
                         HStack {
                             Image(systemName: "trash.fill")
                             Text("Clear All Models")
@@ -149,12 +164,34 @@ struct DetailsScreen: View {
         } message: {
             Text(alertMessage)
         }
+        .alert("Overwrite Project?", isPresented: $showOverwriteConfirmation) {
+            Button("Cancel", role: .cancel) {
+                pendingSaveRoomName = ""
+            }
+            Button("Overwrite", role: .destructive) {
+                performSave(roomName: pendingSaveRoomName, skipCheck: true)
+                pendingSaveRoomName = ""
+            }
+        } message: {
+            Text("A project named '\(pendingSaveRoomName)' already exists. Do you want to overwrite it?")
+        }
     }
 
     private func saveProject() {
         guard !roomName.isEmpty else {
             alertMessage = "Please enter a room name"
             showAlert = true
+            return
+        }
+
+        performSave(roomName: roomName, skipCheck: false)
+    }
+
+    private func performSave(roomName: String, skipCheck: Bool) {
+        // Check if project already exists and we haven't confirmed overwrite
+        if !skipCheck && projectManager.getProject(named: roomName) != nil {
+            pendingSaveRoomName = roomName
+            showOverwriteConfirmation = true
             return
         }
 
@@ -179,6 +216,7 @@ struct DetailsScreen: View {
 
                 alertMessage = "Project '\(roomName)' saved successfully!"
                 showAlert = true
+                // Keep the room name after save so user can easily update the project
                 #else
                 alertMessage = "World anchor saving is only available on visionOS"
                 showAlert = true
@@ -201,7 +239,7 @@ struct DetailsScreen: View {
                 )
 
                 // Update the room name field
-                self.roomName = roomName
+                self.roomName = ""
 
                 if let anchorID = worldAnchorID {
                     alertMessage = "Project '\(roomName)' loaded! World anchor ID: \(anchorID.uuidString.prefix(8))..."
