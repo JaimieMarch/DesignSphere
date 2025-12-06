@@ -329,23 +329,9 @@ public final class CollaborativeSessionController: ObservableObject {
         
         for model in modelManager.placedModels {
             guard let entity = model.modelEntity else { continue }
-            
-            let existing = content.entities.first(where: { candidate in
-                
-                if let instance = candidate.components[InstanceIDComponent.self]?.id,
-                   
-                   let modelInstance = entity.components[InstanceIDComponent.self]?.id {
-                    return instance == modelInstance
-                }
-                return candidate === entity
-            })
-
-            if existing == nil {
-                if entity.parent == nil || entity.parent !== arViewModel.sharedAnchorEntity {
-                    arViewModel.sharedAnchorEntity.addChild(entity)
-                }
-                content.add(entity)
-    }
+            if entity.parent !== arViewModel.sharedAnchorEntity {
+                arViewModel.sharedAnchorEntity.addChild(entity)
+            }
         }
         
         // Remove any entities from the content that are no longer part of the session
@@ -477,5 +463,4 @@ public final class CollaborativeSessionController: ObservableObject {
         availableModels = modelManager.modelTypes.map(ModelDescriptor.init)
     }
 }
-
 

@@ -21,6 +21,7 @@ import QuartzCore
 class ManipulationManager {
   //  private var sharePlayCoordinator: SharePlayCoordinator?
     private var manipulationSubscriptions: [Entity: AnyCancellable] = [:]
+    private static var didRegisterConstraintSystem = false
     
     #if os(visionOS)
     private var didInstallSubscriptions = false
@@ -31,6 +32,16 @@ class ManipulationManager {
     private let minSendInterval: CFTimeInterval = 1.0 / 30.0
     private let debugTransforms = false
     weak var arViewModel: ARViewModel?
+    
+    init() {
+        Self.registerConstraintSystemIfNeeded()
+    }
+    
+    private static func registerConstraintSystemIfNeeded() {
+        guard !didRegisterConstraintSystem else { return }
+        registerUprightConstraintSystem()
+        didRegisterConstraintSystem = true
+    }
 
 //    init(sharePlayCoordinator: SharePlayCoordinator? = nil) {
 //        self.sharePlayCoordinator = sharePlayCoordinator
@@ -46,6 +57,9 @@ class ManipulationManager {
         
         // Add the component to the entity
         entity.components.set(manipulationComponent)
+        if entity.components[UprightConstraintComponent.self] == nil {
+            entity.components.set(UprightConstraintComponent())
+        }
         
         // Add the required supporting components
         if entity.components[CollisionComponent.self] == nil {
@@ -221,6 +235,7 @@ class ManipulationManager {
         entity.components.remove(GestureComponent.self)
         entity.components.remove(PhysicsBodyComponent.self)
         entity.components.remove(CollisionComponent.self)
+        entity.components.remove(UprightConstraintComponent.self)
     }
     
 
@@ -249,4 +264,3 @@ class ManipulationManager {
         print("ManipulationManager: Reset completed")
     }
 }
-
