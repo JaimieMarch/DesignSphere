@@ -31,13 +31,6 @@ struct DetailsScreen: View {
                             .padding(.vertical, 8)
                     }
                     .buttonStyle(.bordered)
-                    
-                    Button(action: { exportProject() }) {
-                        Label("Export", systemImage: "mediastick")
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.bordered)
                 }
             }
             .padding(.horizontal, 16)
@@ -222,9 +215,5 @@ struct DetailsScreen: View {
                 showAlert = true
             }
         }
-    }
-    
-    private func exportProject() {
-        print("Export project - NOT YET IMPLEMENTED")
     }
 }
