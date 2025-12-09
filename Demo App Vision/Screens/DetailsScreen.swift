@@ -1,3 +1,8 @@
+// The project details screen shown from main UI
+// Displays the project name, placed models, and actions like save/load/export
+// Shows a grid of all models currently placed in AR scene
+// Provides options to remove individual models or clear them all
+
 import SwiftUI
 import XRShareCollaboration
 

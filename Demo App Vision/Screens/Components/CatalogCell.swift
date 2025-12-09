@@ -1,11 +1,11 @@
 // Defines each cell inside the catalog home view
-// Each model is shown in the catalog based on these definitions
+// Each cell displays a model preview, its name, and a toggleable favorite button
 
 import SwiftUI
 import XRShareCollaboration
 
 struct CatalogCell: View {
-    // the name and favorite state
+    // Model metadata
     let name: String
     let isFavorite: Bool
     let onFavoriteToggle: () -> Void
@@ -32,8 +32,7 @@ struct CatalogCell: View {
                     .foregroundStyle(.secondary)
                     .frame(height: 130)
             }
-
-            // name under
+            // Display model name beneath the thumbnail
             Text(name)
                 .font(.footnote.weight(.medium))
                 .multilineTextAlignment(.center)

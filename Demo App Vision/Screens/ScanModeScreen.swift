@@ -1,3 +1,5 @@
+// Placeholder screen for handling object scanning mode
+
 import SwiftUI
 
 struct ScanModeScreen: View {

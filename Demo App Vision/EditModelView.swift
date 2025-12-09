@@ -1,7 +1,6 @@
-//
-//  EditModelView.swift
-//  Demo App Vision
-
+//  Provides the UI for editing a selected model.
+//  Supports adjusting scale, rotation, materials, and deletion
+//  Provides color and texture setting of models
 
 import SwiftUI
 import RealityKit
@@ -100,9 +99,9 @@ struct EditModelView: View {
                                     .frame(width: 70, height: 70)
                                     .background(.ultraThinMaterial)
                                     .clipShape(Circle())
-                                    .onChange(of: customColor) {
-                                        selectedColor = customColor
-                                        
+                                    .onChange(of: customColor) { _, newValue in
+                                        selectedColor = newValue
+
                                         var mat = PhysicallyBasedMaterial()
                                         mat.baseColor = .init(tint: UIColor(selectedColor))
                                         selectedEntity?.replaceAndStoreOldMaterials(material: mat)
@@ -242,25 +241,25 @@ struct EditModelView: View {
                     Z = Double(position.z)
                 }
             }
-            .onChange(of: controller.selectedModelInstanceIDVar) {
+            .onChange(of: controller.selectedModelInstanceIDVar) { _, _ in
                 updateSelectedEntity()
             }
-            .onChange(of: modelWidth) {
+            .onChange(of: modelWidth) { _, _ in
                 updateEntityScale()
             }
-            .onChange(of: modelHeight) {
+            .onChange(of: modelHeight) { _, _ in
                 updateEntityScale()
             }
-            .onChange(of: modelDepth) {
+            .onChange(of: modelDepth) { _, _ in
                 updateEntityScale()
             }
-            .onChange(of: X) {
+            .onChange(of: X) { _, _ in
                 updateEntityPosition()
             }
-            .onChange(of: Y) {
+            .onChange(of: Y) { _, _ in
                 updateEntityPosition()
             }
-            .onChange(of: Z) {
+            .onChange(of: Z) { _, _ in
                 updateEntityPosition()
             }
             

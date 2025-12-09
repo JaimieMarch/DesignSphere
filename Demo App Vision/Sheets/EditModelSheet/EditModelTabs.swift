@@ -61,8 +61,8 @@ struct StyleTab: View {
                     }
                     ColorPicker("", selection: $customColor)
                         .labelsHidden()
-                        .onChange(of: customColor) {
-                            selectedColor = customColor
+                        .onChange(of: customColor) { _, newValue in
+                            selectedColor = newValue
                         }
                 }
             }

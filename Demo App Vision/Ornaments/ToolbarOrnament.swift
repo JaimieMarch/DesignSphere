@@ -1,7 +1,5 @@
-// Bottom toolbar
-
-// Each button uses a binding toggle to show the corresponding sheet
-// Styling is directly attached to each button
+// Bottom toolbar ornament for presenting key UI action
+// Each button toggles a bound Boolean, which triggers the corresponding sheet
 
 import SwiftUI
 import XRShareCollaboration
@@ -61,6 +59,7 @@ struct ToolbarOrnament: View {
                             Image(systemName: "pencil")
                                 .frame(width: 28, height: 28)
                         }
+                        // Only enabled when a model is selected.
                         .disabled(controller.selectedModelIDVar == nil)
                         .buttonStyle(.borderless)
                         .buttonBorderShape(.circle)

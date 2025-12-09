@@ -1,3 +1,9 @@
+// Main catalog screen shown the app
+// Displays all available models
+// Provides sorting, category filtering, search, marking items as favorites
+// Tapping a model places it into the AR scene via the XRShare controller
+// Uses CatalogCell to display each model with name and thumbnail
+
 import SwiftUI
 import XRShareCollaboration
 
