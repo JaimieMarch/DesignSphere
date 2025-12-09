@@ -1,5 +1,5 @@
-// Defines selection state for each model
-// Helps define the current state of a model
+// Represents the interaction state of a model through the UI
+// Used to control visuals such as outlines or selection indicators:
 // - Selected, locked, hovered
 
 import SwiftUI

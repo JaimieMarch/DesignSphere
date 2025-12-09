@@ -1,3 +1,6 @@
+// Root view that inits the collaborative session and handles
+// immersive space setup, navigation, global UI state
+
 import SwiftUI
 import XRShareCollaboration
 

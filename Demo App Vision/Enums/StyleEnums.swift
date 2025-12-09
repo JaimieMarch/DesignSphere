@@ -1,4 +1,4 @@
-// Define style categories for models
+// Define style categories for models throughout the UI
 // Currently unused - may be useful in the future
 
 enum Style: String, CaseIterable, Identifiable, Codable {

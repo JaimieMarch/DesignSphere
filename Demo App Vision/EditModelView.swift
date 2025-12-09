@@ -1,7 +1,6 @@
-//
-//  EditModelView.swift
-//  Demo App Vision
-
+//  Provides the UI for editing a selected model.
+//  Supports adjusting scale, rotation, materials, and deletion
+//  Provides color and texture setting of models
 
 import SwiftUI
 import RealityKit

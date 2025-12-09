@@ -1,6 +1,6 @@
-//
-//  App Entry point
-//
+// Application entry point for the XRShare demo app
+// Initializes XRShare controller, sets up the main window
+// Defines the immersive space on visionOS for RealityKit content
 
 import SwiftUI
 import XRShareCollaboration

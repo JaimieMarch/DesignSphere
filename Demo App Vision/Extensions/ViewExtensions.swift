@@ -1,4 +1,4 @@
-// Just helps to prevent repeating this Apple centric glass effect across pages
+// Reusable modifier for applying a consistent glass-style background
 // Reusable via:
 // .glassbackground
 // Helps keep the app's visuals consistent

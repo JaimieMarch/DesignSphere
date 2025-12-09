@@ -1,6 +1,5 @@
-// Define material enums for potential future implementation.
-// Currently uses procedural materials to update item's textures.
-
+// Enums for supported material types for future customization features
+// Used to generate procedural materials applied to 3D models
 import RealityKit
 import SwiftUI
 
@@ -42,7 +41,8 @@ enum MaterialOption: String, CaseIterable, Identifiable, Codable {
         }
     }
     
-    // case based function to recall material texture colors
+    // Constructs SimpleMaterial with roughness and metallic properties set
+    // tuned for each material category.
     func createMaterial() -> SimpleMaterial {
         var material = SimpleMaterial()
         

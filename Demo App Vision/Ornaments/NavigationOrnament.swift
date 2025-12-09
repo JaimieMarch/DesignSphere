@@ -1,23 +1,24 @@
-// Tabview ornament (the one on the left) is the navigation view
+
 
 import SwiftUI
 
 struct NavigationOrnament: View {
-    // connect this file to starterview
+    // Bind to the parent view’s active screen
+    // Updates floww both ways: parent -> ornament, ornament -> parent
     @Binding var currentScreen: StarterView.ScreenTab
-    // gets called when a new tab is selected
+    // Triggered whenever the user attempts to switch tabs
     var onTabWillChange: ((StarterView.ScreenTab) -> Void)?
     
-    // default selected tab
+    // Default selected tab
     @State private var selectedTab: Int = 0
-    
-    // avoid looped interactions - can't change while changing
+
+    // Prevents update loops between selectedTab and currentScreen
     @State private var isChangingTab = false
     
     var body: some View {
         TabView(selection: $selectedTab) {
             ForEach(StarterView.ScreenTab.allCases, id: \.rawValue) { screen in
-                // placeholder
+                // Placeholder views
                 Color.clear
                     .tabItem {
                         Label(screen.label, systemImage: screen.icon)
@@ -25,16 +26,18 @@ struct NavigationOrnament: View {
                     .tag(screen.rawValue)
             }
         }
-        // ornament sizing
+        // Set ornament dimensions
         .frame(width: 80, height: 450)
+        // Init local state from the binding
         .onAppear {
             selectedTab = currentScreen.rawValue
         }
-        // when another tab is selected
+        // User selects a new tab
         .onChange(of: selectedTab) { oldValue, newValue in
             guard !isChangingTab else { return }
             handleTabChange(oldValue, newValue)
         }
+        // Parent view changes the current screen
         .onChange(of: currentScreen) { oldValue, newValue in
             if selectedTab != newValue.rawValue {
                 // turn on the boolean

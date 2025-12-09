@@ -1,4 +1,4 @@
-// Define enums for model categories
+// Represents the available model categories used through the UI
 
 enum Category: String, CaseIterable, Identifiable, Codable {
     case all = "All"
@@ -10,11 +10,13 @@ enum Category: String, CaseIterable, Identifiable, Codable {
     case beds = "Beds"
     case outdoor = "Outdoor"
     case rugs = "Rugs"
-    // placeholder for future categories
+    // Fallback for future categories (not defined yet)
     case other = "Other"
     
+
     var id: String { rawValue }
     
+    //Returns symbol assocaited with each category
     var icon: String {
         switch self {
         case .all: return "square.grid.2x2"

@@ -1,3 +1,5 @@
+// Placeholder screen for handling settings 
+
 import SwiftUI
 
 struct SettingsScreen: View {
