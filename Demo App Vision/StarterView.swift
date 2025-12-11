@@ -144,7 +144,7 @@ struct StarterView: View {
             MeasurementSheet(isPresented: $showMeasurementOptions)
         }
         .sheet(isPresented: $showFocusModeSheet) {
-            FocusModeSheet(isPresented: $showFocusModeSheet)
+            FocusModeSheet(isPresented: $showFocusModeSheet, controller: controller)
         }
         .sheet(isPresented: $showEditSheet) {
             EditModelSheet(isPresented: $showEditSheet, controller: controller)

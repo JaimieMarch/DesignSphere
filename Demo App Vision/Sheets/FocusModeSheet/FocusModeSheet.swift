@@ -1,11 +1,13 @@
 import SwiftUI
+import XRShareCollaboration
 
 struct FocusModeSheet: View {
     @Binding var isPresented: Bool
-    
+    @ObservedObject var controller: CollaborativeSessionController
+    private let sheetSize = CGSize(width: 520, height: 820)
+
     var body: some View {
-        FocusModeView(isPresented: $isPresented)
-            .padding(32)                       // match EditModelSheet
-            .frame(width: 600, height: 700)    // same size as other sheet
+        FocusModeView(isPresented: $isPresented, controller: controller)
+            .frame(width: sheetSize.width, height: sheetSize.height)
     }
 }

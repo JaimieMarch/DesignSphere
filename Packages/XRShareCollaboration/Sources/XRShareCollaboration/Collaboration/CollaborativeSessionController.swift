@@ -42,6 +42,8 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var placedModelSummaries: [String] = []
     @Published public private(set) var placedModelDescriptors: [PlacedModelDescriptor] = []
     @Published public private(set) var loadingProgress: Float = 0.0
+    @Published public private(set) var isFocusModeActive: Bool = false
+    @Published public private(set) var focusRoomDimensions: FocusModeManager.FocusRoomDimensions = FocusModeManager.FocusRoomDimensions(width: 7.0, depth: 7.0, height: 3.2)
     @Published public var selectedModelID: String? = nil
     @Published public var selectedModelInstanceID: UUID? = nil
     @Published public var pendingMaterialUpdate: (entityID: UUID, material: RealityKit.Material)?
@@ -73,6 +75,8 @@ public final class CollaborativeSessionController: ObservableObject {
     public let modelManager: ModelManager
     #if os(visionOS)
     public let immersiveSession: ARKitSession
+    public let focusModeManager: FocusModeManager
+    public let selectionIndicatorManager: SelectionIndicatorManager
     private var worldTrackingProvider: WorldTrackingProvider?
     private var isSessionRunning: Bool = false
     #endif
@@ -88,9 +92,15 @@ public final class CollaborativeSessionController: ObservableObject {
         self.modelManager = modelManager
         #if os(visionOS)
         self.immersiveSession = ARKitSession()
+        self.focusModeManager = FocusModeManager()
+        self.selectionIndicatorManager = SelectionIndicatorManager()
         #endif
         bindState()
         refreshAvailableModels()
+        #if os(visionOS)
+        focusModeManager.setSharedAnchor(arViewModel.sharedAnchorEntity)
+        selectionIndicatorManager.setSharedAnchor(arViewModel.sharedAnchorEntity)
+        #endif
     }
 
 // MARK: - Session Helpers
@@ -134,6 +144,61 @@ public final class CollaborativeSessionController: ObservableObject {
         print("Stopped ARKit session and WorldTracking")
     }
     #endif
+
+// MARK: - Focus Mode
+
+    /// Surrounds the user with a neutral virtual room that occludes the real world
+    public func enterFocusMode() {
+        #if os(visionOS)
+        focusModeManager.enterFocusMode()
+        #endif
+    }
+
+    /// Restores passthrough viewing and removes the focus environment.
+    public func exitFocusMode() {
+        #if os(visionOS)
+        focusModeManager.exitFocusMode()
+        #endif
+    }
+
+    /// Update the room dimensions (meters). Clamped to reasonable bounds for comfort.
+    public func updateFocusRoomDimensions(width: Float, depth: Float, height: Float) {
+        #if os(visionOS)
+        focusModeManager.updateFocusRoomDimensions(width: width, depth: depth, height: height)
+        #endif
+    }
+
+    /// Manually recenter the focus mode room around the user's current position.
+    public func recenterFocusMode() {
+        #if os(visionOS)
+        focusModeManager.recenterFocusMode()
+        #endif
+    }
+
+// MARK: - Selection Indicator
+
+    /// Update the selection indicator to show the currently selected model
+    public func updateSelectionIndicator() {
+        #if os(visionOS)
+        guard let selectedID = modelManager.selectedModelInstanceID else {
+            selectionIndicatorManager.hideSelectionIndicator()
+            return
+        }
+
+        // Find the selected model entity
+        if let selectedModel = modelManager.placedModels.first(where: { $0.id == selectedID }),
+           let entity = selectedModel.modelEntity {
+            selectionIndicatorManager.showSelectionIndicator(for: entity)
+        } else {
+            selectionIndicatorManager.hideSelectionIndicator()
+        }
+        #endif
+    }
+
+    /// Deselect the currently selected model
+    public func deselectModel() {
+        modelManager.deselectModel()
+    }
 
     public func returnSelectedModel() -> Model? {
         guard let instanceID = modelManager.selectedModelInstanceID else { return nil }
@@ -458,6 +523,25 @@ public final class CollaborativeSessionController: ObservableObject {
                     modelManager.$selectedModelInstanceID
                         .receive(on: DispatchQueue.main)
                         .assign(to: &$selectedModelInstanceID)
+
+        // Bind focus mode manager state
+        #if os(visionOS)
+        focusModeManager.$isFocusModeActive
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isFocusModeActive)
+
+        focusModeManager.$focusRoomDimensions
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$focusRoomDimensions)
+
+        // Update selection indicator when selection changes
+        modelManager.$selectedModelInstanceID
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.updateSelectionIndicator()
+            }
+            .store(in: &cancellables)
+        #endif
     }
 
 
