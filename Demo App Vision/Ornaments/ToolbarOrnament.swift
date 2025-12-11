@@ -7,9 +7,9 @@ import XRShareCollaboration
 struct ToolbarOrnament: View {
     @Binding var showMeasurementOptions: Bool
     @Binding var showFocusModeSheet: Bool
-    @Binding var showAIAssistantSheet: Bool
     @Binding var showSharePlaySheet: Bool
     @Binding var showEditSheet: Bool
+    @Binding var showImportSheet: Bool
     @ObservedObject var controller: CollaborativeSessionController
     
     var body: some View {
@@ -27,14 +27,14 @@ struct ToolbarOrnament: View {
                         .buttonBorderShape(.circle)
                         
                         Button {
-                            showAIAssistantSheet = true
+                            showImportSheet = true
                         } label: {
-                            Image(systemName: "microphone")
+                            Image(systemName: "square.and.arrow.down")
                                 .frame(width: 28, height: 28)
                         }
                         .buttonStyle(.borderless)
                         .buttonBorderShape(.circle)
-                        
+
                         Button {
                             showMeasurementOptions = true
                         } label: {

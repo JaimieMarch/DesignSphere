@@ -99,8 +99,8 @@ struct EditModelView: View {
                                     .frame(width: 70, height: 70)
                                     .background(.ultraThinMaterial)
                                     .clipShape(Circle())
-                                    .onChange(of: customColor) { _, newValue in
-                                        selectedColor = newValue
+                                    .onChange(of: customColor) {
+                                        selectedColor = customColor
 
                                         var mat = PhysicallyBasedMaterial()
                                         mat.baseColor = .init(tint: UIColor(selectedColor))
@@ -241,25 +241,25 @@ struct EditModelView: View {
                     Z = Double(position.z)
                 }
             }
-            .onChange(of: controller.selectedModelInstanceIDVar) { _, _ in
+            .onChange(of: controller.selectedModelInstanceIDVar) {
                 updateSelectedEntity()
             }
-            .onChange(of: modelWidth) { _, _ in
+            .onChange(of: modelWidth) {
                 updateEntityScale()
             }
-            .onChange(of: modelHeight) { _, _ in
+            .onChange(of: modelHeight) {
                 updateEntityScale()
             }
-            .onChange(of: modelDepth) { _, _ in
+            .onChange(of: modelDepth) {
                 updateEntityScale()
             }
-            .onChange(of: X) { _, _ in
+            .onChange(of: X) {
                 updateEntityPosition()
             }
-            .onChange(of: Y) { _, _ in
+            .onChange(of: Y) {
                 updateEntityPosition()
             }
-            .onChange(of: Z) { _, _ in
+            .onChange(of: Z) {
                 updateEntityPosition()
             }
             

@@ -23,6 +23,8 @@ public final class ModelManager: ObservableObject {
 
     private var resetNotificationObserver: NSObjectProtocol?
 
+    private let minimumVisionHeight: Float = 1.2
+
     init() {
         loadModelTypes()
         setupNotifications()
@@ -68,18 +70,18 @@ public final class ModelManager: ObservableObject {
     /// The old version of spawning logic
     /// Serves as back up in case ours fails
     private func resolvedInitialPlacement(anchor: AnchorEntity, arViewModel: ARViewModel?) async -> SIMD3<Float> {
-        // removed
+#if targetEnvironment(simulator)
+        return SIMD3<Float>(0, 1.4, -1.2)
+#else
         if let dynamicPlacement = await preferredVisionPlacement(relativeTo: anchor) {
             return dynamicPlacement
         }
-        let minimumVisionHeight: Float = 1.2
         return SIMD3<Float>(0, minimumVisionHeight + 0.25, -1.35)
-
+#endif
     }
 
     #if os(visionOS)
     func preferredVisionPlacement(relativeTo anchor: AnchorEntity) async -> SIMD3<Float>? {
-        let minimumVisionHeight: Float = 1.2
         let headAnchor = AnchorEntity(.head)
         headAnchor.anchoring.trackingMode = .once
         anchor.addChild(headAnchor)
@@ -364,9 +366,9 @@ public final class ModelManager: ObservableObject {
                 let placementOffset = placementOffset(for: entity)
                 let translatedPosition = initialPosition - placementOffset
                 anchor.addChild(entity)
-                var updatedTransform = entity.transform
-                updatedTransform.translation = translatedPosition
-                entity.move(to: updatedTransform, relativeTo: anchor, duration: 0)
+                // Directly assign the local position so it works even before the anchor
+                // is part of the live RealityKit scene (move(to:) can no-op in that case).
+                entity.setPosition(translatedPosition, relativeTo: anchor)
                 model.position = entity.position(relativeTo: anchor)
 
                 print("Placed \(modelType.rawValue) at position: base=\(initialPosition) pivot=\(translatedPosition), isAnchored=\(anchor.isAnchored), scene? \(entity.scene != nil)")
@@ -637,7 +639,15 @@ public final class ModelManager: ObservableObject {
             print("Selected non-model entity: \(name)")
         }
         }
-    
+
+    @MainActor func deselectModel() {
+        if let currentID = selectedModelInstanceID {
+            print("Deselect: Clearing selection (was instance: \(currentID))")
+        }
+        selectedModelID = nil
+        selectedModelInstanceID = nil
+    }
+
 }
 
 #endif

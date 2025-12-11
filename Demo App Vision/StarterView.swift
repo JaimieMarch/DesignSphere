@@ -31,9 +31,9 @@ struct StarterView: View {
     // Popover states to control visibility of popovers
     @State private var showMeasurementOptions = false
     @State private var showFocusModeSheet = false
-    @State private var showAIAssistantSheet = false
     @State private var showSharePlaySheet = false
     @State private var showEditSheet = false
+    @State private var showImportSheet = false
     
     // Screen tabs that change the main content
     enum ScreenTab: Int, CaseIterable {
@@ -126,9 +126,9 @@ struct StarterView: View {
                 ToolbarOrnament(
                     showMeasurementOptions: $showMeasurementOptions,
                     showFocusModeSheet: $showFocusModeSheet,
-                    showAIAssistantSheet: $showAIAssistantSheet,
                     showSharePlaySheet: $showSharePlaySheet,
                     showEditSheet: $showEditSheet,
+                    showImportSheet: $showImportSheet,
                     controller: controller
                 )
             }
@@ -139,8 +139,8 @@ struct StarterView: View {
             loadFavorites()
         }
         .task { await prepareExperience() }
-        .onChange(of: favoriteModels) { _, newValue in
-            saveFavorites(newValue)
+        .onChange(of: favoriteModels) {
+            saveFavorites(favoriteModels)
         }
         .alert("SharePlay", isPresented: Binding(
             get: { sharePlayError != nil },
@@ -158,14 +158,14 @@ struct StarterView: View {
         .sheet(isPresented: $showFocusModeSheet) {
             FocusModeSheet(isPresented: $showFocusModeSheet)
         }
-        .sheet(isPresented: $showAIAssistantSheet) {
-            AIAssistantSheet(isPresented: $showAIAssistantSheet)
-        }
         .sheet(isPresented: $showSharePlaySheet) {
             SharePlaySheet(isPresented: $showSharePlaySheet)
         }
         .sheet(isPresented: $showEditSheet) {
             EditModelSheet(isPresented: $showEditSheet, controller: controller)
+        }
+        .sheet(isPresented: $showImportSheet) {
+            ImportModelSheet(isPresented: $showImportSheet, controller: controller)
         }
         .overlay {
             LoadingScreen(

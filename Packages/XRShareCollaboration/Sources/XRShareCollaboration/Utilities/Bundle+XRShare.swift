@@ -30,6 +30,16 @@ public extension Bundle {
     }
 
     static func xrShareLocateUSDZ(named name: String) -> URL? {
+        // First check Documents/Imports for user-imported models
+        let fileManager = FileManager.default
+        if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let importsURL = documentsURL.appendingPathComponent("Imports").appendingPathComponent("\(name).usdz")
+            if fileManager.fileExists(atPath: importsURL.path) {
+                return importsURL
+            }
+        }
+
+        // Then search bundle resources
         let searchDirectories = ["Resources/Models", "Models"]
         for bundle in xrShareBundleCandidates {
             for subdirectory in searchDirectories {
@@ -60,6 +70,16 @@ public extension Bundle {
 
             if let fallback = bundle.urls(forResourcesWithExtension: "usdz", subdirectory: nil) {
                 for url in fallback {
+                    unique[url.deletingPathExtension().lastPathComponent.lowercased()] = url
+                }
+            }
+        }
+
+        // Also search Documents/Imports directory for user-imported models
+        if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let importsURL = documentsURL.appendingPathComponent("Imports")
+            if let entries = try? fileManager.contentsOfDirectory(at: importsURL, includingPropertiesForKeys: nil) {
+                for url in entries where url.pathExtension.caseInsensitiveCompare("usdz") == .orderedSame {
                     unique[url.deletingPathExtension().lastPathComponent.lowercased()] = url
                 }
             }

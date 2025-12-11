@@ -460,8 +460,8 @@ public final class CollaborativeSessionController: ObservableObject {
                         .assign(to: &$selectedModelInstanceID)
     }
 
-    
-    private func refreshAvailableModels() {
+
+    public func refreshAvailableModels() {
         availableModels = modelManager.modelTypes.map(ModelDescriptor.init)
     }
 }
