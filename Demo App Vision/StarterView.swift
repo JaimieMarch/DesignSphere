@@ -31,7 +31,6 @@ struct StarterView: View {
     // Popover states to control visibility of popovers
     @State private var showMeasurementOptions = false
     @State private var showFocusModeSheet = false
-    @State private var showSharePlaySheet = false
     @State private var showEditSheet = false
     @State private var showImportSheet = false
     
@@ -39,24 +38,21 @@ struct StarterView: View {
     enum ScreenTab: Int, CaseIterable {
         case home = 0
         case details = 1
-        case scanMode = 2
-        case settings = 3
-        
+        case settings = 2
+
         var label: String {
             switch self {
             case .home: return "Home"
             case .details: return "Details"
-            case .scanMode: return "Scan Mode"
             case .settings: return "Settings"
             }
         }
-        
+
         var icon: String {
             switch self {
             case .home: return "house"
             case .details: return "folder"
             case .settings: return "gearshape"
-            case .scanMode: return "vision.pro.and.arrow.forward"
             }
         }
     }
@@ -88,13 +84,6 @@ struct StarterView: View {
                     .scaleEffect(currentScreen == .settings ? contentScale : 0.96)
                     .blur(radius: currentScreen == .settings ? 0 : 1)
                     .allowsHitTesting(currentScreen == .settings)
-                
-                // Scan Mode Screen
-                ScanModeScreen()
-                    .opacity(currentScreen == .scanMode ? transitionOpacity : 0)
-                    .scaleEffect(currentScreen == .scanMode ? contentScale : 0.96)
-                    .blur(radius: currentScreen == .scanMode ? 0 : 1)
-                    .allowsHitTesting(currentScreen == .scanMode)
             }
             .animation(.interactiveSpring(
                 response: 0.35,
@@ -126,7 +115,6 @@ struct StarterView: View {
                 ToolbarOrnament(
                     showMeasurementOptions: $showMeasurementOptions,
                     showFocusModeSheet: $showFocusModeSheet,
-                    showSharePlaySheet: $showSharePlaySheet,
                     showEditSheet: $showEditSheet,
                     showImportSheet: $showImportSheet,
                     controller: controller
@@ -157,9 +145,6 @@ struct StarterView: View {
         }
         .sheet(isPresented: $showFocusModeSheet) {
             FocusModeSheet(isPresented: $showFocusModeSheet)
-        }
-        .sheet(isPresented: $showSharePlaySheet) {
-            SharePlaySheet(isPresented: $showSharePlaySheet)
         }
         .sheet(isPresented: $showEditSheet) {
             EditModelSheet(isPresented: $showEditSheet, controller: controller)
