@@ -272,7 +272,7 @@ public final class CollaborativeSessionController: ObservableObject {
         modelManager.loadModel(for: descriptor.type, arViewModel: arViewModel)
     }
 
-    /// Load a model at specific position, rotation, and scale 
+    /// Load a model at specific position, rotation, and scale
     public func loadModelAtPosition(
         modelType: ModelType,
         instanceID: UUID,
@@ -286,6 +286,9 @@ public final class CollaborativeSessionController: ObservableObject {
             print("Warning: Failed to load entity for '\(modelType.displayName)'")
             return nil
         }
+
+        // Configure interactivity (gestures, physics, collision, etc.)
+        modelManager.configureInteractivity(for: entity, arViewModel: arViewModel)
 
         // Set the instance ID for each individual model
         entity.components.set(InstanceIDComponent(id: instanceID.uuidString))

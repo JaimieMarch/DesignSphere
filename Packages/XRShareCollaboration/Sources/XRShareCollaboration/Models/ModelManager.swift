@@ -465,7 +465,7 @@ public final class ModelManager: ObservableObject {
     
     
     
-    func configureInteractivity(for entity: Entity, arViewModel: ARViewModel? = nil) {
+    internal func configureInteractivity(for entity: Entity, arViewModel: ARViewModel? = nil) {
         for child in entity.children {
             print("Configuring child: \(child.name)")
             configureInteractivity(for: child, arViewModel: arViewModel)
