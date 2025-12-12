@@ -107,10 +107,10 @@ public final class FocusModeManager: ObservableObject {
                 // Get eye/head position in shared space
                 let eyePosition = headAnchor.convert(position: SIMD3<Float>(0, 0, 0), to: sharedAnchor)
 
-                // Place floor 1 meter below eye level
-                // Room center = eye level - 1.0m + (room height / 2)
+                // Place floor 0.5 meters below eye level
+                // Room center = eye level - 0.5m + (room height / 2)
                 let dims = focusRoomDimensions
-                let floorOffset: Float = -1.0  // 1 meter below eye level
+                let floorOffset: Float = -0.5  // 0.5 meters below eye level
                 let roomCenterY = eyePosition.y + floorOffset + (dims.height / 2.0)
 
                 focusRoomCenter = SIMD3<Float>(eyePosition.x, roomCenterY, eyePosition.z)

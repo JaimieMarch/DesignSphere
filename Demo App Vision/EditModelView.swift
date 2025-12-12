@@ -194,12 +194,23 @@ struct EditModelView: View {
                 .padding(.top, 8)
                 
                 Spacer()
-                
-                Button(action: { dismiss() }) {
-                    Text("Close")
-                    
+
+                HStack(spacing: 12) {
+                    Button {
+                        controller.deselectModel()
+                        dismiss()
+                    } label: {
+                        Text("Deselect")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button(action: { dismiss() }) {
+                        Text("Close")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .buttonStyle(.bordered)
             }
             .padding(32)
             .frame(width: 700, height: 850)
