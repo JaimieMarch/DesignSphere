@@ -74,8 +74,6 @@ struct NavigationOrnament: View {
             return "Save and load your design projects"
         case .settings:
             return "Adjust app settings"
-        case .scanMode:
-            return "Scan real objects to create 3D models"
         }
     }
 }

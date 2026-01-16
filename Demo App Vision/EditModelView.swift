@@ -141,7 +141,7 @@ struct EditModelView: View {
                                 mat.baseColor = .init(tint: UIColor(selectedColor))
                                 mat.roughness = 0.6
                                 mat.metallic = 0.0
-                                if let texture = try? TextureResource.load(named: "wood_grain") {
+                                if let texture = TextureCache.shared.texture(named: "wood_grain") {
                                     mat.normal = .init(texture: .init(texture))
                                 }
                                 selectedEntity?.replaceAndStoreOldMaterials(material: mat)
@@ -165,7 +165,7 @@ struct EditModelView: View {
                                 mat.baseColor = .init(tint: UIColor(selectedColor))
                                 mat.roughness = 0.85
                                 mat.metallic = 0.0
-                                if let texture = try? TextureResource.load(named: "fabric") {
+                                if let texture = TextureCache.shared.texture(named: "fabric") {
                                     mat.normal = .init(texture: .init(texture))
                                 }
                                 selectedEntity?.replaceAndStoreOldMaterials(material: mat)
@@ -177,7 +177,7 @@ struct EditModelView: View {
                                 mat.baseColor = .init(tint: UIColor(selectedColor))
                                 mat.roughness = 0.8
                                 mat.metallic = 0.2
-                                if let texture = try? TextureResource.load(named: "leather") {
+                                if let texture = TextureCache.shared.texture(named: "leather") {
                                     mat.normal = .init(texture: .init(texture))
                                 }
                                 selectedEntity?.replaceAndStoreOldMaterials(material: mat)

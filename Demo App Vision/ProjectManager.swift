@@ -149,11 +149,8 @@ class ProjectManager: ObservableObject {
             switch materialType {
             case .wood:
                 materialTypeString = "wood"
-                do {
-                    let texture = try TextureResource.load(named: "wood_grain")
+                if let texture = TextureCache.shared.texture(named: "wood_grain") {
                     mat.normal = .init(texture: .init(texture))
-                } catch {
-                    print("Warning: Failed to load wood texture: \(error)")
                 }
             case .metal:
                 materialTypeString = "metal"
@@ -161,19 +158,13 @@ class ProjectManager: ObservableObject {
                 break
             case .fabric:
                 materialTypeString = "fabric"
-                do {
-                    let texture = try TextureResource.load(named: "fabric")
+                if let texture = TextureCache.shared.texture(named: "fabric") {
                     mat.normal = .init(texture: .init(texture))
-                } catch {
-                    print("Warning: Failed to load fabric texture: \(error)")
                 }
             case .leather:
                 materialTypeString = "leather"
-                do {
-                    let texture = try TextureResource.load(named: "leather")
+                if let texture = TextureCache.shared.texture(named: "leather") {
                     mat.normal = .init(texture: .init(texture))
-                } catch {
-                    print("Warning: Failed to load leather texture: \(error)")
                 }
             case .custom:
                 materialTypeString = "custom"

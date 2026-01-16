@@ -4,35 +4,53 @@
 import SwiftUI
 import XRShareCollaboration
 
+// MARK: - Consolidated State Structs
+
+/// Manages session-related state
+struct SessionState {
+    var isImmersiveOpen = false
+    var hasInitializedSession = false
+    var isActivatingSharePlay = false
+    var sharePlayError: String?
+}
+
+/// Manages loading screen state
+struct LoadingState {
+    var isLoading = true
+    var progress: Float = 0.0
+    var message = "Initializing..."
+}
+
+/// Manages navigation and transition animation state
+struct NavigationState {
+    var currentScreen: StarterView.ScreenTab = .home
+    var contentScale: CGFloat = 1.0
+    var transitionOpacity: Double = 1.0
+}
+
+/// Manages sheet visibility state
+struct SheetVisibilityState {
+    var showMeasurementOptions = false
+    var showFocusModeSheet = false
+    var showEditSheet = false
+    var showImportSheet = false
+}
+
 // enforce vision OS 26 or higher
 @available(visionOS 26.0, *)
 struct StarterView: View {
     @ObservedObject var controller: CollaborativeSessionController
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
-    
-    // States to keep track of
-    @State private var isImmersiveOpen = false
-    @State private var hasInitializedSession = false
-    @State private var isActivatingSharePlay = false
-    @State private var sharePlayError: String?
+
+    // Consolidated state structs
+    @State private var sessionState = SessionState()
+    @State private var loadingState = LoadingState()
+    @State private var navigationState = NavigationState()
+    @State private var sheetState = SheetVisibilityState()
+
+    // User preferences (kept separate as it's persisted)
     @State private var favoriteModels: Set<String> = []
     private let favoritesDefaultsKey = "favoriteModels"
-
-    // Loading states
-    @State private var isLoading = true
-    @State private var loadingProgress: Float = 0.0
-    @State private var loadingMessage = "Initializing..."
-
-    // Navigation states to show which screen is active at a time
-    @State private var currentScreen: ScreenTab = .home
-    @State private var contentScale: CGFloat = 1.0
-    @State private var transitionOpacity: Double = 1.0
-    
-    // Popover states to control visibility of popovers
-    @State private var showMeasurementOptions = false
-    @State private var showFocusModeSheet = false
-    @State private var showEditSheet = false
-    @State private var showImportSheet = false
     
     // Screen tabs that change the main content
     enum ScreenTab: Int, CaseIterable {
@@ -66,42 +84,42 @@ struct StarterView: View {
                     controller: controller,
                     favoriteModels: $favoriteModels
                 )
-                .opacity(currentScreen == .home ? transitionOpacity : 0)
-                .scaleEffect(currentScreen == .home ? contentScale : 0.96)
-                .blur(radius: currentScreen == .home ? 0 : 1)
-                .allowsHitTesting(currentScreen == .home)
+                .opacity(navigationState.currentScreen == .home ? navigationState.transitionOpacity : 0)
+                .scaleEffect(navigationState.currentScreen == .home ? navigationState.contentScale : 0.96)
+                .blur(radius: navigationState.currentScreen == .home ? 0 : 1)
+                .allowsHitTesting(navigationState.currentScreen == .home)
                 
                 // Details Screen
                 DetailsScreen(controller: controller)
-                    .opacity(currentScreen == .details ? transitionOpacity : 0)
-                    .scaleEffect(currentScreen == .details ? contentScale : 0.96)
-                    .blur(radius: currentScreen == .details ? 0 : 1)
-                    .allowsHitTesting(currentScreen == .details)
+                    .opacity(navigationState.currentScreen == .details ? navigationState.transitionOpacity : 0)
+                    .scaleEffect(navigationState.currentScreen == .details ? navigationState.contentScale : 0.96)
+                    .blur(radius: navigationState.currentScreen == .details ? 0 : 1)
+                    .allowsHitTesting(navigationState.currentScreen == .details)
                 
                 // Settings Screen
                 SettingsScreen()
-                    .opacity(currentScreen == .settings ? transitionOpacity : 0)
-                    .scaleEffect(currentScreen == .settings ? contentScale : 0.96)
-                    .blur(radius: currentScreen == .settings ? 0 : 1)
-                    .allowsHitTesting(currentScreen == .settings)
+                    .opacity(navigationState.currentScreen == .settings ? navigationState.transitionOpacity : 0)
+                    .scaleEffect(navigationState.currentScreen == .settings ? navigationState.contentScale : 0.96)
+                    .blur(radius: navigationState.currentScreen == .settings ? 0 : 1)
+                    .allowsHitTesting(navigationState.currentScreen == .settings)
             }
             .animation(.interactiveSpring(
                 response: 0.35,
                 dampingFraction: 0.86,
                 blendDuration: 0.25
-            ), value: currentScreen)
+            ), value: navigationState.currentScreen)
             .animation(.interactiveSpring(
                 response: 0.2,
                 dampingFraction: 0.9,
                 blendDuration: 0
-            ), value: contentScale)
+            ), value: navigationState.contentScale)
             .ornament(
                 visibility: .visible,
                 attachmentAnchor: .scene(.leading),
                 contentAlignment: .leading
             ) {
                 NavigationOrnament(
-                    currentScreen: $currentScreen,
+                    currentScreen: $navigationState.currentScreen,
                     onTabWillChange: { newTab in
                         performTabTransition(to: newTab)
                     }
@@ -113,17 +131,17 @@ struct StarterView: View {
                 contentAlignment: .top
             ) {
                 ToolbarOrnament(
-                    showMeasurementOptions: $showMeasurementOptions,
-                    showFocusModeSheet: $showFocusModeSheet,
-                    showEditSheet: $showEditSheet,
-                    showImportSheet: $showImportSheet,
+                    showMeasurementOptions: $sheetState.showMeasurementOptions,
+                    showFocusModeSheet: $sheetState.showFocusModeSheet,
+                    showEditSheet: $sheetState.showEditSheet,
+                    showImportSheet: $sheetState.showImportSheet,
                     controller: controller
                 )
             }
         }
         .onAppear {
-            isImmersiveOpen = false
-            isLoading = true
+            sessionState.isImmersiveOpen = false
+            loadingState.isLoading = true
             loadFavorites()
         }
         .task { await prepareExperience() }
@@ -131,32 +149,32 @@ struct StarterView: View {
             saveFavorites(favoriteModels)
         }
         .alert("SharePlay", isPresented: Binding(
-            get: { sharePlayError != nil },
-            set: { if !$0 { sharePlayError = nil } }
+            get: { sessionState.sharePlayError != nil },
+            set: { if !$0 { sessionState.sharePlayError = nil } }
         )) {
             Button("OK", role: .cancel) { }
         } message: {
-            if let message = sharePlayError { Text(message) }
+            if let message = sessionState.sharePlayError { Text(message) }
         }
         
         // Sheets for action items
-        .sheet(isPresented: $showMeasurementOptions) {
-            MeasurementSheet(isPresented: $showMeasurementOptions)
+        .sheet(isPresented: $sheetState.showMeasurementOptions) {
+            MeasurementSheet(isPresented: $sheetState.showMeasurementOptions)
         }
-        .sheet(isPresented: $showFocusModeSheet) {
-            FocusModeSheet(isPresented: $showFocusModeSheet, controller: controller)
+        .sheet(isPresented: $sheetState.showFocusModeSheet) {
+            FocusModeSheet(isPresented: $sheetState.showFocusModeSheet, controller: controller)
         }
-        .sheet(isPresented: $showEditSheet) {
-            EditModelSheet(isPresented: $showEditSheet, controller: controller)
+        .sheet(isPresented: $sheetState.showEditSheet) {
+            EditModelSheet(isPresented: $sheetState.showEditSheet, controller: controller)
         }
-        .sheet(isPresented: $showImportSheet) {
-            ImportModelSheet(isPresented: $showImportSheet, controller: controller)
+        .sheet(isPresented: $sheetState.showImportSheet) {
+            ImportModelSheet(isPresented: $sheetState.showImportSheet, controller: controller)
         }
         .overlay {
             LoadingScreen(
-                isLoading: $isLoading,
-                loadingProgress: $loadingProgress,
-                loadingMessage: $loadingMessage
+                isLoading: $loadingState.isLoading,
+                loadingProgress: $loadingState.progress,
+                loadingMessage: $loadingState.message
             )
         }
     }
@@ -175,62 +193,62 @@ struct StarterView: View {
         Task { @MainActor in
             // Press down effect
             withAnimation(.easeOut(duration: 0.08)) {
-                contentScale = 0.98
-                transitionOpacity = 0.95
+                navigationState.contentScale = 0.98
+                navigationState.transitionOpacity = 0.95
             }
-            
+
             // Change screen
-            currentScreen = newTab
-            
+            navigationState.currentScreen = newTab
+
             // Spring back
             withAnimation(.interactiveSpring(
                 response: 0.28,
                 dampingFraction: 0.78,
                 blendDuration: 0
             )) {
-                contentScale = 1.0
-                transitionOpacity = 1.0
+                navigationState.contentScale = 1.0
+                navigationState.transitionOpacity = 1.0
             }
         }
     }
     
     @MainActor
     private func prepareExperience() async {
-        guard hasInitializedSession == false else {
+        guard sessionState.hasInitializedSession == false else {
             await ensureImmersiveSpaceOpened()
-            isLoading = false
+            loadingState.isLoading = false
             return
         }
 
-        loadingMessage = "Starting session..."
-        loadingProgress = 0.1
+        loadingState.message = "Starting session..."
+        loadingState.progress = 0.1
         controller.startLocalSession()
-        hasInitializedSession = true
+        sessionState.hasInitializedSession = true
 
-        loadingMessage = "Opening immersive space..."
-        loadingProgress = 0.5
+        loadingState.message = "Opening immersive space..."
+        loadingState.progress = 0.5
         await ensureImmersiveSpaceOpened()
 
-        loadingMessage = "Loading models..."
-        loadingProgress = 0.7
+        loadingState.message = "Loading models..."
+        loadingState.progress = 0.7
         // Preload models AFTER opening immersive space for faster perceived startup
         await controller.preloadIfNeeded()
 
-        loadingMessage = "Ready!"
-        loadingProgress = 1.0
+        loadingState.message = "Ready!"
+        loadingState.progress = 1.0
 
         // Hide loading screen after brief delay
         try? await Task.sleep(nanoseconds: 500_000_000)
         withAnimation {
-            isLoading = false
+            loadingState.isLoading = false
         }
     }
     
     private func ensureImmersiveSpaceOpened() async {
-        guard isImmersiveOpen == false else { return }
+        guard sessionState.isImmersiveOpen == false else { return }
         let result = await openImmersiveSpace(id: "CollaborativeSpace")
         if case .opened = result {
-            await MainActor.run { isImmersiveOpen = true }
+            await MainActor.run { sessionState.isImmersiveOpen = true }
 
             // Start world tracking for world anchor persistence
             do {

@@ -15,7 +15,8 @@ import RealityKit
 @MainActor
 public final class ModelManager: ObservableObject {
     @Published var placedModels: [Model] = []
-    @Published var modelDict: [Entity: Model] = [:]
+    /// Maps model instance UUIDs to Model objects for fast lookup
+    @Published var modelDict: [UUID: Model] = [:]
     @Published var modelTypes: [ModelType] = []
     
     @Published var selectedModelID: ModelType? = nil
@@ -371,15 +372,10 @@ public final class ModelManager: ObservableObject {
             self.selectedModelID = modelType
             self.selectedModelInstanceID = model.id
 
-    
-            if entity.components[InstanceIDComponent.self] == nil {
-                entity.components.set(InstanceIDComponent())
-            }
-            guard let idComp = entity.components[InstanceIDComponent.self] else {
-                print("Error: Missing InstanceIDComponent on entity during model loading.")
-                return
-            }
-            let instanceID = idComp.id
+            // Ensure entity has an InstanceIDComponent that matches the model's ID
+            // This enables lookup from Entity → Model via the UUID-keyed modelDict
+            entity.components.set(InstanceIDComponent(id: model.id.uuidString))
+            let instanceID = model.id.uuidString
 
             if let anchor = arViewModel?.sharedAnchorEntity {
                 // Use simple head-relative placement
@@ -403,7 +399,7 @@ public final class ModelManager: ObservableObject {
                 print("Warning: sharedAnchorEntity not available, model \(modelType.rawValue) not parented")
             }
 
-            self.modelDict[entity] = model
+            self.modelDict[model.id] = model
             self.placedModels.append(model)
 
 
@@ -544,7 +540,7 @@ public final class ModelManager: ObservableObject {
         
         // Update collections
         placedModels.removeAll { $0.id == model.id }
-        modelDict = modelDict.filter { $0.value.id != model.id }
+        modelDict.removeValue(forKey: model.id)
        
         // If we removed the selected model, clear selection or select another
         if selectedModelInstanceID == model.id {
@@ -637,30 +633,29 @@ public final class ModelManager: ObservableObject {
     @available(visionOS 26.0, *)
     @MainActor func selectModel(entity: Entity) {
         let name = entity.name.isEmpty ? "unnamed entity" : entity.name
-        
-        
-        if let model = self.modelDict[entity] {
-            
-            self.selectedModelID = model.modelType
-            self.selectedModelInstanceID = model.id
-            entity.isEnabled = true
-            if let parent = entity.parent { parent.isEnabled = true }
-            
-            
-            if let arViewModel = model.arViewModel,
-               let instanceIDString = entity.components[InstanceIDComponent.self]?.id,
-               let instanceID = UUID(uuidString: instanceIDString) {
-//                Task {
-//                    await arViewModel.broadcastModelSelection(instanceID: instanceID)
-//                    }
-            }
 
-            
-            print("Select: Selected \(name) (instance: \(model.id))")
-        } else {
+        // Look up model by its instance UUID from the entity's InstanceIDComponent
+        guard let instanceIDString = entity.components[InstanceIDComponent.self]?.id,
+              let instanceID = UUID(uuidString: instanceIDString),
+              let model = self.modelDict[instanceID] else {
             print("Selected non-model entity: \(name)")
+            return
         }
-        }
+
+        self.selectedModelID = model.modelType
+        self.selectedModelInstanceID = model.id
+        entity.isEnabled = true
+        if let parent = entity.parent { parent.isEnabled = true }
+
+        // SharePlay broadcast placeholder (commented out)
+        // if let arViewModel = model.arViewModel {
+        //     Task {
+        //         await arViewModel.broadcastModelSelection(instanceID: instanceID)
+        //     }
+        // }
+
+        print("Select: Selected \(name) (instance: \(model.id))")
+    }
 
     @MainActor func deselectModel() {
         if let currentID = selectedModelInstanceID {
