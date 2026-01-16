@@ -24,7 +24,9 @@ struct ToolbarOrnament: View {
                         }
                         .buttonStyle(.borderless)
                         .buttonBorderShape(.circle)
-                        
+                        .accessibilityLabel("Focus mode")
+                        .accessibilityHint("Opens focus mode options to hide or show real-world items")
+
                         Button {
                             showImportSheet = true
                         } label: {
@@ -33,6 +35,8 @@ struct ToolbarOrnament: View {
                         }
                         .buttonStyle(.borderless)
                         .buttonBorderShape(.circle)
+                        .accessibilityLabel("Import model")
+                        .accessibilityHint("Import a custom 3D model from your device")
 
                         Button {
                             showMeasurementOptions = true
@@ -42,6 +46,8 @@ struct ToolbarOrnament: View {
                         }
                         .buttonStyle(.borderless)
                         .buttonBorderShape(.circle)
+                        .accessibilityLabel("Measurement tools")
+                        .accessibilityHint("Open measurement and ruler tools")
 
                         Button {
                             showEditSheet = true
@@ -53,6 +59,8 @@ struct ToolbarOrnament: View {
                         .disabled(controller.selectedModelIDVar == nil)
                         .buttonStyle(.borderless)
                         .buttonBorderShape(.circle)
+                        .accessibilityLabel("Edit model")
+                        .accessibilityHint(controller.selectedModelIDVar == nil ? "Select a model first to edit it" : "Edit the selected model's size, position, and style")
                     }
                 }
             }

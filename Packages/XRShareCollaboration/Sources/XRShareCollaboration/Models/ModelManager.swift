@@ -86,20 +86,24 @@ public final class ModelManager: ObservableObject {
         headAnchor.anchoring.trackingMode = .once
         anchor.addChild(headAnchor)
 
-        var attempts = 0
-        while attempts < 20 && !headAnchor.isAnchored {
-            try? await Task.sleep(nanoseconds: 25_000_000)
-            attempts += 1
+        // Use a single longer initial wait to let the anchor settle,
+        // then check a few times with reasonable intervals instead of busy-waiting
+        let checkInterval: UInt64 = 100_000_000 // 100ms between checks
+        let maxAttempts = 5 // Maximum 500ms total wait
+
+        for _ in 0..<maxAttempts {
+            if headAnchor.isAnchored { break }
+            try? await Task.sleep(nanoseconds: checkInterval)
         }
 
+        defer { headAnchor.removeFromParent() }
+
         guard headAnchor.isAnchored else {
-            headAnchor.removeFromParent()
             return nil
         }
 
         let offset = SIMD3<Float>(0, -0.1, -1.2)
         let placement = headAnchor.convert(position: offset, to: anchor)
-        headAnchor.removeFromParent()
         return SIMD3<Float>(placement.x, max(placement.y, minimumVisionHeight), placement.z)
     }
     #endif
@@ -159,27 +163,37 @@ public final class ModelManager: ObservableObject {
             }
             
             
-            // Calculate if bounding boxes overlap on the  X axis
+            // Calculate if bounding boxes overlap on all three axes (X, Y, Z)
+            // X-axis
             let newLeft = newCenter.x - newHalfWidth
             let newRight = newCenter.x + newHalfWidth
             let existingHalfWidth = existingExtents.x * 0.5
             let existingLeft = existingCenter.x - existingHalfWidth
             let existingRight = existingCenter.x + existingHalfWidth
-            
-            // Check for X-axis overlap with spacing
             let xOverlap = min(newRight, existingRight) - max(newLeft, existingLeft) + minSpacing
-            
-            if xOverlap > 0 {
-                // Also check Z-axis to ensure they're on same depth plane
-                let existingHalfDepth = existingExtents.z * 0.5
-                let zDistance = abs(existingCenter.z - newCenter.z)
-                let zThreshold = (newHalfDepth + existingHalfDepth) + minSpacing
-                
-                if zDistance < zThreshold {
-                    collidingModels.append((entity: existingEntity, model: model, overlap: xOverlap))
-                    print("Collision detected: overlap=\(xOverlap)m")
-                }
-                    }
+
+            // Y-axis (height) - must also overlap vertically for a true collision
+            let newHalfHeight = newExtents.y * 0.5
+            let newBottom = newCenter.y - newHalfHeight
+            let newTop = newCenter.y + newHalfHeight
+            let existingHalfHeight = existingExtents.y * 0.5
+            let existingBottom = existingCenter.y - existingHalfHeight
+            let existingTop = existingCenter.y + existingHalfHeight
+            let yOverlap = min(newTop, existingTop) - max(newBottom, existingBottom) + minSpacing
+
+            // Z-axis (depth)
+            let existingHalfDepth = existingExtents.z * 0.5
+            let newFront = newCenter.z - newHalfDepth
+            let newBack = newCenter.z + newHalfDepth
+            let existingFront = existingCenter.z - existingHalfDepth
+            let existingBack = existingCenter.z + existingHalfDepth
+            let zOverlap = min(newBack, existingBack) - max(newFront, existingFront) + minSpacing
+
+            // All three axes must overlap for a true 3D collision
+            if xOverlap > 0 && yOverlap > 0 && zOverlap > 0 {
+                collidingModels.append((entity: existingEntity, model: model, overlap: xOverlap))
+                print("Collision detected: xOverlap=\(xOverlap)m, yOverlap=\(yOverlap)m, zOverlap=\(zOverlap)m")
+            }
         }
         
         
@@ -268,37 +282,45 @@ public final class ModelManager: ObservableObject {
                 let center2 = bounds2.center
 
                 
-                // Calculate bounding box overlap
+                // Calculate bounding box overlap on all three axes
+                // X-axis
                 let halfWidth1 = extents1.x * 0.5
                 let halfWidth2 = extents2.x * 0.5
                 let left1 = center1.x - halfWidth1
                 let right1 = center1.x + halfWidth1
                 let left2 = center2.x - halfWidth2
                 let right2 = center2.x + halfWidth2
-
                 let xOverlap = min(right1, right2) - max(left1, left2) + minSpacing
 
+                // Y-axis (height)
+                let halfHeight1 = extents1.y * 0.5
+                let halfHeight2 = extents2.y * 0.5
+                let bottom1 = center1.y - halfHeight1
+                let top1 = center1.y + halfHeight1
+                let bottom2 = center2.y - halfHeight2
+                let top2 = center2.y + halfHeight2
+                let yOverlap = min(top1, top2) - max(bottom1, bottom2) + minSpacing
 
-                
-                if xOverlap > 0 {
-                    // Check Z-axis proximity
-                    let halfDepth1 = extents1.z * 0.5
-                    let halfDepth2 = extents2.z * 0.5
-                    let zDistance = abs(center2.z - center1.z)
-                    let zThreshold = (halfDepth1 + halfDepth2) + minSpacing
+                // Z-axis (depth)
+                let halfDepth1 = extents1.z * 0.5
+                let halfDepth2 = extents2.z * 0.5
+                let front1 = center1.z - halfDepth1
+                let back1 = center1.z + halfDepth1
+                let front2 = center2.z - halfDepth2
+                let back2 = center2.z + halfDepth2
+                let zOverlap = min(back1, back2) - max(front1, front2) + minSpacing
 
-                    
-                    if zDistance < zThreshold {
-                        // Push the rightmost model further right
-                        let pushDistance = xOverlap + 0.05
-                        if center2.x > center1.x {
-                            entity2.position.x += pushDistance
-                        } else {
-                            entity1.position.x += pushDistance
-                        }
-                        repositioned = true
-                        print("Cascade: Pushed models apart by \(pushDistance)m")
+                // All three axes must overlap for a true 3D collision
+                if xOverlap > 0 && yOverlap > 0 && zOverlap > 0 {
+                    // Push the rightmost model further right
+                    let pushDistance = xOverlap + 0.05
+                    if center2.x > center1.x {
+                        entity2.position.x += pushDistance
+                    } else {
+                        entity1.position.x += pushDistance
                     }
+                    repositioned = true
+                    print("Cascade: Pushed models apart by \(pushDistance)m")
                 }
             }
         }

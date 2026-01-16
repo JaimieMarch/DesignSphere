@@ -25,8 +25,11 @@ struct NavigationOrnament: View {
                         Label(screen.label, systemImage: screen.icon)
                     }
                     .tag(screen.rawValue)
+                    .accessibilityLabel(screen.label)
+                    .accessibilityHint(accessibilityHint(for: screen))
             }
         }
+        .accessibilityLabel("Navigation tabs")
         // Set ornament dimensions
         .frame(width: 80, height: 450)
         // Init local state from the binding
@@ -60,6 +63,19 @@ struct NavigationOrnament: View {
             if oldValue != newValue {
                 onTabWillChange?(screenTab)
             }
+        }
+    }
+
+    private func accessibilityHint(for screen: StarterView.ScreenTab) -> String {
+        switch screen {
+        case .home:
+            return "Browse and add furniture to your design"
+        case .details:
+            return "Save and load your design projects"
+        case .settings:
+            return "Adjust app settings"
+        case .scanMode:
+            return "Scan real objects to create 3D models"
         }
     }
 }

@@ -46,22 +46,26 @@ struct HomeScreen: View {
                 Spacer()
                 
                 HStack(spacing: 12) {
-                    Picker("", selection: $selectedSource) {
+                    Picker("Model source", selection: $selectedSource) {
                         ForEach(Source.allCases) { s in
                             Text(s.rawValue).tag(s)
                         }
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 280)
-                    
-                    Picker("", selection: $sortMode) {
+                    .accessibilityLabel("Model source filter")
+                    .accessibilityHint("Filter models by presets, scans, or imports")
+
+                    Picker("Sort order", selection: $sortMode) {
                         ForEach(Sorting.allCases) { mode in
                             Text(mode.rawValue).tag(mode)
                         }
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 385)
-                    
+                    .accessibilityLabel("Sort order")
+                    .accessibilityHint("Sort models alphabetically, by date, or show favorites only")
+
                     HStack(spacing: 6) {
                         Image(systemName: "magnifyingglass")
                             .foregroundStyle(.secondary)
@@ -69,6 +73,8 @@ struct HomeScreen: View {
                         TextField("Search", text: $searchText)
                             .textFieldStyle(.plain)
                             .frame(width: 140)
+                            .accessibilityLabel("Search models")
+                            .accessibilityHint("Type to filter models by name")
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
@@ -84,9 +90,10 @@ struct HomeScreen: View {
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 12) {
                     ForEach(filtered(controller.availableModels)) { descriptor in
+                        let isFavorite = favoriteModels.contains(descriptor.name)
                         CatalogCell(
                             name: descriptor.name,
-                            isFavorite: favoriteModels.contains(descriptor.name),
+                            isFavorite: isFavorite,
                             onFavoriteToggle: {
                                 if favoriteModels.contains(descriptor.name) {
                                     favoriteModels.remove(descriptor.name)
@@ -100,6 +107,9 @@ struct HomeScreen: View {
                         .contextMenu {
                             Button("Add") { controller.addModel(descriptor) }
                         }
+                        .accessibilityLabel("\(descriptor.name)\(isFavorite ? ", favorited" : "")")
+                        .accessibilityHint("Tap to add \(descriptor.name) to your design")
+                        .accessibilityAddTraits(.isButton)
                     }
                 }
                 .padding(16)

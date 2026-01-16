@@ -36,7 +36,22 @@ class ManipulationManager {
     init() {
         Self.registerConstraintSystemIfNeeded()
     }
-    
+
+    deinit {
+        // Clean up subscriptions to prevent memory leaks
+        // Cancel Combine subscriptions
+        manipulationSubscriptions.values.forEach { $0.cancel() }
+        manipulationSubscriptions.removeAll()
+
+        #if os(visionOS)
+        // Cancel RealityKit event subscriptions
+        contentSubscriptions.forEach { $0.cancel() }
+        contentSubscriptions.removeAll()
+        #endif
+
+        print("ManipulationManager: deinit - subscriptions cleaned up")
+    }
+
     private static func registerConstraintSystemIfNeeded() {
         guard !didRegisterConstraintSystem else { return }
         registerUprightConstraintSystem()
@@ -230,7 +245,11 @@ class ManipulationManager {
     
     // Remove manipulation capabilities from an entity
     func removeManipulation(from entity: Entity) {
-        
+        // Cancel and remove any subscriptions for this entity
+        if let subscription = manipulationSubscriptions.removeValue(forKey: entity) {
+            subscription.cancel()
+        }
+
         entity.components.remove(ManipulationComponent.self)
         entity.components.remove(GestureComponent.self)
         entity.components.remove(PhysicsBodyComponent.self)

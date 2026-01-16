@@ -47,12 +47,14 @@ struct EditModelView: View {
                 .multilineTextAlignment(.center)
             
             
-            Picker("", selection: $selectedTab) {
+            Picker("Edit Mode", selection: $selectedTab) {
                 Text("Size").tag(0)
                 Text("Position").tag(1)
                 Text("Style").tag(2)
             }
             .pickerStyle(.segmented)
+            .accessibilityLabel("Edit mode selector")
+            .accessibilityHint("Choose between size, position, or style editing")
             
             VStack(spacing: 20) {
                 if selectedTab == 0 {
@@ -66,13 +68,15 @@ struct EditModelView: View {
                     Button {
                         removeSelectedModel()
                         dismiss()
-                        
+
                     } label: {
                         Text("Remove Furniture")
                             .frame(maxWidth: .infinity, minHeight: 50)
                             .background(Color.red.opacity(0.15))
                             .cornerRadius(10)
                     }
+                    .accessibilityLabel("Remove furniture")
+                    .accessibilityHint("Permanently removes this item from your design")
                     .padding(.top, 8)
                 } else if selectedTab == 1 {
                     coordinateControl(title: "X Position", value: $X)
@@ -94,7 +98,7 @@ struct EditModelView: View {
                                     colorCircle(color)
                                 }
                                 
-                                ColorPicker("", selection: $customColor, supportsOpacity: false)
+                                ColorPicker("Custom color", selection: $customColor, supportsOpacity: false)
                                     .labelsHidden()
                                     .frame(width: 70, height: 70)
                                     .background(.ultraThinMaterial)
@@ -113,6 +117,8 @@ struct EditModelView: View {
                                             lineWidth: selectedColor == customColor ? 3 : 1
                                         )
                                     )
+                                    .accessibilityLabel("Custom color picker")
+                                    .accessibilityHint("Opens color picker to choose a custom color")
                                 
         
                             }
@@ -135,7 +141,9 @@ struct EditModelView: View {
                                 mat.baseColor = .init(tint: UIColor(selectedColor))
                                 mat.roughness = 0.6
                                 mat.metallic = 0.0
-                                mat.normal = .init(texture: .init(try! .load(named: "wood_grain")))
+                                if let texture = try? TextureResource.load(named: "wood_grain") {
+                                    mat.normal = .init(texture: .init(texture))
+                                }
                                 selectedEntity?.replaceAndStoreOldMaterials(material: mat)
                                 selectedEntity?.components.set(MaterialTypeComponent(materialType: "wood"))
                             }
@@ -157,7 +165,9 @@ struct EditModelView: View {
                                 mat.baseColor = .init(tint: UIColor(selectedColor))
                                 mat.roughness = 0.85
                                 mat.metallic = 0.0
-                                mat.normal = .init(texture: .init(try! .load(named: "fabric")))
+                                if let texture = try? TextureResource.load(named: "fabric") {
+                                    mat.normal = .init(texture: .init(texture))
+                                }
                                 selectedEntity?.replaceAndStoreOldMaterials(material: mat)
                                 selectedEntity?.components.set(MaterialTypeComponent(materialType: "fabric"))
                             }
@@ -167,7 +177,9 @@ struct EditModelView: View {
                                 mat.baseColor = .init(tint: UIColor(selectedColor))
                                 mat.roughness = 0.8
                                 mat.metallic = 0.2
-                                mat.normal = .init(texture: .init(try! .load(named: "leather")))
+                                if let texture = try? TextureResource.load(named: "leather") {
+                                    mat.normal = .init(texture: .init(texture))
+                                }
                                 selectedEntity?.replaceAndStoreOldMaterials(material: mat)
                                 selectedEntity?.components.set(MaterialTypeComponent(materialType: "leather"))
                             }
@@ -204,12 +216,16 @@ struct EditModelView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityLabel("Deselect model")
+                    .accessibilityHint("Deselects the current model and closes the editor")
 
                     Button(action: { dismiss() }) {
                         Text("Close")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityLabel("Close editor")
+                    .accessibilityHint("Closes the edit panel while keeping the model selected")
                 }
             }
             .padding(32)
@@ -443,16 +459,20 @@ struct EditModelView: View {
                 .background(Color.gray.opacity(0.18))
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
+            .accessibilityLabel("\(title) material")
+            .accessibilityHint("Apply \(title.lowercased()) texture to the model")
         }
         
         private func colorCircle(_ color: Color) -> some View {
-            Circle()
+            let colorName = colorToName(color)
+            let isSelected = selectedColor == color
+            return Circle()
                 .fill(color)
                 .frame(width: 66, height: 66)
                 .overlay(
                     Circle()
-                        .stroke(lineWidth: selectedColor == color ? 3 : 1)
-                        .foregroundStyle(selectedColor == color ? .white : .gray.opacity(0.4))
+                        .stroke(lineWidth: isSelected ? 3 : 1)
+                        .foregroundStyle(isSelected ? .white : .gray.opacity(0.4))
                 )
                 .onTapGesture {
                     selectedColor = color
@@ -461,12 +481,22 @@ struct EditModelView: View {
                     mat.baseColor = .init(tint: UIColor(color))
                     selectedEntity?.replaceAndStoreOldMaterials(material: mat)
                     selectedEntity?.components.set(MaterialTypeComponent(materialType: "custom"))
-                    //                if let id = controller.selectedModelInstanceIDVar {
-                    //                    controller.setMaterial(for: id, to: mat)
-                    //
-                    //                }
                 }
-                .shadow(radius: selectedColor == color ? 3 : 0)
+                .shadow(radius: isSelected ? 3 : 0)
+                .accessibilityLabel("\(colorName) color")
+                .accessibilityHint("Apply \(colorName) color to the model")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+        }
+
+        private func colorToName(_ color: Color) -> String {
+            switch color {
+            case .red: return "Red"
+            case .green: return "Green"
+            case .blue: return "Blue"
+            case .orange: return "Orange"
+            case .purple: return "Purple"
+            default: return "Custom"
+            }
         }
             
         private func updateEntityScale() {

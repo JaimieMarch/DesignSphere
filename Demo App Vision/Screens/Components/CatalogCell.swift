@@ -53,6 +53,8 @@ struct CatalogCell: View {
                 }
                 .buttonStyle(.plain)
                 .padding(8)
+                .accessibilityLabel("Remove \(name)")
+                .accessibilityHint("Removes this model from your imports")
             } else {
                 Button(action: onFavoriteToggle) {
                     Image(systemName: isFavorite ? "star.fill" : "star")
@@ -61,6 +63,8 @@ struct CatalogCell: View {
                 }
                 .buttonStyle(.plain)
                 .padding(8)
+                .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
+                .accessibilityHint(isFavorite ? "Removes \(name) from your favorites" : "Adds \(name) to your favorites")
             }
         }
     }
