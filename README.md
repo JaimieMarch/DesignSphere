@@ -159,6 +159,15 @@ Our roadmap is driven by both user feedback and the evolution of spatial computi
 - **Marketplace Ecosystem**: Create a user-generated content marketplace where designers can sell custom models, templates, and design packages
 - **Enterprise Solutions**: Develop B2B offerings for architecture firms, real estate agencies, and facility management companies
 
+### WISHLIST:
+
+- move the catalogue to the cloud - keep local sandboxed storage for user uploads/spatial web
+- finalize all required functionality for acceptable release version
+- add removed screens back into workflow
+- go through todo list on github 
+- go through apple guidelines and conform
+- implement createML functionality and control parameters
+
 ### Contributing to Development
 
 As this is an active course project, we're continuously iterating based on:
@@ -176,6 +185,9 @@ Dr. Christian Jacob
 Joanna Lin
 Ali Kara
 Lindsay Lab
+BlenderKit
+The Base Mesh
+Poly Haven
 
 **DesignSphere** was developed for CPSC 575 by:
 - Sam
