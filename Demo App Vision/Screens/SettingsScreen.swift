@@ -390,12 +390,12 @@ struct SettingsScreen: View {
             }
 
             SettingsCard(title: "Tutorial") {
-                Button("Replay First-Time Tutorial") {
+                Button("Open Tutorial Center") {
                     appSettings.requestTutorialReplay()
                 }
                 .buttonStyle(.borderedProminent)
 
-                Text("Starts tutorial immediately. Users can exit from tutorial UI.")
+                Text("Choose Interactive Walkthrough or Video Tutorials, then exit anytime.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

@@ -3,6 +3,7 @@
 
 import SwiftUI
 import XRShareCollaboration
+import AVKit
 
 // MARK: - Consolidated State Structs
 
@@ -203,7 +204,7 @@ struct StarterView: View {
             ImportModelSheet(isPresented: $sheetState.showImportSheet, controller: controller)
         }
         .sheet(isPresented: $sheetState.showTutorial) {
-            TutorialReplaySheet(isPresented: $sheetState.showTutorial)
+            TutorialHubSheet(isPresented: $sheetState.showTutorial)
         }
         .overlay {
             LoadingScreen(
@@ -305,30 +306,242 @@ struct StarterView: View {
         .environmentObject(AppSettings())
 }
 
-private struct TutorialReplaySheet: View {
+private struct TutorialHubSheet: View {
     @Binding var isPresented: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Tutorial")
-                .font(.largeTitle.bold())
-            Text("First-time tutorial replay is now active. Replace this screen with the full tutorial flow when those steps are implemented.")
-                .font(.title3)
-                .foregroundStyle(.secondary)
+        NavigationStack {
+            List {
+                Section("Choose Tutorial Style") {
+                    NavigationLink {
+                        InteractiveWalkthroughView()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Interactive Walkthrough")
+                                .font(.headline)
+                            Text("Guided overlay-style steps that explain key UI areas.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
 
-            Spacer()
-
-            HStack {
-                Spacer()
-                Button("Exit Tutorial") {
-                    isPresented = false
+                    NavigationLink {
+                        VideoTutorialLibraryView()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Video Tutorials")
+                                .font(.headline)
+                            Text("Short videos for specific components of the system.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
-                .buttonStyle(.borderedProminent)
+            }
+            .navigationTitle("Tutorial Center")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Exit") { isPresented = false }
+                }
             }
         }
-        .padding(32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .glassBackground(cornerRadius: 24)
-        .padding(24)
+    }
+}
+
+private struct InteractiveWalkthroughView: View {
+    @EnvironmentObject private var appSettings: AppSettings
+    @Environment(\.dismiss) private var dismiss
+    @State private var currentStepIndex = 0
+
+    private struct Step: Identifiable {
+        let id: Int
+        let title: String
+        let target: String
+        let description: String
+    }
+
+    private let steps: [Step] = [
+        .init(
+            id: 0,
+            title: "Navigation Rail",
+            target: "Left Navigation Ornament",
+            description: "Use Home, Details, and Settings tabs to move between major surfaces."
+        ),
+        .init(
+            id: 1,
+            title: "Action Toolbar",
+            target: "Bottom Toolbar Ornament",
+            description: "Open Focus Mode, Import, Measurement (if enabled), and Edit controls."
+        ),
+        .init(
+            id: 2,
+            title: "Model Catalog",
+            target: "Home Screen Grid",
+            description: "Browse models, apply source/category filters, and mark favorites."
+        ),
+        .init(
+            id: 3,
+            title: "Project Controls",
+            target: "Details Screen",
+            description: "Save, load, and manage room projects and anchors."
+        ),
+    ]
+
+    private var step: Step { steps[currentStepIndex] }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text("Interactive Walkthrough")
+                .font(.largeTitle.bold())
+
+            Text("Step \(currentStepIndex + 1) of \(steps.count)")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(.thinMaterial)
+                .overlay(alignment: .topLeading) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(step.title)
+                            .font(.title2.bold())
+                        Text("Highlight: \(step.target)")
+                            .font(.headline)
+                        Text(step.description)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(20)
+                }
+                .frame(height: 220)
+                .overlay(alignment: .bottomTrailing) {
+                    // Simulated spotlight marker for overlay-style onboarding.
+                    Circle()
+                        .strokeBorder(style: StrokeStyle(lineWidth: 3, dash: [6]))
+                        .foregroundStyle(.yellow)
+                        .frame(width: 70, height: 70)
+                        .padding(20)
+                }
+
+            HStack {
+                Button("Back") {
+                    currentStepIndex = max(0, currentStepIndex - 1)
+                }
+                .disabled(currentStepIndex == 0)
+
+                Spacer()
+
+                if currentStepIndex < steps.count - 1 {
+                    Button("Next") {
+                        currentStepIndex += 1
+                    }
+                    .buttonStyle(.borderedProminent)
+                } else {
+                    Button("Finish") {
+                        dismiss()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        .padding(28)
+        .navigationTitle("Walkthrough")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Exit") { dismiss() }
+            }
+        }
+        .onAppear {
+            appSettings.markOnboardingIncompleteForReplay()
+        }
+    }
+}
+
+private struct VideoTutorialLibraryView: View {
+    var body: some View {
+        List {
+            ForEach(TutorialCatalog.modules) { module in
+                NavigationLink {
+                    VideoTutorialPlayerView(module: module)
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(module.title)
+                            .font(.headline)
+                        Text(module.summary)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text("Duration: \(module.durationLabel)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .navigationTitle("Video Tutorials")
+    }
+}
+
+private struct VideoTutorialPlayerView: View {
+    let module: TutorialVideoModule
+    @State private var player: AVPlayer?
+    @State private var unavailableReason: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(module.title)
+                    .font(.title.bold())
+                Text(module.summary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                if let player {
+                    VideoPlayer(player: player)
+                        .frame(height: 260)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                } else {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .overlay {
+                            VStack(spacing: 10) {
+                                Image(systemName: "video.slash")
+                                    .font(.title2)
+                                Text(unavailableReason ?? "Video unavailable.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding()
+                        }
+                        .frame(height: 220)
+                }
+            }
+            .padding(24)
+        }
+        .navigationTitle(module.title)
+        .onAppear(perform: configurePlayerIfPossible)
+        .onDisappear {
+            player?.pause()
+        }
+    }
+
+    private func configurePlayerIfPossible() {
+        switch module.source {
+        case .bundled(let name, let ext):
+            guard let url = Bundle.main.url(forResource: name, withExtension: ext) else {
+                player = nil
+                unavailableReason = "This tutorial video is not bundled yet (\(name).\(ext))."
+                return
+            }
+            player = AVPlayer(url: url)
+            unavailableReason = nil
+        case .remote(let urlString):
+            guard let url = URL(string: urlString) else {
+                player = nil
+                unavailableReason = "Invalid video URL."
+                return
+            }
+            player = AVPlayer(url: url)
+            unavailableReason = nil
+        }
     }
 }

@@ -52,7 +52,10 @@ final class AppSettings: ObservableObject {
     }
 
     func requestTutorialReplay() {
-        UserDefaults.standard.set(false, forKey: Keys.onboardingCompleted)
         NotificationCenter.default.post(name: Self.tutorialReplayRequestedNotification, object: nil)
+    }
+
+    func markOnboardingIncompleteForReplay() {
+        UserDefaults.standard.set(false, forKey: Keys.onboardingCompleted)
     }
 }
