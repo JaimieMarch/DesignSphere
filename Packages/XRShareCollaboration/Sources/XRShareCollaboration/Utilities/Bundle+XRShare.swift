@@ -30,16 +30,7 @@ public extension Bundle {
     }
 
     static func xrShareLocateUSDZ(named name: String) -> URL? {
-        // First check Documents/Imports for user-imported models
-        let fileManager = FileManager.default
-        if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
-            let importsURL = documentsURL.appendingPathComponent("Imports").appendingPathComponent("\(name).usdz")
-            if fileManager.fileExists(atPath: importsURL.path) {
-                return importsURL
-            }
-        }
-
-        // Then search bundle resources
+        // Search bundled resources first to prevent imported files from shadowing core catalog assets.
         let searchDirectories = ["Resources/Models", "Models"]
         for bundle in xrShareBundleCandidates {
             for subdirectory in searchDirectories {
@@ -49,6 +40,15 @@ public extension Bundle {
             }
             if let url = bundle.url(forResource: name, withExtension: "usdz") {
                 return url
+            }
+        }
+
+        // Then check Documents/Imports for user-imported models.
+        let fileManager = FileManager.default
+        if let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let importsURL = documentsURL.appendingPathComponent("Imports").appendingPathComponent("\(name).usdz")
+            if fileManager.fileExists(atPath: importsURL.path) {
+                return importsURL
             }
         }
         return nil
@@ -64,13 +64,19 @@ public extension Bundle {
                 guard let directoryURL = bundle.resourceURL?.appendingPathComponent(subdirectory) else { continue }
                 guard let entries = try? fileManager.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: nil) else { continue }
                 for url in entries where url.pathExtension.caseInsensitiveCompare("usdz") == .orderedSame {
-                    unique[url.deletingPathExtension().lastPathComponent.lowercased()] = url
+                    let key = url.deletingPathExtension().lastPathComponent.lowercased()
+                    if unique[key] == nil {
+                        unique[key] = url
+                    }
                 }
             }
 
             if let fallback = bundle.urls(forResourcesWithExtension: "usdz", subdirectory: nil) {
                 for url in fallback {
-                    unique[url.deletingPathExtension().lastPathComponent.lowercased()] = url
+                    let key = url.deletingPathExtension().lastPathComponent.lowercased()
+                    if unique[key] == nil {
+                        unique[key] = url
+                    }
                 }
             }
         }
@@ -80,7 +86,10 @@ public extension Bundle {
             let importsURL = documentsURL.appendingPathComponent("Imports")
             if let entries = try? fileManager.contentsOfDirectory(at: importsURL, includingPropertiesForKeys: nil) {
                 for url in entries where url.pathExtension.caseInsensitiveCompare("usdz") == .orderedSame {
-                    unique[url.deletingPathExtension().lastPathComponent.lowercased()] = url
+                    let key = url.deletingPathExtension().lastPathComponent.lowercased()
+                    if unique[key] == nil {
+                        unique[key] = url
+                    }
                 }
             }
         }
@@ -88,6 +97,29 @@ public extension Bundle {
         return unique
             .sorted { $0.key < $1.key }
             .map { $0.value }
+    }
+
+    static func xrShareBuiltinUSDZNames() -> Set<String> {
+        var names: Set<String> = []
+        let searchDirectories = ["Resources/Models", "Models"]
+        let fileManager = FileManager.default
+
+        for bundle in xrShareBundleCandidates {
+            for subdirectory in searchDirectories {
+                guard let directoryURL = bundle.resourceURL?.appendingPathComponent(subdirectory) else { continue }
+                guard let entries = try? fileManager.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: nil) else { continue }
+                for url in entries where url.pathExtension.caseInsensitiveCompare("usdz") == .orderedSame {
+                    names.insert(url.deletingPathExtension().lastPathComponent.lowercased())
+                }
+            }
+            if let fallback = bundle.urls(forResourcesWithExtension: "usdz", subdirectory: nil) {
+                for url in fallback {
+                    names.insert(url.deletingPathExtension().lastPathComponent.lowercased())
+                }
+            }
+        }
+
+        return names
     }
 
     private static func uniqueBundles(_ bundles: [Bundle]) -> [Bundle] {

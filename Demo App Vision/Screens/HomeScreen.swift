@@ -17,26 +17,10 @@ struct HomeScreen: View {
         case favorites = "Favorites"
         var id: String { rawValue }
     }
-    
-    private enum Category: String, CaseIterable, Identifiable {
-        case seating = "Seating"
-        case all = "All"
-        case beds = "Beds"
-        case storage = "Storage"
-        case lighting = "Lighting"
-        var id: String { rawValue }
-    }
-    
-    private enum Source: String, CaseIterable, Identifiable {
-        case presets = "Presets"
-        case scans = "Scans"
-        case imports = "Imports"
-        var id: String { rawValue }
-    }
-    
-    @State private var selectedSource: Source = .presets
+
+    @State private var selectedSource: CollaborativeSessionController.ModelSource = .all
     @State private var sortMode: Sorting = .alphabetical
-    @State private var selectedCategory: Category = .all
+    @State private var selectedCategory: CollaborativeSessionController.ModelCategory = .all
     @State private var searchText: String = ""
     
     var body: some View {
@@ -47,8 +31,10 @@ struct HomeScreen: View {
                 
                 HStack(spacing: 12) {
                     Picker("Model source", selection: $selectedSource) {
-                        ForEach(Source.allCases) { s in
-                            Text(s.rawValue).tag(s)
+                        ForEach(CollaborativeSessionController.ModelSource.allCases, id: \.self) { source in
+                            if source != .unknown {
+                                Text(source.label).tag(source)
+                            }
                         }
                     }
                     .pickerStyle(.segmented)
@@ -56,13 +42,25 @@ struct HomeScreen: View {
                     .accessibilityLabel("Model source filter")
                     .accessibilityHint("Filter models by presets, scans, or imports")
 
+                    Picker("Category", selection: $selectedCategory) {
+                        ForEach(CollaborativeSessionController.ModelCategory.allCases, id: \.self) { category in
+                            if category != .unknown {
+                                Text(category.label).tag(category)
+                            }
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 360)
+                    .accessibilityLabel("Category")
+                    .accessibilityHint("Filter models by furniture category")
+
                     Picker("Sort order", selection: $sortMode) {
                         ForEach(Sorting.allCases) { mode in
                             Text(mode.rawValue).tag(mode)
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 385)
+                    .frame(width: 260)
                     .accessibilityLabel("Sort order")
                     .accessibilityHint("Sort models alphabetically, by date, or show favorites only")
 
@@ -126,6 +124,14 @@ struct HomeScreen: View {
     ) -> [CollaborativeSessionController.ModelDescriptor] {
         var result = input
         
+        if selectedSource != .all {
+            result = result.filter { $0.source == selectedSource }
+        }
+
+        if selectedCategory != .all {
+            result = result.filter { $0.category == selectedCategory }
+        }
+
         if !searchText.isEmpty {
             result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
@@ -134,9 +140,12 @@ struct HomeScreen: View {
         case .alphabetical:
             result.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
         case .dateAdded:
-            break
+            result.sort { lhs, rhs in
+                (lhs.dateAdded ?? .distantPast) > (rhs.dateAdded ?? .distantPast)
+            }
         case .favorites:
             result = result.filter { favoriteModels.contains($0.name) }
+            result.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
         }
         return result
     }

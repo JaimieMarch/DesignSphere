@@ -97,7 +97,6 @@
 			mainGroup = 0D64C6532CE003FE00D34085;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				C29E0D6E2F123456789ABCDE /* XCRemoteSwiftPackageReference "XRShareCollaboration" */,
 				66AF11052E83375A00693D2A /* XCLocalSwiftPackageReference "Packages/XRShareCollaboration" */,
 			);
 			preferredProjectObjectVersion = 90;
@@ -358,17 +357,10 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		C29E0D6E2F123456789ABCDE /* XCRemoteSwiftPackageReference "XRShareCollaboration" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = Packages/XRShareCollaboration;
-		};
-/* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
 		C29E0D702F123456789ABCDE /* XRShareCollaboration */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = C29E0D6E2F123456789ABCDE /* XCRemoteSwiftPackageReference "XRShareCollaboration" */;
+			package = 66AF11052E83375A00693D2A /* XCLocalSwiftPackageReference "Packages/XRShareCollaboration" */;
 			productName = XRShareCollaboration;
 		};
 /* End XCSwiftPackageProductDependency section */

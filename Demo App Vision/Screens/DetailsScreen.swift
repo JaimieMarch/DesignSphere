@@ -124,7 +124,7 @@ struct DetailsScreen: View {
                                     modelType: descriptor.type,
                                     showRemove: true,
                                     onRemove: {
-                                        controller.removeModel(named: descriptor.name)
+                                        controller.removeModelById(withInstanceID: descriptor.id)
                                     }
                                 )
                             }

@@ -9,17 +9,85 @@ import ARKit
 
 /// Main controller for local and shareplay sessions
 public final class CollaborativeSessionController: ObservableObject {
+    public enum ModelSource: String, CaseIterable, Hashable, Sendable {
+        case all
+        case presets
+        case scans
+        case imports
+        case unknown
+
+        public var label: String {
+            switch self {
+            case .all:
+                return "All"
+            case .presets:
+                return "Presets"
+            case .scans:
+                return "Scans"
+            case .imports:
+                return "Imports"
+            case .unknown:
+                return "Other"
+            }
+        }
+    }
+
+    public enum ModelCategory: String, CaseIterable, Hashable, Sendable {
+        case all
+        case seating
+        case beds
+        case storage
+        case lighting
+        case decor
+        case media
+        case tables
+        case unknown
+
+        public var label: String {
+            switch self {
+            case .all:
+                return "All"
+            case .seating:
+                return "Seating"
+            case .beds:
+                return "Beds"
+            case .storage:
+                return "Storage"
+            case .lighting:
+                return "Lighting"
+            case .decor:
+                return "Decor"
+            case .media:
+                return "Media"
+            case .tables:
+                return "Tables"
+            case .unknown:
+                return "Other"
+            }
+        }
+    }
+
+    public enum PreloadStrategy: Sendable {
+        case minimal
+        case aggressive
+    }
     
     /// Model descriptor for models that can be placed
     public struct ModelDescriptor: Identifiable, Hashable {
         public let id: String
         public let name: String
         public let type: ModelType
+        public let source: ModelSource
+        public let category: ModelCategory
+        public let dateAdded: Date?
 
-        fileprivate init(type: ModelType) {
+        fileprivate init(type: ModelType, source: ModelSource, category: ModelCategory, dateAdded: Date?) {
             self.id = type.id
             self.name = type.displayName
             self.type = type
+            self.source = source
+            self.category = category
+            self.dateAdded = dateAdded
         }
     }
 
@@ -109,9 +177,6 @@ public final class CollaborativeSessionController: ObservableObject {
     public func startLocalSession(named name: String = "Local Session") {
         sessionName = name
         sessionID = UUID().uuidString
-        Task {
-            await preloadIfNeeded()
-        }
     }
 
     #if os(visionOS)
@@ -305,7 +370,7 @@ public final class CollaborativeSessionController: ObservableObject {
 
         // Add to model manager
         modelManager.placedModels.append(model)
-        modelManager.modelDict[entity] = model
+        modelManager.modelDict[model.id] = model
 
         return model
     }
@@ -333,15 +398,22 @@ public final class CollaborativeSessionController: ObservableObject {
     }
 
     
-    /// Makes sure that all the models and thumnails are preloaded
-    public func preloadIfNeeded() async {
-        if ModelCache.shared.preloadingComplete == false {
-            await ModelCache.shared.preloadAllModels()
-        }
-        if ThumbnailCache.shared.preloadingComplete == false {
-            await ThumbnailCache.shared.preloadAllThumbnails()
-        }
+    /// Makes sure that models/thumbnails are available without stalling first render.
+    public func preloadIfNeeded(strategy: PreloadStrategy = .minimal) async {
         await arViewModel.loadModels()
+
+        switch strategy {
+        case .minimal:
+            let previewModels = Array(modelManager.modelTypes.prefix(8))
+            await ThumbnailCache.shared.preloadThumbnails(for: previewModels)
+        case .aggressive:
+            if ModelCache.shared.preloadingComplete == false {
+                await ModelCache.shared.preloadAllModels()
+            }
+            if ThumbnailCache.shared.preloadingComplete == false {
+                await ThumbnailCache.shared.preloadAllThumbnails()
+            }
+        }
     }
     
     public func setMaterial(for entityID: UUID, to material: RealityKit.Material) {
@@ -449,6 +521,7 @@ public final class CollaborativeSessionController: ObservableObject {
         if let manipulationManager = arViewModel.manipulationManager {
             manipulationManager.setupManipulationEventHandlers(for: content)
         }
+        selectionIndicatorManager.updateIndicatorPosition()
         modelManager.updatePlacedModels(arViewModel: arViewModel)
     }
     #endif
@@ -549,6 +622,64 @@ public final class CollaborativeSessionController: ObservableObject {
 
 
     public func refreshAvailableModels() {
-        availableModels = modelManager.modelTypes.map(ModelDescriptor.init)
+        availableModels = modelManager.modelTypes.map { modelType in
+            ModelDescriptor(
+                type: modelType,
+                source: source(for: modelType),
+                category: category(for: modelType),
+                dateAdded: dateAdded(for: modelType)
+            )
+        }
+    }
+
+    private func source(for modelType: ModelType) -> ModelSource {
+        guard let modelURL = Bundle.xrShareLocateUSDZ(named: modelType.rawValue) else {
+            return .unknown
+        }
+
+        let pathComponents = Set(modelURL.pathComponents.map { $0.lowercased() })
+        if pathComponents.contains("imports") {
+            return .imports
+        }
+        if pathComponents.contains("scans") {
+            return .scans
+        }
+        return .presets
+    }
+
+    private func dateAdded(for modelType: ModelType) -> Date? {
+        guard let modelURL = Bundle.xrShareLocateUSDZ(named: modelType.rawValue),
+              let values = try? modelURL.resourceValues(forKeys: [.creationDateKey, .contentModificationDateKey])
+        else {
+            return nil
+        }
+        return values.creationDate ?? values.contentModificationDate
+    }
+
+    private func category(for modelType: ModelType) -> ModelCategory {
+        let key = modelType.rawValue.lowercased()
+
+        if key.contains("chair") || key.contains("sofa") || key.contains("couch") || key.contains("stool") {
+            return .seating
+        }
+        if key.contains("bed") {
+            return .beds
+        }
+        if key.contains("closet") || key.contains("cabinet") || key.contains("shelf") || key.contains("storage") {
+            return .storage
+        }
+        if key.contains("lamp") || key.contains("light") || key.contains("chandelier") {
+            return .lighting
+        }
+        if key.contains("table") {
+            return .tables
+        }
+        if key.contains("tv") || key.contains("monitor") {
+            return .media
+        }
+        if key.contains("vase") || key.contains("decor") {
+            return .decor
+        }
+        return .unknown
     }
 }

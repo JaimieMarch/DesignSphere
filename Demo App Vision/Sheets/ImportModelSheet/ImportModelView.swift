@@ -11,6 +11,7 @@ struct ImportModelView: View {
     @State private var errorMessage: String?
     @State private var importedFileName: String?
     @State private var isViewActive = false
+    private let maxImportSizeBytes: Int64 = 150 * 1024 * 1024
 
     private enum ImportStatus: Equatable {
         case idle
@@ -178,6 +179,18 @@ struct ImportModelView: View {
                     throw ImportError.noFileSelected
                 }
 
+                guard sourceURL.pathExtension.lowercased() == "usdz" else {
+                    throw ImportError.invalidFileType
+                }
+
+                let sourceResourceValues = try sourceURL.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+                guard sourceResourceValues.isRegularFile == true else {
+                    throw ImportError.invalidFileType
+                }
+                guard let fileSize = sourceResourceValues.fileSize, Int64(fileSize) <= maxImportSizeBytes else {
+                    throw ImportError.fileTooLarge(maxImportSizeBytes)
+                }
+
                 // Get access to security-scoped resource
                 guard sourceURL.startAccessingSecurityScopedResource() else {
                     throw ImportError.accessDenied
@@ -198,19 +211,33 @@ struct ImportModelView: View {
                 }
 
                 // Destination URL
-                let fileName = sourceURL.lastPathComponent
+                let modelBaseName = sourceURL.deletingPathExtension().lastPathComponent
+                let canonicalName = sanitizeImportedModelName(modelBaseName)
+                guard !canonicalName.isEmpty else {
+                    throw ImportError.invalidFileName
+                }
+                let builtInNames = Bundle.xrShareBuiltinUSDZNames()
+                if builtInNames.contains(canonicalName.lowercased()) {
+                    throw ImportError.reservedModelName
+                }
+
+                let fileName = canonicalName + ".usdz"
                 let destinationURL = importsURL.appendingPathComponent(fileName)
 
-                // Remove existing file if present
+                // Do not overwrite existing imports with the same canonical name.
                 if fileManager.fileExists(atPath: destinationURL.path) {
-                    try fileManager.removeItem(at: destinationURL)
+                    throw ImportError.duplicateModelName(canonicalName)
                 }
 
                 // Copy file
                 try fileManager.copyItem(at: sourceURL, to: destinationURL)
+                try fileManager.setAttributes(
+                    [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                    ofItemAtPath: destinationURL.path
+                )
 
                 // Store the imported file name (without extension)
-                importedFileName = sourceURL.deletingPathExtension().lastPathComponent
+                importedFileName = canonicalName
 
                 // Refresh available models on main thread
                 await MainActor.run {
@@ -237,10 +264,22 @@ struct ImportModelView: View {
         }
     }
 
+    private func sanitizeImportedModelName(_ name: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_-"))
+        let filtered = name.unicodeScalars.map { allowed.contains($0) ? Character($0) : "_" }
+        let collapsed = String(filtered).replacingOccurrences(of: "__", with: "_")
+        return collapsed.trimmingCharacters(in: CharacterSet(charactersIn: "_-"))
+    }
+
     private enum ImportError: LocalizedError {
         case noFileSelected
         case accessDenied
         case documentsNotFound
+        case invalidFileType
+        case invalidFileName
+        case duplicateModelName(String)
+        case reservedModelName
+        case fileTooLarge(Int64)
 
         var errorDescription: String? {
             switch self {
@@ -250,6 +289,17 @@ struct ImportModelView: View {
                 return "Unable to access the selected file"
             case .documentsNotFound:
                 return "Unable to access Documents directory"
+            case .invalidFileType:
+                return "Only USDZ files can be imported"
+            case .invalidFileName:
+                return "The selected file name is not valid for import"
+            case .duplicateModelName(let name):
+                return "'\(name)' already exists in your imported catalog. Rename the file and try again."
+            case .reservedModelName:
+                return "That model name conflicts with a built-in catalog model. Rename the file and try again."
+            case .fileTooLarge(let maxBytes):
+                let maxMB = maxBytes / (1024 * 1024)
+                return "Model is too large. Maximum supported import size is \(maxMB) MB."
             }
         }
     }

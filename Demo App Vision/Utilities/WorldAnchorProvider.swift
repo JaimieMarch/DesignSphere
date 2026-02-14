@@ -66,6 +66,10 @@ final class WorldAnchorProvider {
             encoder.outputFormatting = .prettyPrinted
             let data = try encoder.encode(storedAnchors)
             try data.write(to: fileURL, options: .atomic)
+            try fileManager.setAttributes(
+                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+                ofItemAtPath: fileURL.path
+            )
         } catch {
             print("WorldAnchorProvider: Failed to persist anchors – \(error)")
         }

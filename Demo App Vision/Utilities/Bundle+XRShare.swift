@@ -68,6 +68,30 @@ extension Bundle {
             .map { $0.value }
     }
 
+    public static func xrShareBuiltinUSDZNames() -> Set<String> {
+        var names: Set<String> = []
+        let searchDirectories = ["Resources/Models", "Models"]
+        let fileManager = FileManager.default
+
+        for bundle in xrShareBundleCandidates {
+            for subdirectory in searchDirectories {
+                guard let directoryURL = bundle.resourceURL?.appendingPathComponent(subdirectory) else { continue }
+                guard let entries = try? fileManager.contentsOfDirectory(at: directoryURL, includingPropertiesForKeys: nil) else { continue }
+                for url in entries where url.pathExtension.caseInsensitiveCompare("usdz") == .orderedSame {
+                    names.insert(url.deletingPathExtension().lastPathComponent.lowercased())
+                }
+            }
+
+            if let fallback = bundle.urls(forResourcesWithExtension: "usdz", subdirectory: nil) {
+                for url in fallback {
+                    names.insert(url.deletingPathExtension().lastPathComponent.lowercased())
+                }
+            }
+        }
+
+        return names
+    }
+
     private static func uniqueBundles(_ bundles: [Bundle]) -> [Bundle] {
         var seen: Set<String> = []
         var result: [Bundle] = []

@@ -260,27 +260,31 @@ public final class ModelManager: ObservableObject {
         
         let minSpacing: Float = 0.1
         var repositioned = false
+        let activeEntities = placedModels.compactMap(\.modelEntity).filter { $0 !== newEntity }
+        guard activeEntities.count > 1 else { return }
+
+        // Cache bounds once per entity per pass to avoid repeated visualBounds calls.
+        var boundsCache: [ObjectIdentifier: (center: SIMD3<Float>, extents: SIMD3<Float>)] = [:]
+        for entity in activeEntities {
+            let bounds = entity.visualBounds(relativeTo: anchor)
+            let extents = bounds.extents
+            guard extents.x > 0 && extents.z > 0 else { continue }
+            boundsCache[ObjectIdentifier(entity)] = (bounds.center, extents)
+        }
         
         // Check all pairs of existing models for collisions
-        for (index, model1) in placedModels.enumerated() {
-            guard let entity1 = model1.modelEntity,
-                  entity1 !== newEntity else { continue }
+        for index in 0..<(activeEntities.count - 1) {
+            let entity1 = activeEntities[index]
+            guard let state1 = boundsCache[ObjectIdentifier(entity1)] else { continue }
 
-            for model2 in placedModels[(index + 1)...] {
-                guard let entity2 = model2.modelEntity,
-                      entity2 !== newEntity else { continue }
+            for nextIndex in (index + 1)..<activeEntities.count {
+                let entity2 = activeEntities[nextIndex]
+                guard let state2 = boundsCache[ObjectIdentifier(entity2)] else { continue }
 
-                
-                let bounds1 = entity1.visualBounds(relativeTo: anchor)
-                let extents1 = bounds1.extents
-                guard extents1.x > 0 && extents1.z > 0 else { continue }
-                let center1 = bounds1.center
-
-                
-                let bounds2 = entity2.visualBounds(relativeTo: anchor)
-                let extents2 = bounds2.extents
-                guard extents2.x > 0 && extents2.z > 0 else { continue }
-                let center2 = bounds2.center
+                let extents1 = state1.extents
+                let center1 = state1.center
+                let extents2 = state2.extents
+                let center2 = state2.center
 
                 
                 // Calculate bounding box overlap on all three axes
@@ -317,8 +321,16 @@ public final class ModelManager: ObservableObject {
                     let pushDistance = xOverlap + 0.05
                     if center2.x > center1.x {
                         entity2.position.x += pushDistance
+                        boundsCache[ObjectIdentifier(entity2)] = (
+                            center: SIMD3<Float>(center2.x + pushDistance, center2.y, center2.z),
+                            extents: extents2
+                        )
                     } else {
                         entity1.position.x += pushDistance
+                        boundsCache[ObjectIdentifier(entity1)] = (
+                            center: SIMD3<Float>(center1.x + pushDistance, center1.y, center1.z),
+                            extents: extents1
+                        )
                     }
                     repositioned = true
                     print("Cascade: Pushed models apart by \(pushDistance)m")

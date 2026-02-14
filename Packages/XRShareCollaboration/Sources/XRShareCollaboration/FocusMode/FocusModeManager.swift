@@ -29,6 +29,7 @@ public final class FocusModeManager: ObservableObject {
     private var focusModeElements: [Entity] = []
     private var focusRoomCenter: SIMD3<Float> = .zero
     private var focusRoomOrientation: simd_quatf = simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0))
+    private let debugLogging = false
 
     public init() {}
 
@@ -115,10 +116,10 @@ public final class FocusModeManager: ObservableObject {
 
                 focusRoomCenter = SIMD3<Float>(eyePosition.x, roomCenterY, eyePosition.z)
 
-                print("DEBUG: Eye position: \(eyePosition)")
-                print("DEBUG: Floor will be at Y: \(eyePosition.y + floorOffset)")
-                print("DEBUG: Room center: \(focusRoomCenter)")
-                print("DEBUG: Ceiling will be at Y: \(eyePosition.y + floorOffset + dims.height)")
+                debugLog("Eye position: \(eyePosition)")
+                debugLog("Floor will be at Y: \(eyePosition.y + floorOffset)")
+                debugLog("Room center: \(focusRoomCenter)")
+                debugLog("Ceiling will be at Y: \(eyePosition.y + floorOffset + dims.height)")
 
                 // Align room orientation with user's forward direction (only yaw, no pitch/roll)
                 let transform = headAnchor.transformMatrix(relativeTo: sharedAnchor)
@@ -157,7 +158,7 @@ public final class FocusModeManager: ObservableObject {
         func worldPosition(for localPos: SIMD3<Float>) -> SIMD3<Float> {
             let rotated = focusRoomOrientation.act(localPos)
             let result = focusRoomCenter + rotated
-            print("DEBUG: localPos \(localPos) -> rotated \(rotated) -> world \(result)")
+            debugLog("localPos \(localPos) -> rotated \(rotated) -> world \(result)")
             return result
         }
 
@@ -188,9 +189,9 @@ public final class FocusModeManager: ObservableObject {
             localPosition: floorLocalPos,
             enableCollision: true
         )
-        print("DEBUG: Floor local position: \(floorLocalPos)")
-        print("DEBUG: Floor world position: \(floor.position)")
-        print("DEBUG: Floor should be \(dims.height * 0.5)m below center at \(focusRoomCenter)")
+        debugLog("Floor local position: \(floorLocalPos)")
+        debugLog("Floor world position: \(floor.position)")
+        debugLog("Floor should be \(dims.height * 0.5)m below center at \(focusRoomCenter)")
         sharedAnchor.addChild(floor)
         focusModeElements.append(floor)
 
@@ -202,8 +203,8 @@ public final class FocusModeManager: ObservableObject {
             localPosition: ceilingLocalPos,
             enableCollision: true
         )
-        print("DEBUG: Ceiling local position: \(ceilingLocalPos)")
-        print("DEBUG: Ceiling world position: \(ceiling.position)")
+        debugLog("Ceiling local position: \(ceilingLocalPos)")
+        debugLog("Ceiling world position: \(ceiling.position)")
         sharedAnchor.addChild(ceiling)
         focusModeElements.append(ceiling)
 
@@ -304,6 +305,11 @@ public final class FocusModeManager: ObservableObject {
     private func teardownFocusModeEnvironment() {
         focusModeElements.forEach { $0.removeFromParent() }
         focusModeElements.removeAll()
+    }
+
+    private func debugLog(_ message: String) {
+        guard debugLogging else { return }
+        print("FocusMode DEBUG: \(message)")
     }
 }
 #endif

@@ -38,16 +38,18 @@ struct ToolbarOrnament: View {
                         .accessibilityLabel("Import model")
                         .accessibilityHint("Import a custom 3D model from your device")
 
-                        Button {
-                            showMeasurementOptions = true
-                        } label: {
-                            Image(systemName: "ruler")
-                                .frame(width: 28, height: 28)
+                        if AppFeatureFlags.measurementToolsEnabled {
+                            Button {
+                                showMeasurementOptions = true
+                            } label: {
+                                Image(systemName: "ruler")
+                                    .frame(width: 28, height: 28)
+                            }
+                            .buttonStyle(.borderless)
+                            .buttonBorderShape(.circle)
+                            .accessibilityLabel("Measurement tools")
+                            .accessibilityHint("Open measurement and ruler tools")
                         }
-                        .buttonStyle(.borderless)
-                        .buttonBorderShape(.circle)
-                        .accessibilityLabel("Measurement tools")
-                        .accessibilityHint("Open measurement and ruler tools")
 
                         Button {
                             showEditSheet = true

@@ -58,6 +58,19 @@ struct StarterView: View {
         case details = 1
         case settings = 2
 
+        static var enabledCases: [ScreenTab] {
+            allCases.filter(\.isEnabled)
+        }
+
+        var isEnabled: Bool {
+            switch self {
+            case .home, .details:
+                return true
+            case .settings:
+                return AppFeatureFlags.settingsScreenEnabled
+            }
+        }
+
         var label: String {
             switch self {
             case .home: return "Home"
@@ -97,11 +110,13 @@ struct StarterView: View {
                     .allowsHitTesting(navigationState.currentScreen == .details)
                 
                 // Settings Screen
-                SettingsScreen()
-                    .opacity(navigationState.currentScreen == .settings ? navigationState.transitionOpacity : 0)
-                    .scaleEffect(navigationState.currentScreen == .settings ? navigationState.contentScale : 0.96)
-                    .blur(radius: navigationState.currentScreen == .settings ? 0 : 1)
-                    .allowsHitTesting(navigationState.currentScreen == .settings)
+                if AppFeatureFlags.settingsScreenEnabled {
+                    SettingsScreen()
+                        .opacity(navigationState.currentScreen == .settings ? navigationState.transitionOpacity : 0)
+                        .scaleEffect(navigationState.currentScreen == .settings ? navigationState.contentScale : 0.96)
+                        .blur(radius: navigationState.currentScreen == .settings ? 0 : 1)
+                        .allowsHitTesting(navigationState.currentScreen == .settings)
+                }
             }
             .animation(.interactiveSpring(
                 response: 0.35,
@@ -159,7 +174,9 @@ struct StarterView: View {
         
         // Sheets for action items
         .sheet(isPresented: $sheetState.showMeasurementOptions) {
-            MeasurementSheet(isPresented: $sheetState.showMeasurementOptions)
+            if AppFeatureFlags.measurementToolsEnabled {
+                MeasurementSheet(isPresented: $sheetState.showMeasurementOptions)
+            }
         }
         .sheet(isPresented: $sheetState.showFocusModeSheet) {
             FocusModeSheet(isPresented: $sheetState.showFocusModeSheet, controller: controller)
@@ -232,7 +249,7 @@ struct StarterView: View {
         loadingState.message = "Loading models..."
         loadingState.progress = 0.7
         // Preload models AFTER opening immersive space for faster perceived startup
-        await controller.preloadIfNeeded()
+        await controller.preloadIfNeeded(strategy: .minimal)
 
         loadingState.message = "Ready!"
         loadingState.progress = 1.0

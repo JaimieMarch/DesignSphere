@@ -18,7 +18,7 @@ struct NavigationOrnament: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            ForEach(StarterView.ScreenTab.allCases, id: \.rawValue) { screen in
+            ForEach(StarterView.ScreenTab.enabledCases, id: \.rawValue) { screen in
                 // Placeholder views
                 Color.clear
                     .tabItem {
@@ -34,8 +34,14 @@ struct NavigationOrnament: View {
         .frame(width: 80, height: 450)
         // Init local state from the binding
         .onAppear {
-            selectedTab = currentScreen.rawValue
-            previousTab = currentScreen.rawValue
+            if currentScreen.isEnabled {
+                selectedTab = currentScreen.rawValue
+                previousTab = currentScreen.rawValue
+            } else if let firstEnabled = StarterView.ScreenTab.enabledCases.first {
+                selectedTab = firstEnabled.rawValue
+                previousTab = firstEnabled.rawValue
+                currentScreen = firstEnabled
+            }
         }
         // User selects a new tab
         .onChange(of: selectedTab) { oldValue, newValue in
@@ -45,6 +51,7 @@ struct NavigationOrnament: View {
         }
         // Parent view changes the current screen
         .onChange(of: currentScreen) { oldValue, newValue in
+            guard newValue.isEnabled else { return }
             if selectedTab != newValue.rawValue {
                 // Turn on the boolean to prevent update loop
                 // This stops onChange(selectedTab) from triggering
@@ -59,7 +66,7 @@ struct NavigationOrnament: View {
 
     // Send event to parent
     private func handleTabChange(_ oldValue: Int, _ newValue: Int) {
-        if let screenTab = StarterView.ScreenTab(rawValue: newValue) {
+        if let screenTab = StarterView.ScreenTab(rawValue: newValue), screenTab.isEnabled {
             if oldValue != newValue {
                 onTabWillChange?(screenTab)
             }

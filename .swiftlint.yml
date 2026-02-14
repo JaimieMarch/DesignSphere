@@ -1,11 +1,9 @@
 included:
-  - Shared
-  - "Demo App"
   - "Demo App Vision"
+  - Packages
 
 excluded:
   - DerivedData
-  - Packages
   - .build
   - .swiftpm
 

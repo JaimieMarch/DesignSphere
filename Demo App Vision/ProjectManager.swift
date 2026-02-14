@@ -29,9 +29,22 @@ class ProjectManager: ObservableObject {
 
     private func createProjectsDirectoryIfNeeded() {
         if !fileManager.fileExists(atPath: projectsDirectory.path) {
-            try? fileManager.createDirectory(at: projectsDirectory, withIntermediateDirectories: true)
+            let attributes: [FileAttributeKey: Any] = [
+                .protectionKey: FileProtectionType.completeUntilFirstUserAuthentication
+            ]
+            try? fileManager.createDirectory(
+                at: projectsDirectory,
+                withIntermediateDirectories: true,
+                attributes: attributes
+            )
             print("Created projects directory at: \(projectsDirectory.path)")
         }
+    }
+
+    private func projectDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
     }
 
     private func projectFileURL(for roomName: String) -> URL {
@@ -236,7 +249,7 @@ class ProjectManager: ObservableObject {
 
         let project: ProjectData
         if let existingData = try? Data(contentsOf: fileURL),
-           var existingProject = try? JSONDecoder().decode(ProjectData.self, from: existingData) {
+           var existingProject = try? projectDecoder().decode(ProjectData.self, from: existingData) {
             // Update existing project
             existingProject.dateModified = now
             existingProject.models = savedModels
@@ -261,7 +274,7 @@ class ProjectManager: ObservableObject {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
         let jsonData = try encoder.encode(project)
-        try jsonData.write(to: fileURL)
+        try jsonData.write(to: fileURL, options: [.atomic, .completeFileProtection])
 
         print("Saved project '\(roomName)' with \(savedModels.count) models to: \(fileURL.path)")
 
@@ -390,7 +403,7 @@ class ProjectManager: ObservableObject {
     func deleteProject(roomName: String) throws {
         let fileURL = projectFileURL(for: roomName)
         if let data = try? Data(contentsOf: fileURL),
-           let project = try? JSONDecoder().decode(ProjectData.self, from: data),
+           let project = try? projectDecoder().decode(ProjectData.self, from: data),
            let anchorID = project.worldAnchorID {
             anchorProvider.removeAnchor(id: anchorID)
         }

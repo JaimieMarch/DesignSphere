@@ -1,9 +1,9 @@
 repos:
 -   repo: local
     hooks:
-    -   id: codex-summary
-        name: Regenerate Codex summary
-        entry: python3 scripts/update_codex_summary.py
+    -   id: codex-summary-if-present
+        name: Regenerate Codex summary (if script exists)
+        entry: bash -lc 'if [ -f scripts/update_codex_summary.py ]; then python3 scripts/update_codex_summary.py; else echo "Skipping codex summary hook (script missing)"; fi'
         language: system
         always_run: true
         pass_filenames: false

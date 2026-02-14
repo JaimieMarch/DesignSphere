@@ -117,7 +117,7 @@ Clone the repo from: https://github.com/JaimieMarch/DesignSphere/tree/sam_new
 
 Currently, sam_new is currently our active branch. 
 
-1. Open [DesignSphere.xcodeproj](DesignSphere.xcodeproj) in Xcode
+1. Open [Demo App.xcodeproj](Demo App.xcodeproj) in Xcode
 2. Select a Vision Pro simulator or device
 3. Build and run (⌘R)
 

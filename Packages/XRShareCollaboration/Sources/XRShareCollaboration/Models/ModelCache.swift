@@ -25,7 +25,7 @@ class ModelCache: ObservableObject {
     
     
     // Track which models are currently being loaded to prevent duplicate loads
-    private var loadingModels: Set<ModelType> = []
+    private var loadingTasks: [ModelType: Task<ModelEntity?, Never>] = [:]
     
     private init() {}
     
@@ -103,42 +103,41 @@ class ModelCache: ObservableObject {
     
     /// Load a model and and then cache it
     private func loadModel(_ modelType: ModelType) async -> ModelEntity? {
-        // Prevent duplicate loading
-        guard !loadingModels.contains(modelType) else {
+        if let inFlight = loadingTasks[modelType] {
             print("ModelCache: \(modelType.rawValue) is already being loaded")
-            // Wait for existing load to complete
-            while loadingModels.contains(modelType) {
-                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
-            }
-            return cache[modelType]
-        }
-        
-        loadingModels.insert(modelType)
-        defer { loadingModels.remove(modelType) }
-        
-        var modelEntity: ModelEntity?
-
-        if let modelURL = Bundle.xrShareLocateUSDZ(named: modelType.rawValue) {
-            do {
-                modelEntity = try await ModelEntity(contentsOf: modelURL)
-            } catch {
-                print("ModelCache: Failed to load \(modelType.rawValue) from URL: \(error)")
-    }
+            return await inFlight.value
         }
 
-        if modelEntity == nil {
-            let filename = "\(modelType.rawValue).usdz"
-            for bundle in Bundle.xrShareResourceBundles {
+        let task = Task<ModelEntity?, Never> {
+            var modelEntity: ModelEntity?
+
+            if let modelURL = Bundle.xrShareLocateUSDZ(named: modelType.rawValue) {
                 do {
-                    modelEntity = try await ModelEntity(named: filename, in: bundle)
-                    break
+                    modelEntity = try await ModelEntity(contentsOf: modelURL)
                 } catch {
-                    continue
-                        }
+                    print("ModelCache: Failed to load \(modelType.rawValue) from URL: \(error)")
                 }
+            }
+
+            if modelEntity == nil {
+                let filename = "\(modelType.rawValue).usdz"
+                for bundle in Bundle.xrShareResourceBundles {
+                    do {
+                        modelEntity = try await ModelEntity(named: filename, in: bundle)
+                        break
+                    } catch {
+                        continue
+                    }
+                }
+            }
+
+            return modelEntity
         }
 
-        
+        loadingTasks[modelType] = task
+        let modelEntity = await task.value
+        loadingTasks[modelType] = nil
+
         if let entity = modelEntity {
             cache[modelType] = entity
             print("ModelCache: Successfully cached \(modelType.rawValue)")
@@ -146,7 +145,6 @@ class ModelCache: ObservableObject {
         }
 
         print("ModelCache: Failed to find \(modelType.rawValue)")
-        
         return nil
     }
     
@@ -178,6 +176,5 @@ class ModelCache: ObservableObject {
     }
 }
 #endif
-
 
 

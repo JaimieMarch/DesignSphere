@@ -107,8 +107,9 @@ public final class SelectionIndicatorManager: ObservableObject {
         cone.orientation = simd_quatf(angle: .pi, axis: SIMD3<Float>(1, 0, 0))
 
         // Add animation - bobbing up and down
-        let bobAnimation = createBobbingAnimation()
-        cone.playAnimation(bobAnimation.repeat())
+        if let bobAnimation = createBobbingAnimation() {
+            cone.playAnimation(bobAnimation.repeat())
+        }
 
         return cone
     }
@@ -131,7 +132,7 @@ public final class SelectionIndicatorManager: ObservableObject {
         )
     }
 
-    private func createBobbingAnimation() -> AnimationResource {
+    private func createBobbingAnimation() -> AnimationResource? {
         // Create gentle up-down bobbing motion
         let bobDistance: Float = 0.05 // 5cm up and down
         let duration: TimeInterval = 1.5
@@ -155,7 +156,12 @@ public final class SelectionIndicatorManager: ObservableObject {
             bindTarget: .transform
         )
 
-        return try! AnimationResource.generate(with: animation)
+        do {
+            return try AnimationResource.generate(with: animation)
+        } catch {
+            print("SelectionIndicatorManager: Failed to create bobbing animation - \(error)")
+            return nil
+        }
     }
 }
 #endif
