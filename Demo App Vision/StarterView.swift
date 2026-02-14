@@ -34,12 +34,14 @@ struct SheetVisibilityState {
     var showFocusModeSheet = false
     var showEditSheet = false
     var showImportSheet = false
+    var showTutorial = false
 }
 
 // enforce vision OS 26 or higher
 @available(visionOS 26.0, *)
 struct StarterView: View {
     @ObservedObject var controller: CollaborativeSessionController
+    @EnvironmentObject private var appSettings: AppSettings
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
 
     // Consolidated state structs
@@ -48,9 +50,8 @@ struct StarterView: View {
     @State private var navigationState = NavigationState()
     @State private var sheetState = SheetVisibilityState()
 
-    // User preferences (kept separate as it's persisted)
+    // User preferences (kept separate for HomeScreen binding)
     @State private var favoriteModels: Set<String> = []
-    private let favoritesDefaultsKey = "favoriteModels"
     
     // Screen tabs that change the main content
     enum ScreenTab: Int, CaseIterable {
@@ -163,6 +164,20 @@ struct StarterView: View {
         .onChange(of: favoriteModels) {
             saveFavorites(favoriteModels)
         }
+        .onChange(of: appSettings.rememberFavoritesEnabled) {
+            if appSettings.rememberFavoritesEnabled {
+                loadFavorites()
+            } else {
+                favoriteModels.removeAll()
+                appSettings.clearStoredFavorites()
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AppSettings.favoritesDidResetNotification)) { _ in
+            favoriteModels.removeAll()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AppSettings.tutorialReplayRequestedNotification)) { _ in
+            sheetState.showTutorial = true
+        }
         .alert("SharePlay", isPresented: Binding(
             get: { sessionState.sharePlayError != nil },
             set: { if !$0 { sessionState.sharePlayError = nil } }
@@ -174,7 +189,7 @@ struct StarterView: View {
         
         // Sheets for action items
         .sheet(isPresented: $sheetState.showMeasurementOptions) {
-            if AppFeatureFlags.measurementToolsEnabled {
+            if AppFeatureFlags.measurementToolsEnabled && appSettings.labsMeasurementToolsEnabled {
                 MeasurementSheet(isPresented: $sheetState.showMeasurementOptions)
             }
         }
@@ -187,6 +202,9 @@ struct StarterView: View {
         .sheet(isPresented: $sheetState.showImportSheet) {
             ImportModelSheet(isPresented: $sheetState.showImportSheet, controller: controller)
         }
+        .sheet(isPresented: $sheetState.showTutorial) {
+            TutorialReplaySheet(isPresented: $sheetState.showTutorial)
+        }
         .overlay {
             LoadingScreen(
                 isLoading: $loadingState.isLoading,
@@ -197,13 +215,18 @@ struct StarterView: View {
     }
     
     private func loadFavorites() {
-        if let stored = UserDefaults.standard.array(forKey: favoritesDefaultsKey) as? [String] {
+        guard appSettings.rememberFavoritesEnabled else {
+            favoriteModels = []
+            return
+        }
+        if let stored = UserDefaults.standard.array(forKey: AppSettings.favoritesDefaultsKey) as? [String] {
             favoriteModels = Set(stored)
         }
     }
     
     private func saveFavorites(_ favorites: Set<String>) {
-        UserDefaults.standard.set(Array(favorites), forKey: favoritesDefaultsKey)
+        guard appSettings.rememberFavoritesEnabled else { return }
+        UserDefaults.standard.set(Array(favorites), forKey: AppSettings.favoritesDefaultsKey)
     }
     
     private func performTabTransition(to newTab: ScreenTab) {
@@ -279,4 +302,33 @@ struct StarterView: View {
 
 #Preview {
     StarterView(controller: CollaborativeSessionController())
+        .environmentObject(AppSettings())
+}
+
+private struct TutorialReplaySheet: View {
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Tutorial")
+                .font(.largeTitle.bold())
+            Text("First-time tutorial replay is now active. Replace this screen with the full tutorial flow when those steps are implemented.")
+                .font(.title3)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            HStack {
+                Spacer()
+                Button("Exit Tutorial") {
+                    isPresented = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .glassBackground(cornerRadius: 24)
+        .padding(24)
+    }
 }

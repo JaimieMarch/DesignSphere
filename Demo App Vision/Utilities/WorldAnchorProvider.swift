@@ -48,6 +48,15 @@ final class WorldAnchorProvider {
         persist()
     }
 
+    func removeAllAnchors(deleteFile: Bool = false) {
+        storedAnchors.removeAll()
+        if deleteFile {
+            try? fileManager.removeItem(at: fileURL)
+        } else {
+            persist()
+        }
+    }
+
     private func loadFromDisk() {
         guard let data = try? Data(contentsOf: fileURL) else { return }
         do {

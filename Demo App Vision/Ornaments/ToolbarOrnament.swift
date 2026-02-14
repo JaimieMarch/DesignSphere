@@ -5,6 +5,7 @@ import SwiftUI
 import XRShareCollaboration
 
 struct ToolbarOrnament: View {
+    @EnvironmentObject private var appSettings: AppSettings
     @Binding var showMeasurementOptions: Bool
     @Binding var showFocusModeSheet: Bool
     @Binding var showEditSheet: Bool
@@ -38,7 +39,7 @@ struct ToolbarOrnament: View {
                         .accessibilityLabel("Import model")
                         .accessibilityHint("Import a custom 3D model from your device")
 
-                        if AppFeatureFlags.measurementToolsEnabled {
+                        if AppFeatureFlags.measurementToolsEnabled && appSettings.labsMeasurementToolsEnabled {
                             Button {
                                 showMeasurementOptions = true
                             } label: {

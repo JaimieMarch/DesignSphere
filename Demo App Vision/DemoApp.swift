@@ -12,10 +12,14 @@ import RealityKit
 @main
 struct DemoApp: App {
     @StateObject private var controller = CollaborativeSessionController()
+    @StateObject private var appSettings = AppSettings()
 
     var body: some SwiftUI.Scene {
         WindowGroup("StarterView") {
             StarterView(controller: controller)
+                .environmentObject(appSettings)
+                .environment(\.legibilityWeight, appSettings.highContrastTextEnabled ? .bold : nil)
+                .contrast(appSettings.highContrastTextEnabled ? 1.15 : 1.0)
             /// Resizing is disabled intentionally.
                 .frame(width: 1280, height: 720)
         }
@@ -32,5 +36,4 @@ struct DemoApp: App {
 #endif
     }
 }
-
 
