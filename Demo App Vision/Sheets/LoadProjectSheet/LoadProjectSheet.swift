@@ -1,7 +1,9 @@
 import SwiftUI
+import XRShareCollaboration
 
 struct LoadProjectSheet: View {
     @ObservedObject var projectManager: ProjectManager
+    let controller: CollaborativeSessionController
     var onLoadProject: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -75,12 +77,14 @@ struct LoadProjectSheet: View {
     }
 
     private func deleteProject(name: String) {
-        do {
-            try projectManager.deleteProject(roomName: name)
-        } catch {
-            #if DEBUG
-            print("Failed to delete project: \(error)")
-            #endif
+        Task {
+            do {
+                try await projectManager.deleteProject(roomName: name, controller: controller)
+            } catch {
+                #if DEBUG
+                print("Failed to delete project: \(error)")
+                #endif
+            }
         }
     }
 }

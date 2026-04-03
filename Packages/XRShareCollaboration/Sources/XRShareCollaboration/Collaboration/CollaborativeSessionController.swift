@@ -1,6 +1,9 @@
 import SwiftUI
 import Combine
 import RealityKit
+#if os(visionOS)
+import QuartzCore
+#endif
 #if canImport(ARKit)
 import ARKit
 #endif
@@ -148,7 +151,17 @@ public final class CollaborativeSessionController: ObservableObject {
     public let focusModeManager: FocusModeManager
     public let selectionIndicatorManager: SelectionIndicatorManager
     private var worldTrackingProvider: WorldTrackingProvider?
+    private var planeDetectionProvider: PlaneDetectionProvider?
+    private var roomTrackingProvider: Any?
     private var isSessionRunning: Bool = false
+    private var worldAnchorUpdatesTask: Task<Void, Never>?
+    private var planeAnchorUpdatesTask: Task<Void, Never>?
+    private var roomAnchorUpdatesTask: Task<Void, Never>?
+    private var trackedWorldAnchors: [UUID: WorldAnchor] = [:]
+    private var trackedPlaneAnchors: [UUID: PlaneAnchor] = [:]
+    private var roomPlaneIDsByRoomID: [UUID: Set<UUID>] = [:]
+    private var currentProjectWorldAnchorID: UUID?
+    private var currentRoomAnchorID: UUID?
     #endif
     private var cancellables: Set<AnyCancellable> = []
 
@@ -157,6 +170,9 @@ public final class CollaborativeSessionController: ObservableObject {
         let modelManager = ModelManager()
         let arViewModel = ARViewModel()
         arViewModel.modelManager = modelManager
+        arViewModel.preferredPlacementResolver = { [weak self] entity, modelType in
+            await self?.resolvePreferredPlacement(for: entity, modelType: modelType)
+        }
 
         self.arViewModel = arViewModel
         self.modelManager = modelManager
@@ -180,6 +196,9 @@ public final class CollaborativeSessionController: ObservableObject {
                 )
                 self.selectionIndicatorManager.updateIndicatorPosition()
             }
+            manipulationManager.onManipulationDidEnd = { [weak self] entity, instanceID in
+                await self?.snapManipulatedEntity(entity, instanceID: instanceID)
+            }
         }
         #endif
     }
@@ -202,16 +221,57 @@ public final class CollaborativeSessionController: ObservableObject {
             return
         }
 
-        // Create world tracking provider
-        let provider = WorldTrackingProvider()
-        worldTrackingProvider = provider
+        guard WorldTrackingProvider.isSupported else {
+            throw NSError(
+                domain: "CollaborativeSessionController",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "World tracking is not supported on this device."]
+            )
+        }
+
+        let worldProvider = WorldTrackingProvider()
+        let planeProvider = PlaneDetectionProvider(alignments: [.horizontal, .vertical])
+
+        var providers: [any DataProvider] = [worldProvider, planeProvider]
+        var requiredAuthorizations = Set(WorldTrackingProvider.requiredAuthorizations)
+        requiredAuthorizations.formUnion(PlaneDetectionProvider.requiredAuthorizations)
+
+        worldTrackingProvider = worldProvider
+        planeDetectionProvider = planeProvider
+
+        if #available(visionOS 2.0, *), RoomTrackingProvider.isSupported {
+            let roomProvider = RoomTrackingProvider()
+            roomTrackingProvider = roomProvider
+            providers.append(roomProvider)
+            requiredAuthorizations.formUnion(RoomTrackingProvider.requiredAuthorizations)
+        } else {
+            roomTrackingProvider = nil
+        }
+
+        let authorizationResults = await immersiveSession.requestAuthorization(for: Array(requiredAuthorizations))
+        for authorization in requiredAuthorizations where authorizationResults[authorization] != .allowed {
+            throw NSError(
+                domain: "CollaborativeSessionController",
+                code: 3,
+                userInfo: [NSLocalizedDescriptionKey: "Missing ARKit authorization: \(authorization.description)"]
+            )
+        }
 
         // Run the session with world tracking
-        try await immersiveSession.run([provider])
+        try await immersiveSession.run(providers)
         isSessionRunning = true
+        observeWorldAnchors(using: worldProvider)
+        observePlaneAnchors(using: planeProvider)
+        await refreshTrackedWorldAnchors(using: worldProvider)
+        await refreshTrackedPlaneAnchors(using: planeProvider)
+        if #available(visionOS 2.0, *),
+           let roomProvider = roomTrackingProvider as? RoomTrackingProvider {
+            observeRoomAnchors(using: roomProvider)
+            await refreshTrackedRoomAnchors(using: roomProvider)
+        }
 
         #if DEBUG
-        print("Started ARKit session with WorldTracking - world anchors will persist")
+        print("Started ARKit session with world, plane, and room tracking")
         #endif
     }
 
@@ -219,13 +279,106 @@ public final class CollaborativeSessionController: ObservableObject {
     public func stopWorldTracking() async {
         guard isSessionRunning else { return }
 
+        worldAnchorUpdatesTask?.cancel()
+        planeAnchorUpdatesTask?.cancel()
+        roomAnchorUpdatesTask?.cancel()
+        worldAnchorUpdatesTask = nil
+        planeAnchorUpdatesTask = nil
+        roomAnchorUpdatesTask = nil
         immersiveSession.stop()
         worldTrackingProvider = nil
+        planeDetectionProvider = nil
+        roomTrackingProvider = nil
         isSessionRunning = false
+        trackedWorldAnchors.removeAll()
+        trackedPlaneAnchors.removeAll()
+        roomPlaneIDsByRoomID.removeAll()
+        currentProjectWorldAnchorID = nil
+        currentRoomAnchorID = nil
 
         #if DEBUG
         print("Stopped ARKit session and WorldTracking")
         #endif
+    }
+
+    public func createPersistentWorldAnchor() async throws -> UUID {
+        guard let provider = worldTrackingProvider else {
+            throw NSError(
+                domain: "CollaborativeSessionController",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "World tracking has not started yet."]
+            )
+        }
+
+        if let currentID = currentProjectWorldAnchorID,
+           await restorePersistentWorldAnchor(id: currentID) {
+            return currentID
+        }
+
+        let worldAnchor = WorldAnchor(originFromAnchorTransform: arViewModel.sharedAnchorEntity.transform.matrix)
+        try await provider.addAnchor(worldAnchor)
+        trackedWorldAnchors[worldAnchor.id] = worldAnchor
+        currentProjectWorldAnchorID = worldAnchor.id
+
+        #if DEBUG
+        print("Created persistent world anchor: \(worldAnchor.id)")
+        #endif
+
+        return worldAnchor.id
+    }
+
+    public func restorePersistentWorldAnchor(id: UUID) async -> Bool {
+        guard let provider = worldTrackingProvider else { return false }
+        guard let worldAnchor = await resolveWorldAnchor(id: id, using: provider) else {
+            #if DEBUG
+            print("World anchor \(id) is not currently available")
+            #endif
+            return false
+        }
+
+        trackedWorldAnchors[worldAnchor.id] = worldAnchor
+        currentProjectWorldAnchorID = worldAnchor.id
+        applyWorldAnchorTransform(worldAnchor.originFromAnchorTransform)
+
+        #if DEBUG
+        print("Restored persistent world anchor: \(worldAnchor.id)")
+        #endif
+
+        return true
+    }
+
+    public func clearPersistentWorldAnchor(resetSharedAnchorTransform: Bool = false) {
+        currentProjectWorldAnchorID = nil
+        if resetSharedAnchorTransform {
+            arViewModel.sharedAnchorEntity.transform = Transform(
+                translation: SIMD3<Float>(0, 1.2, -1.2)
+            )
+        }
+    }
+
+    public func removePersistentWorldAnchor(id: UUID) async {
+        guard let provider = worldTrackingProvider else {
+            trackedWorldAnchors.removeValue(forKey: id)
+            if currentProjectWorldAnchorID == id {
+                currentProjectWorldAnchorID = nil
+            }
+            return
+        }
+
+        if let worldAnchor = await resolveWorldAnchor(id: id, using: provider) {
+            do {
+                try await provider.removeAnchor(worldAnchor)
+            } catch {
+                #if DEBUG
+                print("Failed to remove world anchor \(id): \(error)")
+                #endif
+            }
+        }
+
+        trackedWorldAnchors.removeValue(forKey: id)
+        if currentProjectWorldAnchorID == id {
+            currentProjectWorldAnchorID = nil
+        }
     }
     #endif
 
@@ -594,6 +747,165 @@ public final class CollaborativeSessionController: ObservableObject {
     public var sharedAnchorEntity: AnchorEntity {
         arViewModel.sharedAnchorEntity
     }
+
+    #if os(visionOS)
+    private func observeWorldAnchors(using provider: WorldTrackingProvider) {
+        worldAnchorUpdatesTask?.cancel()
+        worldAnchorUpdatesTask = Task { [weak self] in
+            for await update in provider.anchorUpdates {
+                guard !Task.isCancelled else { break }
+                await self?.handleWorldAnchorUpdate(update)
+            }
+        }
+    }
+
+    private func observePlaneAnchors(using provider: PlaneDetectionProvider) {
+        planeAnchorUpdatesTask?.cancel()
+        planeAnchorUpdatesTask = Task { [weak self] in
+            for await update in provider.anchorUpdates {
+                guard !Task.isCancelled else { break }
+                await self?.handlePlaneAnchorUpdate(update)
+            }
+        }
+    }
+
+    @available(visionOS 2.0, *)
+    private func observeRoomAnchors(using provider: RoomTrackingProvider) {
+        roomAnchorUpdatesTask?.cancel()
+        roomAnchorUpdatesTask = Task { [weak self] in
+            for await update in provider.anchorUpdates {
+                guard !Task.isCancelled else { break }
+                await self?.handleRoomAnchorUpdate(update)
+            }
+        }
+    }
+
+    private func refreshTrackedWorldAnchors(using provider: WorldTrackingProvider) async {
+        guard #available(visionOS 2.0, *),
+              let anchors = await provider.allAnchors else { return }
+        trackedWorldAnchors = Dictionary(uniqueKeysWithValues: anchors.map { ($0.id, $0) })
+
+        if let currentID = currentProjectWorldAnchorID,
+           let currentAnchor = trackedWorldAnchors[currentID] {
+            applyWorldAnchorTransform(currentAnchor.originFromAnchorTransform)
+        }
+    }
+
+    private func refreshTrackedPlaneAnchors(using provider: PlaneDetectionProvider) async {
+        guard #available(visionOS 2.0, *) else { return }
+        trackedPlaneAnchors = Dictionary(uniqueKeysWithValues: provider.allAnchors.map { ($0.id, $0) })
+    }
+
+    @available(visionOS 2.0, *)
+    private func refreshTrackedRoomAnchors(using provider: RoomTrackingProvider) async {
+        roomPlaneIDsByRoomID = Dictionary(
+            uniqueKeysWithValues: provider.allAnchors.map { ($0.id, Set($0.planeAnchorIDs)) }
+        )
+        if let currentRoom = provider.allAnchors.first(where: { $0.isCurrentRoom }) {
+            currentRoomAnchorID = currentRoom.id
+        }
+    }
+
+    private func resolveWorldAnchor(id: UUID, using provider: WorldTrackingProvider) async -> WorldAnchor? {
+        if let anchor = trackedWorldAnchors[id] {
+            return anchor
+        }
+
+        guard #available(visionOS 2.0, *),
+              let anchors = await provider.allAnchors else { return nil }
+        if let anchor = anchors.first(where: { $0.id == id }) {
+            trackedWorldAnchors[anchor.id] = anchor
+            return anchor
+        }
+        return nil
+    }
+
+    private func handleWorldAnchorUpdate(_ update: AnchorUpdate<WorldAnchor>) {
+        switch update.event {
+        case .added, .updated:
+            trackedWorldAnchors[update.anchor.id] = update.anchor
+
+            if update.anchor.id == currentProjectWorldAnchorID {
+                applyWorldAnchorTransform(update.anchor.originFromAnchorTransform)
+            }
+        case .removed:
+            trackedWorldAnchors.removeValue(forKey: update.anchor.id)
+
+            if update.anchor.id == currentProjectWorldAnchorID {
+                currentProjectWorldAnchorID = nil
+            }
+        }
+    }
+
+    private func handlePlaneAnchorUpdate(_ update: AnchorUpdate<PlaneAnchor>) {
+        switch update.event {
+        case .added, .updated:
+            trackedPlaneAnchors[update.anchor.id] = update.anchor
+        case .removed:
+            trackedPlaneAnchors.removeValue(forKey: update.anchor.id)
+        }
+    }
+
+    @available(visionOS 2.0, *)
+    private func handleRoomAnchorUpdate(_ update: AnchorUpdate<RoomAnchor>) {
+        switch update.event {
+        case .added, .updated:
+            roomPlaneIDsByRoomID[update.anchor.id] = Set(update.anchor.planeAnchorIDs)
+            if update.anchor.isCurrentRoom {
+                currentRoomAnchorID = update.anchor.id
+            }
+        case .removed:
+            roomPlaneIDsByRoomID.removeValue(forKey: update.anchor.id)
+            if currentRoomAnchorID == update.anchor.id {
+                currentRoomAnchorID = nil
+            }
+        }
+    }
+
+    private func applyWorldAnchorTransform(_ transform: simd_float4x4) {
+        arViewModel.sharedAnchorEntity.transform = Transform(matrix: transform)
+        arViewModel.sharedAnchorEntity.isEnabled = true
+    }
+
+    private func resolvePreferredPlacement(for entity: ModelEntity, modelType: ModelType) async -> SurfacePlacement? {
+        guard let worldTrackingProvider else { return nil }
+        let deviceAnchor = worldTrackingProvider.queryDeviceAnchor(atTimestamp: CACurrentMediaTime())
+        guard let deviceAnchor, deviceAnchor.isTracked else { return nil }
+
+        return SurfaceSnappingEngine.placementForSpawn(
+            entity: entity,
+            modelType: modelType,
+            sharedAnchor: arViewModel.sharedAnchorEntity,
+            deviceTransform: deviceAnchor.originFromAnchorTransform,
+            planeAnchors: Array(trackedPlaneAnchors.values),
+            allowedPlaneIDs: currentRoomPlaneIDs
+        )
+    }
+
+    private func snapManipulatedEntity(_ entity: Entity, instanceID: UUID) async {
+        guard let model = modelManager.modelDict[instanceID] else { return }
+        guard entity.parent === arViewModel.sharedAnchorEntity else { return }
+
+        guard let placement = SurfaceSnappingEngine.placementForManipulation(
+            entity: entity,
+            modelType: model.modelType,
+            sharedAnchor: arViewModel.sharedAnchorEntity,
+            planeAnchors: Array(trackedPlaneAnchors.values),
+            allowedPlaneIDs: currentRoomPlaneIDs
+        ) else { return }
+
+        entity.setPosition(placement.localPosition, relativeTo: arViewModel.sharedAnchorEntity)
+        selectionIndicatorManager.updateIndicatorPosition()
+    }
+
+    private var currentRoomPlaneIDs: Set<UUID>? {
+        guard let currentRoomAnchorID,
+              let ids = roomPlaneIDsByRoomID[currentRoomAnchorID] else {
+            return nil
+        }
+        return ids.isEmpty ? nil : ids
+    }
+    #endif
 
     
     

@@ -412,11 +412,22 @@ public final class ModelManager: ObservableObject {
             let instanceID = model.id.uuidString
 
             if let anchor = arViewModel?.sharedAnchorEntity {
-                // Use simple head-relative placement
-                let initialPosition = await resolvedInitialPlacement(anchor: anchor, arViewModel: arViewModel)
+                let snappedPlacement = if let resolver = arViewModel?.preferredPlacementResolver {
+                    await resolver(entity, modelType)
+                } else {
+                    nil
+                }
 
-                let placementOffset = placementOffset(for: entity)
-                let translatedPosition = initialPosition - placementOffset
+                let translatedPosition: SIMD3<Float>
+                if let snappedPlacement {
+                    translatedPosition = snappedPlacement.localPosition
+                } else {
+                    // Fallback to head-relative placement when no compatible surface is available.
+                    let initialPosition = await resolvedInitialPlacement(anchor: anchor, arViewModel: arViewModel)
+                    let placementOffset = placementOffset(for: entity)
+                    translatedPosition = initialPosition - placementOffset
+                }
+
                 anchor.addChild(entity)
                 // Directly assign the local position so it works even before the anchor
                 // is part of the live RealityKit scene (move(to:) can no-op in that case).

@@ -27,6 +27,7 @@ class ManipulationManager {
     private var didInstallSubscriptions = false
     private var contentSubscriptions: [EventSubscription] = []
     var onSceneUpdate: (() -> Void)?
+    var onManipulationDidEnd: ((Entity, UUID) async -> Void)?
     #endif
 
     private var lastSendTime: [UUID: CFTimeInterval] = [:]
@@ -152,6 +153,7 @@ class ManipulationManager {
                let instanceID = UUID(uuidString: instanceIDString) {
                 Task {
                     await self.handleTransformUpdate(for: event.entity, instanceID: instanceID, force: true)
+                    await self.onManipulationDidEnd?(event.entity, instanceID)
                 }
             }
         }

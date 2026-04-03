@@ -6,6 +6,13 @@ import UIKit
 
 @MainActor
 class ProjectManager: ObservableObject {
+    enum AnchorRestoreStatus {
+        case noneSaved
+        case restored(UUID)
+        case fallbackTransform(UUID)
+        case missing(UUID)
+    }
+
     @Published var savedProjects: [ProjectData] = []
     @Published var currentWorldAnchorID: UUID?
     @Published var currentProjectName: String?
@@ -200,11 +207,10 @@ class ProjectManager: ObservableObject {
     // MARK: - World Anchor Management
 
     #if os(visionOS)
-    /// Creates and saves a persistent world anchor for the current room
+    /// Creates a persistent ARKit world anchor for the current room and stores a fallback transform.
     func createWorldAnchor(controller: CollaborativeSessionController) async throws -> UUID {
-        let anchorID = UUID()
-        let transform = controller.sharedAnchorEntity.transform.matrix
-        anchorProvider.saveAnchor(id: anchorID, transform: transform)
+        let anchorID = try await controller.createPersistentWorldAnchor()
+        anchorProvider.saveAnchor(id: anchorID, transform: controller.sharedAnchorEntity.transform.matrix)
         currentWorldAnchorID = anchorID
         #if DEBUG
         print("Created persistent world anchor with ID: \(anchorID)")
@@ -300,7 +306,7 @@ class ProjectManager: ObservableObject {
         roomName: String,
         controller: CollaborativeSessionController,
         sharedAnchor: AnchorEntity
-    ) async throws -> UUID? {
+    ) async throws -> AnchorRestoreStatus {
         let fileURL = projectFileURL(for: roomName)
 
         // Read the JSON file
@@ -323,12 +329,32 @@ class ProjectManager: ObservableObject {
             }
         }
 
-        if let anchorID = project.worldAnchorID,
-           let anchorTransform = anchorProvider.transform(for: anchorID) {
-            await MainActor.run {
+        let anchorRestoreStatus: AnchorRestoreStatus
+        if let anchorID = project.worldAnchorID {
+            if await controller.restorePersistentWorldAnchor(id: anchorID) {
+                anchorProvider.saveAnchor(id: anchorID, transform: controller.sharedAnchorEntity.transform.matrix)
+                currentWorldAnchorID = anchorID
+                anchorRestoreStatus = .restored(anchorID)
+            } else if let anchorTransform = anchorProvider.transform(for: anchorID) {
+                controller.clearPersistentWorldAnchor()
                 sharedAnchor.transform = Transform(matrix: anchorTransform)
+                currentWorldAnchorID = nil
+                anchorRestoreStatus = .fallbackTransform(anchorID)
+                #if DEBUG
+                print("World anchor \(anchorID) could not be relocalized; loaded using cached fallback transform")
+                #endif
+            } else {
+                controller.clearPersistentWorldAnchor(resetSharedAnchorTransform: true)
+                currentWorldAnchorID = nil
+                anchorRestoreStatus = .missing(anchorID)
+                #if DEBUG
+                print("World anchor \(anchorID) was not found and no fallback transform exists")
+                #endif
             }
-            currentWorldAnchorID = anchorID
+        } else {
+            controller.clearPersistentWorldAnchor(resetSharedAnchorTransform: true)
+            currentWorldAnchorID = nil
+            anchorRestoreStatus = .noneSaved
         }
 
         #if DEBUG
@@ -390,7 +416,7 @@ class ProjectManager: ObservableObject {
         print("Project '\(roomName)' loaded successfully")
         #endif
         currentProjectName = project.roomName
-        return project.worldAnchorID
+        return anchorRestoreStatus
     }
 
     // MARK: - Project List Management
@@ -428,11 +454,14 @@ class ProjectManager: ObservableObject {
     }
 
     /// Deletes a project by room name
-    func deleteProject(roomName: String) throws {
+    func deleteProject(roomName: String, controller: CollaborativeSessionController? = nil) async throws {
         let fileURL = projectFileURL(for: roomName)
         if let data = try? Data(contentsOf: fileURL),
            let project = try? projectDecoder().decode(ProjectData.self, from: data),
            let anchorID = project.worldAnchorID {
+            if let controller {
+                await controller.removePersistentWorldAnchor(id: anchorID)
+            }
             anchorProvider.removeAnchor(id: anchorID)
         }
         try fileManager.removeItem(at: fileURL)

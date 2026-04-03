@@ -167,6 +167,7 @@ struct DetailsScreen: View {
         .sheet(isPresented: $showLoadSheet) {
             LoadProjectSheet(
                 projectManager: projectManager,
+                controller: controller,
                 onLoadProject: { selectedRoomName in
                     showLoadSheet = false
                     loadProject(roomName: selectedRoomName)
@@ -246,7 +247,7 @@ struct DetailsScreen: View {
         Task {
             do {
                 // Load the project from JSON
-                let worldAnchorID = try await projectManager.loadProject(
+                let anchorStatus = try await projectManager.loadProject(
                     roomName: roomName,
                     controller: controller,
                     sharedAnchor: controller.sharedAnchorEntity
@@ -255,10 +256,15 @@ struct DetailsScreen: View {
                 // Update the room name field
                 self.roomName = ""
 
-                if let anchorID = worldAnchorID {
-                    alertMessage = "Project '\(roomName)' loaded! World anchor ID: \(anchorID.uuidString.prefix(8))..."
-                } else {
-                    alertMessage = "Project '\(roomName)' loaded successfully!"
+                switch anchorStatus {
+                case .noneSaved:
+                    alertMessage = "Project '\(roomName)' loaded successfully."
+                case .restored(let anchorID):
+                    alertMessage = "Project '\(roomName)' loaded and relocalized to world anchor \(anchorID.uuidString.prefix(8))..."
+                case .fallbackTransform(let anchorID):
+                    alertMessage = "Project '\(roomName)' loaded using the last saved anchor transform because world anchor \(anchorID.uuidString.prefix(8))... could not be relocalized."
+                case .missing(let anchorID):
+                    alertMessage = "Project '\(roomName)' loaded, but world anchor \(anchorID.uuidString.prefix(8))... was unavailable. Models were restored without room relocalization."
                 }
 
                 showAlert = true
