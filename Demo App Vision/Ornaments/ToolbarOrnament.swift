@@ -2,15 +2,12 @@
 // Each button toggles a bound Boolean, which triggers the corresponding sheet
 
 import SwiftUI
-import XRShareCollaboration
 
 struct ToolbarOrnament: View {
     @EnvironmentObject private var appSettings: AppSettings
     @Binding var showMeasurementOptions: Bool
     @Binding var showFocusModeSheet: Bool
-    @Binding var showEditSheet: Bool
     @Binding var showImportSheet: Bool
-    @ObservedObject var controller: CollaborativeSessionController
     
     var body: some View {
         Color.clear
@@ -51,19 +48,6 @@ struct ToolbarOrnament: View {
                             .accessibilityLabel("Measurement tools")
                             .accessibilityHint("Open measurement and ruler tools")
                         }
-
-                        Button {
-                            showEditSheet = true
-                        } label: {
-                            Image(systemName: "pencil")
-                                .frame(width: 28, height: 28)
-                        }
-                        // Only enabled when a model is selected.
-                        .disabled(controller.selectedModelIDVar == nil)
-                        .buttonStyle(.borderless)
-                        .buttonBorderShape(.circle)
-                        .accessibilityLabel("Edit model")
-                        .accessibilityHint(controller.selectedModelIDVar == nil ? "Select a model first to edit it" : "Edit the selected model's size, position, and style")
                     }
                 }
             }

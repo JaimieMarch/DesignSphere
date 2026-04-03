@@ -26,11 +26,17 @@ final class WorldAnchorProvider {
     }
 
     func saveAnchor(id: UUID, transform: simd_float4x4) {
+        #if DEBUG
         if storedAnchors[id] != nil {
+            #if DEBUG
             print("WorldAnchorProvider: Updating existing anchor \(id)")
+            #endif
         } else {
+            #if DEBUG
             print("WorldAnchorProvider: Creating new anchor \(id)")
+            #endif
         }
+        #endif
         storedAnchors[id] = StoredAnchor(id: id, matrix: transform.toArray())
         persist()
     }
@@ -64,7 +70,9 @@ final class WorldAnchorProvider {
             let decoded = try decoder.decode([UUID: StoredAnchor].self, from: data)
             storedAnchors = decoded
         } catch {
+            #if DEBUG
             print("WorldAnchorProvider: Failed to load anchors – \(error)")
+            #endif
             storedAnchors = [:]
         }
     }
@@ -80,7 +88,9 @@ final class WorldAnchorProvider {
                 ofItemAtPath: fileURL.path
             )
         } catch {
+            #if DEBUG
             print("WorldAnchorProvider: Failed to persist anchors – \(error)")
+            #endif
         }
     }
 }

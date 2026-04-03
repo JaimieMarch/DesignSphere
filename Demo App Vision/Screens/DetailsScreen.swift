@@ -31,6 +31,8 @@ struct DetailsScreen: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(roomName.isEmpty)
+                    .accessibilityLabel("Save project")
+                    .accessibilityHint("Save the current scene as a project")
 
                     Button(action: { showLoadSheet = true }) {
                         Label("Load", systemImage: "square.and.arrow.up")
@@ -38,6 +40,8 @@ struct DetailsScreen: View {
                             .padding(.vertical, 8)
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityLabel("Load project")
+                    .accessibilityHint("Open a previously saved project")
                 }
             }
             .padding(.horizontal, 16)
@@ -57,6 +61,8 @@ struct DetailsScreen: View {
                         Capsule(style: .continuous)
                             .fill(.thinMaterial)
                     )
+                    .accessibilityLabel("Room name")
+                    .accessibilityHint("Enter a name for your room project")
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
@@ -99,7 +105,8 @@ struct DetailsScreen: View {
                         // Empty state
                         VStack(spacing: 16) {
                             Image(systemName: "cube.transparent")
-                                .font(.system(size: 64))
+                                .font(.largeTitle)
+                                .imageScale(.large)
                                 .foregroundStyle(.tertiary)
 
                             Text("No models in scene")
@@ -149,6 +156,8 @@ struct DetailsScreen: View {
                     .buttonStyle(.bordered)
                     .tint(.red)
                     .padding(16)
+                    .accessibilityLabel("Clear all models")
+                    .accessibilityHint("Remove all placed models from the scene")
                 }
             }
             .glassBackground(cornerRadius: 24)

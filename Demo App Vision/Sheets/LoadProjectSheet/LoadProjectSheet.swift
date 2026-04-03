@@ -15,7 +15,8 @@ struct LoadProjectSheet: View {
                     // Empty state
                     VStack(spacing: 16) {
                         Image(systemName: "archivebox")
-                            .font(.system(size: 64))
+                            .font(.largeTitle)
+                            .imageScale(.large)
                             .foregroundStyle(.tertiary)
 
                         Text("No Saved Projects")
@@ -77,7 +78,9 @@ struct LoadProjectSheet: View {
         do {
             try projectManager.deleteProject(roomName: name)
         } catch {
+            #if DEBUG
             print("Failed to delete project: \(error)")
+            #endif
         }
     }
 }
@@ -118,12 +121,16 @@ struct ProjectRow: View {
                         .foregroundStyle(.red)
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel("Delete project")
+                .accessibilityHint("Permanently delete this saved project")
 
                 Button(action: onLoad) {
                     Text("Load")
                         .padding(.horizontal, 8)
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Load project")
+                .accessibilityHint("Load this project into the scene")
             }
         }
         .padding()

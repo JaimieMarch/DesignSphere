@@ -38,7 +38,9 @@ class ThumbnailCache: ObservableObject {
     /// Preload all available model thumbnails at app startup
     func preloadAllThumbnails() async {
         guard !isPreloading && !preloadingComplete else {
+            #if DEBUG
             print("ThumbnailCache: Already preloading or completed")
+            #endif
             return
         }
 
@@ -49,20 +51,26 @@ class ThumbnailCache: ObservableObject {
         let totalThumbnails = Float(modelTypes.count)
         var loadedCount: Float = 0
 
+        #if DEBUG
         print("ThumbnailCache: Starting preload of \(modelTypes.count) pre-rendered thumbnails")
+        #endif
 
         for modelType in modelTypes {
             currentlyLoadingThumbnail = modelType.displayName
             _ = await generateThumbnail(for: modelType.rawValue, size: CGSize(width: 240, height: 140))
             loadedCount += 1
             loadingProgress = loadedCount / totalThumbnails
+            #if DEBUG
             print("ThumbnailCache:  Loaded thumbnail for \(modelType.rawValue) (\(Int(loadingProgress * 100))% complete)")
+            #endif
             }
 
         isPreloading = false
         preloadingComplete = true
         currentlyLoadingThumbnail = ""
+        #if DEBUG
         print("ThumbnailCache: Preloading complete. \(cache.count) thumbnails cached.")
+        #endif
     }
 
 
@@ -83,12 +91,16 @@ class ThumbnailCache: ObservableObject {
 
         // Return cached thumbnail if available
         if let cached = cache[resource] {
+            #if DEBUG
             print("ThumbnailCache: Returning cached thumbnail for \(resource)")
+            #endif
             return cached
         }
 
         // Load if not cached
+        #if DEBUG
         print("ThumbnailCache: Cache miss for \(resource), loading...")
+        #endif
         return await generateThumbnail(for: resource, size: size)
     }
 
@@ -100,7 +112,9 @@ class ThumbnailCache: ObservableObject {
         }
 
         if let inFlight = loadingTasks[resource] {
+            #if DEBUG
             print("ThumbnailCache: \(resource) is already being loaded")
+            #endif
             return await inFlight.value
         }
 
@@ -132,12 +146,16 @@ class ThumbnailCache: ObservableObject {
                     if let url = bundle.url(forResource: variation, withExtension: "png", subdirectory: subdirectory) {
                         #if os(iOS) || os(visionOS)
                         if let uiImage = UIImage(contentsOfFile: url.path) {
+                            #if DEBUG
                             print("ThumbnailCache: Successfully loaded PNG thumbnail for \(name) at \(url.path)")
+                            #endif
                             return Image(uiImage: uiImage)
                         }
                         #elseif os(macOS)
                         if let nsImage = NSImage(contentsOf: url) {
+                            #if DEBUG
                             print("ThumbnailCache: Successfully loaded PNG thumbnail for \(name)")
+                            #endif
                             return Image(nsImage: nsImage)
                         }
                         #endif
@@ -150,12 +168,16 @@ class ThumbnailCache: ObservableObject {
                 if let url = bundle.url(forResource: variation, withExtension: "png") {
                     #if os(iOS) || os(visionOS)
                     if let uiImage = UIImage(contentsOfFile: url.path) {
+                        #if DEBUG
                         print("ThumbnailCache: Successfully loaded PNG thumbnail for \(name) at \(url.path)")
+                        #endif
                         return Image(uiImage: uiImage)
                     }
                     #elseif os(macOS)
                     if let nsImage = NSImage(contentsOf: url) {
+                        #if DEBUG
                         print("ThumbnailCache: Successfully loaded PNG thumbnail for \(name)")
+                        #endif
                         return Image(nsImage: nsImage)
                     }
                     #endif
@@ -164,7 +186,9 @@ class ThumbnailCache: ObservableObject {
         }
 
         // Fallback to SF Symbol
+        #if DEBUG
         print("ThumbnailCache: No PNG found for '\(name)' (tried variations), using fallback icon")
+        #endif
         return Image(systemName: "arkit")
     }
 
@@ -175,13 +199,17 @@ class ThumbnailCache: ObservableObject {
     func clearCache() {
         cache.removeAll()
         preloadingComplete = false
+        #if DEBUG
         print("ThumbnailCache: Cache cleared")
+        #endif
     }
 
     /// Remove specific thumbnail from cache
     func removeFromCache(_ resource: String) {
         cache.removeValue(forKey: resource)
+        #if DEBUG
         print("ThumbnailCache: Removed \(resource) from cache")
+        #endif
     }
 
 

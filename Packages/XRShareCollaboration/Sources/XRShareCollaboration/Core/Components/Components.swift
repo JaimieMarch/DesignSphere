@@ -23,11 +23,20 @@ struct LastTransformComponent: Component {
 /// Component to mark a model as currently selected
 struct SelectionComponent: Component {}
 
+/// Component attached to the floating per-model edit affordance.
+public struct EditAffordanceComponent: Component {
+    public let instanceID: UUID
+
+    public init(instanceID: UUID) {
+        self.instanceID = instanceID
+    }
+}
+
 /// Component to store a unique instance ID for networking
-struct InstanceIDComponent: Component, Codable {
-    let id: String
-    
-    init(id: String = UUID().uuidString) {
+public struct InstanceIDComponent: Component, Codable {
+    public let id: String
+
+    public init(id: String = UUID().uuidString) {
         self.id = id
     }
 }

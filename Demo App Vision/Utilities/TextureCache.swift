@@ -29,10 +29,14 @@ final class TextureCache {
         do {
             let texture = try TextureResource.load(named: name)
             cache[name] = texture
+            #if DEBUG
             print("TextureCache: Loaded and cached texture '\(name)'")
+            #endif
             return texture
         } catch {
+            #if DEBUG
             print("TextureCache: Failed to load texture '\(name)': \(error)")
+            #endif
             return nil
         }
     }
@@ -49,7 +53,9 @@ final class TextureCache {
     func clearCache() {
         let count = cache.count
         cache.removeAll()
+        #if DEBUG
         print("TextureCache: Cleared \(count) cached textures")
+        #endif
     }
 
     /// Returns the number of currently cached textures

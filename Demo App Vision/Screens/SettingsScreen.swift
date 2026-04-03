@@ -329,6 +329,8 @@ struct SettingsScreen: View {
                     }
                 }
                 .toggleStyle(.switch)
+                .accessibilityLabel("High contrast text")
+                .accessibilityHint("Increases text contrast and legibility across the app")
             }
 
             SettingsCard(title: "Privacy") {
@@ -342,6 +344,8 @@ struct SettingsScreen: View {
                     }
                 }
                 .toggleStyle(.switch)
+                .accessibilityLabel("Remember favorites")
+                .accessibilityHint("Stores your favorites locally on this device")
 
                 Text("Analytics and telemetry are currently not enabled in this app.")
                     .font(.subheadline)
@@ -361,6 +365,8 @@ struct SettingsScreen: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 4)
+                .accessibilityLabel("Manage local data")
+                .accessibilityHint("Opens options to wipe saved projects, imports, anchors, or favorites")
             }
 
             SettingsCard(title: "Backups") {
@@ -369,12 +375,16 @@ struct SettingsScreen: View {
                     showBackupExportOptions = true
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Create backup")
+                .accessibilityHint("Export a backup of your projects and settings")
 
                 Button("Import Backup") {
                     backupErrorMessage = nil
                     showBackupImporter = true
                 }
                 .buttonStyle(.bordered)
+                .accessibilityLabel("Import backup")
+                .accessibilityHint("Restore projects and settings from a backup file")
 
                 if let backupResultMessage {
                     Text(backupResultMessage)
@@ -394,23 +404,12 @@ struct SettingsScreen: View {
                     appSettings.requestTutorialReplay()
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Open tutorial center")
+                .accessibilityHint("Choose an interactive walkthrough or video tutorials")
 
                 Text("Choose Interactive Walkthrough or Video Tutorials, then exit anytime.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-            }
-
-            SettingsCard(title: "Labs") {
-                Toggle(isOn: $appSettings.labsMeasurementToolsEnabled) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Enable Measurement Tools")
-                            .font(.headline)
-                        Text("Experimental. May be incomplete or unstable.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .toggleStyle(.switch)
             }
 
             Spacer()

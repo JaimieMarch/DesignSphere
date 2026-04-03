@@ -7,7 +7,8 @@ struct EditModelHeader: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "pencil")
-                .font(.system(size: 60))
+                .font(.largeTitle)
+                .imageScale(.large)
                 .foregroundStyle(.secondary)
 
             Text("Edit Model")
@@ -25,7 +26,7 @@ struct EditModelHeader: View {
 struct DimensionSlider: View {
     let title: String
     @Binding var value: Float
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -41,6 +42,8 @@ struct DimensionSlider: View {
             ), in: 0...100)
             .tint(.white)
             .controlSize(.large)
+            .accessibilityLabel("\(title) slider")
+            .accessibilityValue("\(Int(value * 100)) centimeters")
         }
     }
 }
@@ -48,7 +51,7 @@ struct DimensionSlider: View {
 struct CoordinateSlider: View {
     let title: String
     @Binding var value: Double
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -60,6 +63,8 @@ struct CoordinateSlider: View {
             Slider(value: $value, in: -10...10, step: 0.001)
                 .tint(.white)
                 .controlSize(.large)
+                .accessibilityLabel("\(title) position slider")
+                .accessibilityValue("\(Int(value))")
         }
     }
 }
@@ -69,17 +74,22 @@ struct ColorCircle: View {
     let color: Color
     let isSelected: Bool
     let onTap: () -> Void
-    
+
     var body: some View {
-        Circle()
-            .fill(color)
-            .frame(width: 66, height: 66)
-            .overlay(
-                Circle()
-                    .stroke(lineWidth: isSelected ? 3 : 1)
-                    .foregroundStyle(isSelected ? .white : .gray.opacity(0.4))
-            )
-            .onTapGesture { onTap() }
-            .shadow(radius: isSelected ? 3 : 0)
+        Button(action: onTap) {
+            Circle()
+                .fill(color)
+                .frame(width: 66, height: 66)
+                .overlay(
+                    Circle()
+                        .stroke(lineWidth: isSelected ? 3 : 1)
+                        .foregroundStyle(isSelected ? .white : .gray.opacity(0.4))
+                )
+                .shadow(radius: isSelected ? 3 : 0)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Color swatch")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+        .accessibilityAddTraits(.isButton)
     }
 }

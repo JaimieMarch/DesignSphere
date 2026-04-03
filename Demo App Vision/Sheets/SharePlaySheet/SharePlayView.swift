@@ -9,7 +9,8 @@ struct SharePlayView: View {
             // Header section matching all other sheets
             VStack(spacing: 16) {
                 Image(systemName: "person.2")
-                    .font(.system(size: 60))
+                    .font(.largeTitle)
+                    .imageScale(.large)
                     .foregroundStyle(.secondary)
                 
                 Text("SharePlay")
@@ -61,10 +62,14 @@ struct SharePlayView: View {
     }
     
     private func startSharePlay() {
+        #if DEBUG
         print("Start SharePlay - NOT YET IMPLEMENTED")
+        #endif
     }
-    
+
     private func joinSharePlay() {
+        #if DEBUG
         print("Join SharePlay with code: \(sessionCode) - NOT YET IMPLEMENTED")
+        #endif
     }
 }

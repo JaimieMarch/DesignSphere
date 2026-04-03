@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "87B974472D09106D00168B98"
-               BuildableName = "DemoAppVision.app"
+               BuildableName = "DesignSphere.app"
                BlueprintName = "Demo App Vision"
                ReferencedContainer = "container:Demo App.xcodeproj">
             </BuildableReference>
@@ -45,7 +45,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "87B974472D09106D00168B98"
-            BuildableName = "DemoAppVision.app"
+            BuildableName = "DesignSphere.app"
             BlueprintName = "Demo App Vision"
             ReferencedContainer = "container:Demo App.xcodeproj">
          </BuildableReference>
@@ -62,7 +62,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "87B974472D09106D00168B98"
-            BuildableName = "DemoAppVision.app"
+            BuildableName = "DesignSphere.app"
             BlueprintName = "Demo App Vision"
             ReferencedContainer = "container:Demo App.xcodeproj">
          </BuildableReference>

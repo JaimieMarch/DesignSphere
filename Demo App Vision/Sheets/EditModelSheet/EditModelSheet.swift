@@ -7,7 +7,11 @@ struct EditModelSheet: View {
         
     var body: some View {
         EditModelView(controller: controller)
-            .padding(32)
-            .frame(width: 700, height: 850)
+            .onAppear {
+                controller.preparePendingEditSelection()
+            }
+            .onDisappear {
+                controller.clearPendingEditRequest()
+            }
     }
 }

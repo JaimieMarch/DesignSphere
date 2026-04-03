@@ -139,12 +139,16 @@ public final class ModelManager: ObservableObject {
         
         // If this is the first model or bounds are invalid, just place at center
         if placedModels.count <= 1 || newExtents.x <= 0 || newExtents.z <= 0 {
+            #if DEBUG
             print("First model or invalid bounds, skipping collision check")
+            #endif
             return
         }
         
         
+        #if DEBUG
         print("New model bounds: width=\(newExtents.x), depth=\(newExtents.z)")
+        #endif
         
         // Check all existing models for collisions
         var collidingModels: [(entity: Entity, model: Model, overlap: Float)] = []
@@ -159,7 +163,9 @@ public final class ModelManager: ObservableObject {
             let existingCenter = existingBounds.center
             
             if existingExtents.x <= 0 || existingExtents.z <= 0 {
+                #if DEBUG
                 print("Skipping model with invalid bounds")
+                #endif
                 continue
             }
             
@@ -193,7 +199,9 @@ public final class ModelManager: ObservableObject {
             // All three axes must overlap for a true 3D collision
             if xOverlap > 0 && yOverlap > 0 && zOverlap > 0 {
                 collidingModels.append((entity: existingEntity, model: model, overlap: xOverlap))
+                #if DEBUG
                 print("Collision detected: xOverlap=\(xOverlap)m, yOverlap=\(yOverlap)m, zOverlap=\(zOverlap)m")
+                #endif
             }
         }
         
@@ -201,7 +209,9 @@ public final class ModelManager: ObservableObject {
         
         // If there are collisions reposition
         if !collidingModels.isEmpty {
+            #if DEBUG
             print("Found \(collidingModels.count) colliding models, repositioning...")
+            #endif
             
             // Sort by overlap amount
             let sortedCollisions = collidingModels.sorted { $0.overlap > $1.overlap }
@@ -237,7 +247,9 @@ public final class ModelManager: ObservableObject {
                 collidingEntity.position = newPosition
                 
                 let newCenterX = currentCenterX + pushDirection * pushDistance
+                #if DEBUG
                 print("Moved existing model center from x=\(currentCenterX) to x=\(newCenterX) (push distance: \(pushDistance))" )
+                #endif
             }
             
             
@@ -254,7 +266,9 @@ public final class ModelManager: ObservableObject {
     private func cascadeRepositioning(excluding newEntity: Entity, anchor: Entity, depth: Int = 0) {
         
         guard depth < 5 else {
+            #if DEBUG
             print("Max repositioning depth reached")
+            #endif
             return
         }
         
@@ -333,7 +347,9 @@ public final class ModelManager: ObservableObject {
                         )
                     }
                     repositioned = true
+                    #if DEBUG
                     print("Cascade: Pushed models apart by \(pushDistance)m")
+                    #endif
                 }
             }
         }
@@ -359,18 +375,24 @@ public final class ModelManager: ObservableObject {
         
         
         Task { @MainActor in
+            #if DEBUG
             print("Attempting to load model: \(modelType.rawValue).usdz")
+            #endif
             let model = await Model.load(modelType: modelType, arViewModel: arViewModel)
 
             // Use the entity that was already loaded inside Model.load.
             guard let entity = model.modelEntity else {
+                #if DEBUG
                 print("Error: Model entity failed to load for \(modelType.rawValue)")
+                #endif
                 return
             
             }
             configureInteractivity(for: entity, arViewModel: arViewModel)
 
+            #if DEBUG
             print( "Loaded entity hierarchy for \(modelType.rawValue):")
+            #endif
 
             // Normalize model size
             normalizeModelSizeForVisionOS(entity, modelType: modelType)
@@ -401,22 +423,31 @@ public final class ModelManager: ObservableObject {
                 entity.setPosition(translatedPosition, relativeTo: anchor)
                 model.position = entity.position(relativeTo: anchor)
 
+                #if DEBUG
                 print("Placed \(modelType.rawValue) at position: base=\(initialPosition) pivot=\(translatedPosition), isAnchored=\(anchor.isAnchored), scene? \(entity.scene != nil)")
+                #endif
 
                 // Check for collisions and reposition if needed
                 self.positionModelWithCollisionAvoidance(entity: entity, anchor: anchor)
 
+                #if DEBUG
                 print("Parented model \(modelType.rawValue) to sharedAnchorEntity at local position \(entity.position(relativeTo: anchor))")
+                #endif
             } else {
+                #if DEBUG
                 print("Warning: sharedAnchorEntity not available, model \(modelType.rawValue) not parented")
+                #endif
             }
 
             self.modelDict[model.id] = model
             self.placedModels.append(model)
 
-
+            #if DEBUG
             print("Loaded model \(modelType.rawValue) (InstanceID: \(instanceID)).")
+            #endif
+            #if DEBUG
             print("This is the count of the models in model manager \(self.placedModels.count)")
+            #endif
 
 //            if let arViewModel = arViewModel, let coordinator = arViewModel.sharePlayCoordinator {
 //                let uuid = UUID(uuidString: instanceID) ?? UUID()
@@ -442,7 +473,9 @@ public final class ModelManager: ObservableObject {
 //                }
 
 
+            #if DEBUG
             print("\(modelType.rawValue) chosen – model loaded and selected")
+            #endif
         }
     }
     
@@ -456,7 +489,9 @@ public final class ModelManager: ObservableObject {
         // Skip normalization for models that we are in control of
         if modelType.preserveRealWorldScale {
             Model.updatePlacementMetadata(for: entity, modelType: modelType)
+            #if DEBUG
             print("VisionOS: Model \(modelType.rawValue) preserving real-world scale (no normalization)")
+            #endif
             return
         }
         
@@ -467,11 +502,15 @@ public final class ModelManager: ObservableObject {
         if let result = Model.calculateNormalization(for: entity, targetSize: targetSize) {
             entity.scale = SIMD3<Float>(repeating: result.scale)
             Model.updatePlacementMetadata(for: entity, modelType: modelType)
+            #if DEBUG
             print("VisionOS normalization for \(modelType.rawValue): intrinsic max \(result.intrinsicMaxDimension)m, target \(targetSize)m (scale: \(result.scale))")
+            #endif
             return
                 }
         
+        #if DEBUG
         print("VisionOS normalization for \(modelType.rawValue) falling back to render bounds")
+        #endif
 
         let bounds = entity.visualBounds(relativeTo: entity)
         let extents = bounds.extents
@@ -481,14 +520,18 @@ public final class ModelManager: ObservableObject {
             let fallbackScale: Float = targetSize
             entity.scale = SIMD3<Float>(repeating: fallbackScale)
             Model.updatePlacementMetadata(for: entity, modelType: modelType)
+            #if DEBUG
             print("Applied visionOS default fallback scale: \(fallbackScale)")
+            #endif
             return
     }
         
         let scaleFactor = targetSize / maxDimension
         entity.scale = SIMD3<Float>(repeating: scaleFactor)
         Model.updatePlacementMetadata(for: entity, modelType: modelType)
+        #if DEBUG
         print("VisionOS fallback normalization for \(modelType.rawValue): original max \(maxDimension)m, target \(targetSize)m (scale: \(scaleFactor))")
+        #endif
     }
     #endif
     
@@ -497,7 +540,9 @@ public final class ModelManager: ObservableObject {
     
     internal func configureInteractivity(for entity: Entity, arViewModel: ARViewModel? = nil) {
         for child in entity.children {
+            #if DEBUG
             print("Configuring child: \(child.name)")
+            #endif
             configureInteractivity(for: child, arViewModel: arViewModel)
         }
         
@@ -570,7 +615,9 @@ public final class ModelManager: ObservableObject {
 //                }
 //    }
 //        }
+        #if DEBUG
         print("Removed model: \(modelTypeName)")
+        #endif
     }
     
     
@@ -587,7 +634,9 @@ public final class ModelManager: ObservableObject {
         selectedModelID = nil
         selectedModelInstanceID = nil
   
+        #if DEBUG
         print("Reset ModelManager state. Broadcast: \(broadcast)")
+        #endif
     }
     
     
@@ -618,12 +667,16 @@ public final class ModelManager: ObservableObject {
                  if model.id == selectedModelInstanceID {
                     if entity.components[SelectionComponent.self] == nil {
                         entity.components.set(SelectionComponent())
+                        #if DEBUG
                         print("Selected \(model.modelType.rawValue)")
+                        #endif
                     }
                 } else {
                     if entity.components[SelectionComponent.self] != nil {
                         entity.components.remove(SelectionComponent.self)
+                        #if DEBUG
                         print("Deselected \(model.modelType.rawValue)")
+                        #endif
                 }
             }
                 
@@ -650,7 +703,9 @@ public final class ModelManager: ObservableObject {
         guard let instanceIDString = entity.components[InstanceIDComponent.self]?.id,
               let instanceID = UUID(uuidString: instanceIDString),
               let model = self.modelDict[instanceID] else {
+            #if DEBUG
             print("Selected non-model entity: \(name)")
+            #endif
             return
         }
 
@@ -666,12 +721,22 @@ public final class ModelManager: ObservableObject {
         //     }
         // }
 
+        #if DEBUG
         print("Select: Selected \(name) (instance: \(model.id))")
+        #endif
+    }
+
+    @MainActor func selectModel(instanceID: UUID) {
+        guard let model = self.modelDict[instanceID] else { return }
+        self.selectedModelID = model.modelType
+        self.selectedModelInstanceID = model.id
     }
 
     @MainActor func deselectModel() {
         if let currentID = selectedModelInstanceID {
+            #if DEBUG
             print("Deselect: Clearing selection (was instance: \(currentID))")
+            #endif
         }
         selectedModelID = nil
         selectedModelInstanceID = nil

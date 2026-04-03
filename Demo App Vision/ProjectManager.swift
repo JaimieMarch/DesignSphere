@@ -37,7 +37,9 @@ class ProjectManager: ObservableObject {
                 withIntermediateDirectories: true,
                 attributes: attributes
             )
+            #if DEBUG
             print("Created projects directory at: \(projectsDirectory.path)")
+            #endif
         }
     }
 
@@ -204,7 +206,9 @@ class ProjectManager: ObservableObject {
         let transform = controller.sharedAnchorEntity.transform.matrix
         anchorProvider.saveAnchor(id: anchorID, transform: transform)
         currentWorldAnchorID = anchorID
+        #if DEBUG
         print("Created persistent world anchor with ID: \(anchorID)")
+        #endif
         return anchorID
     }
     #endif
@@ -255,7 +259,9 @@ class ProjectManager: ObservableObject {
             existingProject.models = savedModels
             existingProject.roomName = roomName
             project = existingProject
+            #if DEBUG
             print("Updating existing project: \(roomName)")
+            #endif
         } else {
             // Create new project
             project = ProjectData(
@@ -265,7 +271,9 @@ class ProjectManager: ObservableObject {
                 dateModified: now,
                 models: savedModels
             )
+            #if DEBUG
             print("Creating new project: \(roomName)")
+            #endif
         }
 
         // Save to JSON file
@@ -276,7 +284,9 @@ class ProjectManager: ObservableObject {
         let jsonData = try encoder.encode(project)
         try jsonData.write(to: fileURL, options: [.atomic, .completeFileProtection])
 
+        #if DEBUG
         print("Saved project '\(roomName)' with \(savedModels.count) models to: \(fileURL.path)")
+        #endif
 
         // Refresh the project list
         loadProjectList()
@@ -321,13 +331,17 @@ class ProjectManager: ObservableObject {
             currentWorldAnchorID = anchorID
         }
 
+        #if DEBUG
         print("Loading \(project.models.count) models for project '\(roomName)'")
+        #endif
 
         // Load each model
         for (index, savedModel) in project.models.enumerated() {
             // Find the model type
             guard let modelType = ModelType.allCases().first(where: { $0.rawValue == savedModel.modelTypeName }) else {
+                #if DEBUG
                 print("Warning: Unknown model type '\(savedModel.modelTypeName)'")
+                #endif
                 continue
             }
 
@@ -339,23 +353,31 @@ class ProjectManager: ObservableObject {
                 rotation: savedModel.rotation.quatf,
                 scale: savedModel.scale.simd3
             ) {
+                #if DEBUG
                 print("Loaded model: \(modelType.displayName) at position: \(savedModel.position.simd3)")
+                #endif
 
                 // Restore original bounds if saved (for accurate dimension editing)
                 if let originalBounds = savedModel.originalBounds,
                    let entity = loadedModel.modelEntity {
                     entity.components.set(OriginalBoundsComponent(originalSize: originalBounds.simd3))
+                    #if DEBUG
                     print("Restored original bounds for \(modelType.displayName): \(originalBounds.simd3)")
+                    #endif
                 }
 
                 // Restore material if saved
                 if let savedMaterial = savedModel.material,
                    let entity = loadedModel.modelEntity {
                     applyMaterialData(savedMaterial, to: entity)
+                    #if DEBUG
                     print("Restored custom material for \(modelType.displayName)")
+                    #endif
                 }
             } else {
+                #if DEBUG
                 print("Warning: Failed to load model '\(modelType.displayName)'")
+                #endif
             }
 
             let progress = Double(index + 1) / Double(max(project.models.count, 1))
@@ -364,7 +386,9 @@ class ProjectManager: ObservableObject {
             }
         }
 
+        #if DEBUG
         print("Project '\(roomName)' loaded successfully")
+        #endif
         currentProjectName = project.roomName
         return project.worldAnchorID
     }
@@ -392,9 +416,13 @@ class ProjectManager: ObservableObject {
                 return project
             }.sorted { $0.dateModified > $1.dateModified }
 
+            #if DEBUG
             print("Loaded \(savedProjects.count) saved projects")
+            #endif
         } catch {
+            #if DEBUG
             print("Error loading project list: \(error)")
+            #endif
             savedProjects = []
         }
     }
@@ -408,7 +436,9 @@ class ProjectManager: ObservableObject {
             anchorProvider.removeAnchor(id: anchorID)
         }
         try fileManager.removeItem(at: fileURL)
+        #if DEBUG
         print("Deleted project '\(roomName)'")
+        #endif
         loadProjectList()
         if currentProjectName == roomName {
             currentProjectName = nil

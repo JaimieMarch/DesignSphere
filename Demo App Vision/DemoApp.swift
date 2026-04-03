@@ -16,15 +16,12 @@ struct DemoApp: App {
 
     var body: some SwiftUI.Scene {
         WindowGroup("StarterView") {
-            StarterView(controller: controller)
+            ContrastAwareRoot(controller: controller)
                 .environmentObject(appSettings)
-                .environment(\.legibilityWeight, appSettings.highContrastTextEnabled ? .bold : nil)
-                .contrast(appSettings.highContrastTextEnabled ? 1.15 : 1.0)
-            /// Resizing is disabled intentionally.
                 .frame(width: 1280, height: 720)
         }
         .windowResizability(.contentSize)
-        
+
 #if os(visionOS)
         ImmersiveSpace(id: "CollaborativeSpace") {
             RealityView { content in
@@ -32,8 +29,33 @@ struct DemoApp: App {
             } update: { content in
                 controller.updateRealityContent(content)
             }
+            .gesture(
+                SpatialTapGesture()
+                    .targetedToAnyEntity()
+                    .onEnded { value in
+                        controller.handleSpatialTap(on: value.entity)
+                    }
+            )
         }
+        .immersionStyle(selection: .constant(.mixed), in: .mixed)
 #endif
     }
 }
 
+/// Wrapper view that reads system contrast (unavailable at App level)
+@available(visionOS 26.0, *)
+private struct ContrastAwareRoot: View {
+    @ObservedObject var controller: CollaborativeSessionController
+    @EnvironmentObject private var appSettings: AppSettings
+    @Environment(\.colorSchemeContrast) private var systemContrast
+
+    private var useHighContrast: Bool {
+        appSettings.highContrastTextEnabled || systemContrast == .increased
+    }
+
+    var body: some View {
+        StarterView(controller: controller)
+            .environment(\.legibilityWeight, useHighContrast ? .bold : nil)
+            .contrast(useHighContrast ? 1.15 : 1.0)
+    }
+}

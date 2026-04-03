@@ -70,7 +70,9 @@ extension simd_float4x4 {
     // Creates a simd_float4x4 matrix from a [Float] array
     static func fromArray(_ array: [Float]) -> simd_float4x4 {
         guard array.count >= 16 else {
+            #if DEBUG
             print("Warning: Array is too small for matrix conversion. Using identity matrix.")
+            #endif
             return matrix_identity_float4x4
         }
         

@@ -559,7 +559,9 @@ extension ARViewModel {
     /// Comprehensive reset of all ARViewModel state for clean restart
     @MainActor
     func resetToCleanState() {
+        #if DEBUG
         print("ARViewModel: Resetting to clean state")
+        #endif
         selectedModel = nil
 
         showingParticipantsList = false
@@ -601,7 +603,9 @@ extension ARViewModel {
         sharedAnchorEntity.isEnabled = true
 
 
+        #if DEBUG
         print("ARViewModel: Clean state reset completed")
+        #endif
     }
 
 }

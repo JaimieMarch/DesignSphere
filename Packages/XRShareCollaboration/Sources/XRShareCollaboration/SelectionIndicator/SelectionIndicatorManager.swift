@@ -25,7 +25,9 @@ public final class SelectionIndicatorManager: ObservableObject {
         hideSelectionIndicator()
 
         guard let sharedAnchor = sharedAnchorEntity else {
+            #if DEBUG
             print("Warning: sharedAnchorEntity not set for selection indicator")
+            #endif
             return
         }
 
@@ -159,7 +161,9 @@ public final class SelectionIndicatorManager: ObservableObject {
         do {
             return try AnimationResource.generate(with: animation)
         } catch {
+            #if DEBUG
             print("SelectionIndicatorManager: Failed to create bobbing animation - \(error)")
+            #endif
             return nil
         }
     }

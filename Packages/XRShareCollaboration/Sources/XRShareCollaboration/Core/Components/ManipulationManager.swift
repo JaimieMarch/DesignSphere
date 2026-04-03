@@ -26,6 +26,7 @@ class ManipulationManager {
     #if os(visionOS)
     private var didInstallSubscriptions = false
     private var contentSubscriptions: [EventSubscription] = []
+    var onSceneUpdate: (() -> Void)?
     #endif
 
     private var lastSendTime: [UUID: CFTimeInterval] = [:]
@@ -49,7 +50,9 @@ class ManipulationManager {
         contentSubscriptions.removeAll()
         #endif
 
+        #if DEBUG
         print("ManipulationManager: deinit - subscriptions cleaned up")
+        #endif
     }
 
     private static func registerConstraintSystemIfNeeded() {
@@ -92,6 +95,12 @@ class ManipulationManager {
     @available(visionOS 26.0, *)
     func setupManipulationEventHandlers(for content: RealityViewContent) {
         if didInstallSubscriptions { return }
+
+        let sceneUpdateToken = content.subscribe(to: SceneEvents.Update.self) { [weak self] _ in
+            Task { @MainActor in
+                self?.onSceneUpdate?()
+            }
+        }
         
         // Subscribe to transform updates
         let didUpdateToken = content.subscribe(to: ManipulationEvents.DidUpdateTransform.self) { [weak self] event in
@@ -160,10 +169,12 @@ class ManipulationManager {
 //            }
         }
         
-        contentSubscriptions.append(contentsOf: [didUpdateToken, willBeginToken, willEndToken, handOffToken])
+        contentSubscriptions.append(contentsOf: [sceneUpdateToken, didUpdateToken, willBeginToken, willEndToken, handOffToken])
         didInstallSubscriptions = true
 
+        #if DEBUG
         print("visionOS: ManipulationEvents subscriptions configured.")
+        #endif
     }
     
     
@@ -263,7 +274,9 @@ class ManipulationManager {
 
     /// Reset all state for clean session restart
     func reset() {
+        #if DEBUG
         print("ManipulationManager: Resetting state")
+        #endif
 
         // Cancel all entity subscriptions
         manipulationSubscriptions.values.forEach { $0.cancel() }
@@ -280,6 +293,8 @@ class ManipulationManager {
 
         // sharePlayCoordinator = nil
 
+        #if DEBUG
         print("ManipulationManager: Reset completed")
+        #endif
     }
 }

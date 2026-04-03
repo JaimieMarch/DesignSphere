@@ -14,7 +14,8 @@ struct LoadingScreen: View {
             VStack(spacing: 30) {
                 // App Icon or Logo
                 Image(systemName: "cube.transparent")
-                    .font(.system(size: 80))
+                    .font(.largeTitle)
+                    .imageScale(.large)
                     .foregroundStyle(.white)
                     .symbolEffect(.pulse, options: .repeating)
 
@@ -48,6 +49,8 @@ struct LoadingScreen: View {
         }
         .opacity(isLoading ? 1 : 0)
         .animation(.easeInOut(duration: 0.3), value: isLoading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Loading DesignSphere, \(Int(loadingProgress * 100)) percent, \(loadingMessage)")
     }
 }
 

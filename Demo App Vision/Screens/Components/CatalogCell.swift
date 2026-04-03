@@ -28,7 +28,8 @@ struct CatalogCell: View {
             } else {
                 // Fallback to placeholder if model type not found
                 Image(systemName: "cube.fill")
-                    .font(.system(size: 64))
+                    .font(.largeTitle)
+                    .imageScale(.large)
                     .foregroundStyle(.secondary)
                     .frame(height: 130)
             }
@@ -48,7 +49,7 @@ struct CatalogCell: View {
             if showRemove, let onRemove = onRemove {
                 Button(action: onRemove) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20))
+                        .font(.title3)
                         .foregroundStyle(.white, .red)
                 }
                 .buttonStyle(.plain)
@@ -59,7 +60,7 @@ struct CatalogCell: View {
                 Button(action: onFavoriteToggle) {
                     Image(systemName: isFavorite ? "star.fill" : "star")
                         .foregroundStyle(isFavorite ? .yellow : .secondary)
-                        .font(.system(size: 16))
+                        .font(.subheadline)
                 }
                 .buttonStyle(.plain)
                 .padding(8)

@@ -8,7 +8,8 @@ struct AIAssistantView: View {
         VStack(spacing: 24) {
             VStack(spacing: 16) {
                 Image(systemName: "microphone")
-                    .font(.system(size: 60))
+                    .font(.largeTitle)
+                    .imageScale(.large)
                     .foregroundStyle(isListening ? .blue : .secondary)
                     .symbolEffect(.variableColor.iterative, value: isListening)
                 

@@ -47,7 +47,9 @@ class VisionOSSpatialCoordinator {
         await setupWorldTracking()
         await createSharedWorldAnchor()
 
+        #if DEBUG
         print("visionOS: Configured spatial session with world anchors and nearby sharing")
+        #endif
     }
     
     // Configure with existing ARKit session
@@ -70,7 +72,9 @@ class VisionOSSpatialCoordinator {
             }
         }
         
+        #if DEBUG
         print("visionOS: Configured ARKit session with world tracking provider")
+        #endif
     }
     
     
@@ -133,7 +137,9 @@ class VisionOSSpatialCoordinator {
         typedDict[anchorID] = worldAnchor
         worldAnchors = typedDict
         
+        #if DEBUG
         print("visionOS: Created shared world anchor at custom transform with ID: \(anchorID)")
+        #endif
         
         return anchorID
     }
@@ -150,13 +156,17 @@ class VisionOSSpatialCoordinator {
            let provider = worldTrackingProvider as? WorldTrackingProvider {
             
             // Provider already set up in configureWithARKitSession
+            #if DEBUG
             print("visionOS: Using existing WorldTrackingProvider from ARKit session")
+            #endif
             
         } else {
             // Create provider and store as `Any`
             let provider = WorldTrackingProvider()
             self.worldTrackingProvider = provider
+            #if DEBUG
             print("visionOS: Created new WorldTrackingProvider")
+            #endif
         }
         
         guard let provider = worldTrackingProvider as? WorldTrackingProvider else { return }
@@ -213,10 +223,14 @@ class VisionOSSpatialCoordinator {
                 self.onAnchorTransformUpdated?(worldAnchor.originFromAnchorTransform)
             }
             
+            #if DEBUG
             print("visionOS: Created shared world anchor with ID: \(anchorID)")
+            #endif
             
         } catch {
+            #if DEBUG
             print("visionOS: Failed to create shared world anchor - \(error)")
+            #endif
         }
     }
     
@@ -228,7 +242,9 @@ class VisionOSSpatialCoordinator {
         currentAnchorID = id
         isAligned = true
         
+        #if DEBUG
         print("visionOS: Received world anchor reference \(id)")
+        #endif
 
         // The actual WorldAnchor will be provided by the system through
         // WorldTrackingProvider.anchorUpdates when it's available
@@ -239,9 +255,15 @@ class VisionOSSpatialCoordinator {
         switch update.event {
         case .added:
             let anchor = update.anchor
+            #if DEBUG
             print("visionOS: New world anchor detected: \(anchor.id)")
+            #endif
+            #if DEBUG
             print("  - Transform: \(anchor.originFromAnchorTransform)")
+            #endif
+            #if DEBUG
             print("  - Is from nearby participant: \(anchor.id != currentAnchorID)")
+            #endif
             
             // Store the anchor
             var typedDict = (worldAnchors as? [UUID: WorldAnchor]) ?? [:]
@@ -268,13 +290,17 @@ class VisionOSSpatialCoordinator {
                         }
                     }
                     
+                    #if DEBUG
                     print("visionOS: Using shared world anchor from nearby participant")
+                    #endif
                 }
             }
 
         case .updated:
             let anchor = update.anchor
+            #if DEBUG
             print("visionOS: World anchor updated: \(anchor.id)")
+            #endif
             
             // Update stored anchor
             var typedDict = (worldAnchors as? [UUID: WorldAnchor]) ?? [:]
@@ -290,7 +316,9 @@ class VisionOSSpatialCoordinator {
             }
 
         case .removed:
+            #if DEBUG
             print("visionOS: World anchor removed: \(update.anchor.id)")
+            #endif
             
             // Remove from storage
             var typedDict = (worldAnchors as? [UUID: WorldAnchor]) ?? [:]
@@ -330,7 +358,9 @@ class VisionOSSpatialCoordinator {
     /// Cleanup all resources for session end
     @available(visionOS 26.0, *)
     func cleanup() async {
+        #if DEBUG
         print("VisionOSSpatialCoordinator: Cleaning up resources")
+        #endif
 
         // Remove all world anchors from the provider
         if let provider = worldTrackingProvider as? WorldTrackingProvider,
@@ -350,7 +380,9 @@ class VisionOSSpatialCoordinator {
         onAnchorTransformUpdated = nil
         initialAnchorTransform = nil
 
+        #if DEBUG
         print("VisionOSSpatialCoordinator: Cleanup is completed")
+        #endif
     }
 }
 #endif

@@ -33,7 +33,8 @@ struct EditModelView: View {
         VStack(spacing: 24) {
             
             Image(systemName: "pencil")
-                .font(.system(size: 60))
+                .font(.largeTitle)
+                .imageScale(.large)
                 .foregroundStyle(.secondary)
             
             Text("Edit Model")
@@ -229,14 +230,6 @@ struct EditModelView: View {
                 }
             }
             .padding(32)
-            .frame(width: 700, height: 850)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(Color.white.opacity(0.1))
-            )
-            .shadow(radius: 5)
-            .padding()
             .onAppear {
                 
                 if let model = controller.returnSelectedModel(),
@@ -318,7 +311,7 @@ struct EditModelView: View {
                             .frame(width: 52, height: 52)
                             .overlay(
                                 Image(systemName: "minus")
-                                    .font(.system(size: 20, weight: .semibold))
+                                    .font(.headline)
                                     .foregroundStyle(.primary)
                             )
                     }
@@ -363,7 +356,7 @@ struct EditModelView: View {
                             .frame(width: 52, height: 52)
                             .overlay(
                                 Image(systemName: "plus")
-                                    .font(.system(size: 20, weight: .semibold))
+                                    .font(.headline)
                                     .foregroundStyle(.primary)
                             )
                     }
@@ -396,7 +389,7 @@ struct EditModelView: View {
                         .frame(width: 52, height: 52)
                         .overlay(
                             Image(systemName: "minus")
-                                .font(.system(size: 20, weight: .semibold))
+                                .font(.headline)
                                 .foregroundStyle(.primary)
                         )
                 }
@@ -437,7 +430,7 @@ struct EditModelView: View {
                         .frame(width: 52, height: 52)
                         .overlay(
                             Image(systemName: "plus")
-                                .font(.system(size: 20, weight: .semibold))
+                                .font(.headline)
                                 .foregroundStyle(.primary)
                         )
                 }

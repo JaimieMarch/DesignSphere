@@ -26,7 +26,8 @@ struct ImportModelView: View {
                 // Header section
                 VStack(spacing: 16) {
                     Image(systemName: statusIcon)
-                        .font(.system(size: 60))
+                        .font(.largeTitle)
+                        .imageScale(.large)
                         .foregroundStyle(statusColor)
 
                     Text(statusTitle)
@@ -53,6 +54,8 @@ struct ImportModelView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .controlSize(.large)
+                        .accessibilityLabel("Choose USDZ file")
+                        .accessibilityHint("Open file picker to select a 3D model to import")
                     }
 
                     if importStatus == .importing {

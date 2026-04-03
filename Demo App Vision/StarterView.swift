@@ -11,8 +11,6 @@ import AVKit
 struct SessionState {
     var isImmersiveOpen = false
     var hasInitializedSession = false
-    var isActivatingSharePlay = false
-    var sharePlayError: String?
 }
 
 /// Manages loading screen state
@@ -44,6 +42,8 @@ struct StarterView: View {
     @ObservedObject var controller: CollaborativeSessionController
     @EnvironmentObject private var appSettings: AppSettings
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
+    @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
+    @Environment(\.scenePhase) private var scenePhase
 
     // Consolidated state structs
     @State private var sessionState = SessionState()
@@ -150,9 +150,7 @@ struct StarterView: View {
                 ToolbarOrnament(
                     showMeasurementOptions: $sheetState.showMeasurementOptions,
                     showFocusModeSheet: $sheetState.showFocusModeSheet,
-                    showEditSheet: $sheetState.showEditSheet,
-                    showImportSheet: $sheetState.showImportSheet,
-                    controller: controller
+                    showImportSheet: $sheetState.showImportSheet
                 )
             }
         }
@@ -179,15 +177,16 @@ struct StarterView: View {
         .onReceive(NotificationCenter.default.publisher(for: AppSettings.tutorialReplayRequestedNotification)) { _ in
             sheetState.showTutorial = true
         }
-        .alert("SharePlay", isPresented: Binding(
-            get: { sessionState.sharePlayError != nil },
-            set: { if !$0 { sessionState.sharePlayError = nil } }
-        )) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            if let message = sessionState.sharePlayError { Text(message) }
+        .onChange(of: controller.editRequestToken) { _, _ in
+            if controller.pendingEditModelID != nil {
+                sheetState.showEditSheet = true
+            }
         }
-        
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .background {
+                sessionState.isImmersiveOpen = false
+            }
+        }
         // Sheets for action items
         .sheet(isPresented: $sheetState.showMeasurementOptions) {
             if AppFeatureFlags.measurementToolsEnabled && appSettings.labsMeasurementToolsEnabled {
@@ -295,7 +294,9 @@ struct StarterView: View {
             do {
                 try await controller.startWorldTracking()
             } catch {
+                #if DEBUG
                 print("Failed to start world tracking: \(error)")
+                #endif
             }
         }
     }
@@ -325,17 +326,7 @@ private struct TutorialHubSheet: View {
                         }
                     }
 
-                    NavigationLink {
-                        VideoTutorialLibraryView()
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Video Tutorials")
-                                .font(.headline)
-                            Text("Short videos for specific components of the system.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    // Video tutorials temporarily removed — videos not yet bundled
                 }
             }
             .navigationTitle("Tutorial Center")

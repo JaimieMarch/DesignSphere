@@ -114,6 +114,8 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var focusRoomDimensions: FocusModeManager.FocusRoomDimensions = FocusModeManager.FocusRoomDimensions(width: 7.0, depth: 7.0, height: 3.2)
     @Published public var selectedModelID: String? = nil
     @Published public var selectedModelInstanceID: UUID? = nil
+    @Published public private(set) var pendingEditModelID: UUID? = nil
+    @Published public private(set) var editRequestToken: UUID? = nil
     @Published public var pendingMaterialUpdate: (entityID: UUID, material: RealityKit.Material)?
 
         
@@ -168,6 +170,17 @@ public final class CollaborativeSessionController: ObservableObject {
         #if os(visionOS)
         focusModeManager.setSharedAnchor(arViewModel.sharedAnchorEntity)
         selectionIndicatorManager.setSharedAnchor(arViewModel.sharedAnchorEntity)
+        if #available(visionOS 26.0, *),
+           let manipulationManager = arViewModel.manipulationManager {
+            manipulationManager.onSceneUpdate = { [weak self] in
+                guard let self else { return }
+                EditAffordanceFactory.syncEditAffordances(
+                    for: self.modelManager.placedModels,
+                    relativeTo: self.arViewModel.sharedAnchorEntity
+                )
+                self.selectionIndicatorManager.updateIndicatorPosition()
+            }
+        }
         #endif
     }
 
@@ -183,7 +196,9 @@ public final class CollaborativeSessionController: ObservableObject {
     /// Start ARKit session with world tracking 
     public func startWorldTracking() async throws {
         guard !isSessionRunning else {
+            #if DEBUG
             print("ARKit session already running")
+            #endif
             return
         }
 
@@ -195,7 +210,9 @@ public final class CollaborativeSessionController: ObservableObject {
         try await immersiveSession.run([provider])
         isSessionRunning = true
 
+        #if DEBUG
         print("Started ARKit session with WorldTracking - world anchors will persist")
+        #endif
     }
 
     /// Stop the ARKit session
@@ -206,7 +223,9 @@ public final class CollaborativeSessionController: ObservableObject {
         worldTrackingProvider = nil
         isSessionRunning = false
 
+        #if DEBUG
         print("Stopped ARKit session and WorldTracking")
+        #endif
     }
     #endif
 
@@ -256,6 +275,42 @@ public final class CollaborativeSessionController: ObservableObject {
             selectionIndicatorManager.showSelectionIndicator(for: entity)
         } else {
             selectionIndicatorManager.hideSelectionIndicator()
+        }
+        #endif
+    }
+
+    /// Request that the editor opens for the given model instance.
+    public func requestEditModel(instanceID: UUID) {
+        guard modelManager.placedModels.contains(where: { $0.id == instanceID }) else { return }
+
+        modelManager.selectModel(instanceID: instanceID)
+        pendingEditModelID = instanceID
+        editRequestToken = UUID()
+    }
+
+    /// Re-applies the pending edit selection if the editor is about to open.
+    public func preparePendingEditSelection() {
+        guard let pendingEditModelID else { return }
+        modelManager.selectModel(instanceID: pendingEditModelID)
+    }
+
+    /// Clears the current edit request after the editor is dismissed.
+    public func clearPendingEditRequest() {
+        pendingEditModelID = nil
+    }
+
+    /// Handle a spatial tap in the immersive scene.
+    public func handleSpatialTap(on entity: Entity) {
+        #if os(visionOS)
+        if let affordanceEntity = entity.ancestorOrSelf(with: EditAffordanceComponent.self),
+           let affordance = affordanceEntity.components[EditAffordanceComponent.self] {
+            requestEditModel(instanceID: affordance.instanceID)
+            return
+        }
+
+        if #available(visionOS 26.0, *),
+           let modelEntity = entity.ancestorOrSelf(with: InstanceIDComponent.self) {
+            modelManager.selectModel(entity: modelEntity)
         }
         #endif
     }
@@ -348,7 +403,9 @@ public final class CollaborativeSessionController: ObservableObject {
         let model = await Model.load(modelType: modelType, arViewModel: arViewModel)
 
         guard let entity = model.modelEntity else {
+            #if DEBUG
             print("Warning: Failed to load entity for '\(modelType.displayName)'")
+            #endif
             return nil
         }
 
@@ -521,6 +578,12 @@ public final class CollaborativeSessionController: ObservableObject {
         if let manipulationManager = arViewModel.manipulationManager {
             manipulationManager.setupManipulationEventHandlers(for: content)
         }
+        if #available(visionOS 26.0, *) {
+            EditAffordanceFactory.syncEditAffordances(
+                for: modelManager.placedModels,
+                relativeTo: arViewModel.sharedAnchorEntity
+            )
+        }
         selectionIndicatorManager.updateIndicatorPosition()
         modelManager.updatePlacedModels(arViewModel: arViewModel)
     }
@@ -681,5 +744,18 @@ public final class CollaborativeSessionController: ObservableObject {
             return .decor
         }
         return .unknown
+    }
+}
+
+private extension Entity {
+    func ancestorOrSelf<T: Component>(with componentType: T.Type) -> Entity? {
+        var current: Entity? = self
+        while let candidate = current {
+            if candidate.components[componentType] != nil {
+                return candidate
+            }
+            current = candidate.parent
+        }
+        return nil
     }
 }

@@ -264,9 +264,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = DesignSphere;
-				INFOPLIST_KEY_LSApplicationCategoryType = "";
-				INFOPLIST_KEY_NSAccessoryTrackingUsageDescription = "We use accessory tracking to recognize and track supported objects";
-				INFOPLIST_KEY_NSBonjourServices = "_xr-anatomy._tcp _xr-anatomy._udp";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHandsTrackingUsageDescription = "We use hand tracking so you can interact with models using gestures";
 				INFOPLIST_KEY_NSMainCameraUsageDescription = "We use the main camera to understand your environment";
 				INFOPLIST_KEY_NSWorldSensingUsageDescription = "We use world sensing to detect planes and place 3D content accurately";
@@ -279,8 +277,8 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.DemoApp1234.app;
-				PRODUCT_NAME = DemoAppVision;
+				PRODUCT_BUNDLE_IDENTIFIER = com.designsphere.app;
+				PRODUCT_NAME = DesignSphere;
 				SDKROOT = xros;
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -304,9 +302,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = DesignSphere;
-				INFOPLIST_KEY_LSApplicationCategoryType = "";
-				INFOPLIST_KEY_NSAccessoryTrackingUsageDescription = "We use accessory tracking to recognize and track supported objects";
-				INFOPLIST_KEY_NSBonjourServices = "_xr-anatomy._tcp _xr-anatomy._udp";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHandsTrackingUsageDescription = "We use hand tracking so you can interact with models using gestures";
 				INFOPLIST_KEY_NSMainCameraUsageDescription = "We use the main camera to understand your environment";
 				INFOPLIST_KEY_NSWorldSensingUsageDescription = "We use world sensing to detect planes and place 3D content accurately";
@@ -318,8 +314,8 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.DemoApp1234.app;
-				PRODUCT_NAME = DemoAppVision;
+				PRODUCT_BUNDLE_IDENTIFIER = com.designsphere.app;
+				PRODUCT_NAME = DesignSphere;
 				SDKROOT = xros;
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
 				SWIFT_EMIT_LOC_STRINGS = YES;
