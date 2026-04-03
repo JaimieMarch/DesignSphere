@@ -170,9 +170,6 @@ public final class CollaborativeSessionController: ObservableObject {
         let modelManager = ModelManager()
         let arViewModel = ARViewModel()
         arViewModel.modelManager = modelManager
-        arViewModel.preferredPlacementResolver = { [weak self] entity, modelType in
-            await self?.resolvePreferredPlacement(for: entity, modelType: modelType)
-        }
 
         self.arViewModel = arViewModel
         self.modelManager = modelManager
@@ -181,6 +178,9 @@ public final class CollaborativeSessionController: ObservableObject {
         self.focusModeManager = FocusModeManager()
         self.selectionIndicatorManager = SelectionIndicatorManager()
         #endif
+        arViewModel.preferredPlacementResolver = { [weak self] entity, modelType in
+            await self?.resolvePreferredPlacement(for: entity, modelType: modelType)
+        }
         bindState()
         refreshAvailableModels()
         #if os(visionOS)

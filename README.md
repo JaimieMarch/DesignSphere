@@ -1,4 +1,5 @@
 # Design Sphere App
+
 **See Your Vision. From Within.**
 
 DesignSphere is an interior design app built from the ground up for the Apple Vision Pro that allows users to design or customize their space in real time, in real space. The app reimagines interior design through spatial computing, turning any room into a blank canvas where furniture and décor appear true to scale and true to life.
@@ -10,14 +11,16 @@ Designed for students, interior designers, real estate stagers, and businesses a
 ## Features
 
 ### Core Functionality
+
 - **Intuitive Interface**: Clean, floating translucent menus that adhere to Apple's design language, with gesture-based controls that stay out of the way while remaining easily accessible
-- **Model Library**: Browse a comprehensive catalog of furniture and décor with favoriting, previews, and 3D model thumbnails 
+- **Model Library**: Browse a comprehensive catalog of furniture and décor with favoriting, previews, and 3D model thumbnails
 - **Advanced Model Editing**: Comprehensive editing tools allowing users to adjust size, position, rotation, style, texture, and color of each item
 - **Spatial Recognition**: Built-in spatial APIs anchor objects with incredible accuracy, matching scale and perspective to your room's exact dimensions
 - **Project Management**: Save and organize multiple room layouts, create different versions to compare design options, and return to previous projects anytime
 - **Location-Aware Loading**: The app can recognize a space and automatically load the related design when you return
 
 ### Additional Features (UI Implemented, Functionality In Development)
+
 - **Model Import**: Import custom USDZ files from your device to expand the furniture library
 - **Focus Modes**: Interface for toggling real-world item visibility and accessing neutral design spaces
 - **Measurement Tools**: UI for displaying room dimensions and object measurements with ruler functionality
@@ -25,6 +28,7 @@ Designed for students, interior designers, real estate stagers, and businesses a
 - **SharePlay Collaboration**: Multi-user session interface with session codes for real-time collaboration
 
 ### Planned Features
+
 - **LiDAR Scanning**: Built-in scanner to capture real furniture with LiDAR and convert them into reusable 3D models
 - **CloudKit Integration**: Cloud-based project syncing enabling users to save layouts across devices and locations, improving app performance while reducing storage footprint
 - **Full AI Integration**: Complete AI-powered design suggestions and automated layout assistance implementation
@@ -34,12 +38,14 @@ Designed for students, interior designers, real estate stagers, and businesses a
 ## Use Cases
 
 ### Personal Use
+
 - **Students & Young Adults**: Furnish apartments and dorm rooms without costly mistakes
 - **Homeowners & Renters**: Visualize furniture arrangements before purchasing or moving heavy items
 - **DIY Decorators**: Experiment with different layouts, styles, and color schemes risk-free
 - **Moving & Relocating**: Plan furniture placement in a new space before the moving truck arrives
 
 ### Professional Applications
+
 - **Interior Designers**: Create immersive client presentations and explore multiple design concepts quickly
 - **Real Estate Staging**: Virtually stage properties to help potential buyers visualize possibilities
 - **Commercial Planning**: Design retail layouts, restaurant seating, salon stations, and office spaces
@@ -56,6 +62,7 @@ Designed for students, interior designers, real estate stagers, and businesses a
 ## Included Model Library
 
 The app comes with a starter library of 9 basic USDZ models:
+
 - 65" TV
 - Chair
 - Chandelier
@@ -66,7 +73,7 @@ The app comes with a starter library of 9 basic USDZ models:
 - Stool
 - Vase
 
-Users can expand this library by importing custom USDZ files through the Import feature. This library will constantly be expanded upon, and improved in quality. 
+Users can expand this library by importing custom USDZ files through the Import feature. This library will constantly be expanded upon, and improved in quality.
 
 ## Supported File Formats
 
@@ -76,6 +83,7 @@ Users can expand this library by importing custom USDZ files through the Import 
   - Compatible with Reality Composer and other 3D tools
 
 ## Requirements
+
 - visionOS 26.0+
 - Mac with Apple Silicon (M1+)
 - Xcode with visionOS support
@@ -113,9 +121,9 @@ DesignSphere leverages visionOS native gestures for intuitive spatial interactio
 
 ## Running the App
 
-Clone the repo from: https://github.com/JaimieMarch/DesignSphere/tree/sam_new
+Clone the repo from: <https://github.com/JaimieMarch/DesignSphere/tree/sam_new>
 
-Currently, sam_new is currently our active branch. 
+Currently, sam_new is our active branch.
 
 1. Open [Demo App.xcodeproj](Demo App.xcodeproj) in Xcode
 2. Select a Vision Pro simulator or device
@@ -159,18 +167,19 @@ Our roadmap is driven by both user feedback and the evolution of spatial computi
 - **Marketplace Ecosystem**: Create a user-generated content marketplace where designers can sell custom models, templates, and design packages
 - **Enterprise Solutions**: Develop B2B offerings for architecture firms, real estate agencies, and facility management companies
 
-### WISHLIST:
+### WISHLIST
 
 - move the catalogue to the cloud - keep local sandboxed storage for user uploads/spatial web
 - finalize all required functionality for acceptable release version
 - add removed screens back into workflow
-- go through todo list on github 
+- go through todo list on github
 - go through apple guidelines and conform
 - implement createML functionality and control parameters
 
 ### Contributing to Development
 
 As this is an active course project, we're continuously iterating based on:
+
 - Testing and feedback sessions
 - Vision Pro platform updates and new API capabilities
 - Performance profiling and optimization opportunities
@@ -190,6 +199,7 @@ The Base Mesh
 Poly Haven
 
 **DesignSphere** was developed for CPSC 575 by:
+
 - Sam
 - Jaimie
 - Mishela

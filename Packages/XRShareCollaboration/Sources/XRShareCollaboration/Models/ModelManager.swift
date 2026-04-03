@@ -412,19 +412,22 @@ public final class ModelManager: ObservableObject {
             let instanceID = model.id.uuidString
 
             if let anchor = arViewModel?.sharedAnchorEntity {
-                let snappedPlacement = if let resolver = arViewModel?.preferredPlacementResolver {
+                let snappedPlacement: SurfacePlacement? = if let resolver = arViewModel?.preferredPlacementResolver {
                     await resolver(entity, modelType)
                 } else {
                     nil
                 }
 
                 let translatedPosition: SIMD3<Float>
+                let basePosition: SIMD3<Float>
                 if let snappedPlacement {
                     translatedPosition = snappedPlacement.localPosition
+                    basePosition = anchor.convert(position: snappedPlacement.localPosition, to: nil)
                 } else {
                     // Fallback to head-relative placement when no compatible surface is available.
                     let initialPosition = await resolvedInitialPlacement(anchor: anchor, arViewModel: arViewModel)
                     let placementOffset = placementOffset(for: entity)
+                    basePosition = initialPosition
                     translatedPosition = initialPosition - placementOffset
                 }
 
@@ -435,7 +438,7 @@ public final class ModelManager: ObservableObject {
                 model.position = entity.position(relativeTo: anchor)
 
                 #if DEBUG
-                print("Placed \(modelType.rawValue) at position: base=\(initialPosition) pivot=\(translatedPosition), isAnchored=\(anchor.isAnchored), scene? \(entity.scene != nil)")
+                print("Placed \(modelType.rawValue) at position: base=\(basePosition) pivot=\(translatedPosition), isAnchored=\(anchor.isAnchored), scene? \(entity.scene != nil)")
                 #endif
 
                 // Check for collisions and reposition if needed

@@ -108,9 +108,9 @@ enum SurfaceSnappingEngine {
                 deviceWorldPosition: deviceWorldPosition
             )
 
-            if let bestCandidate {
-                if distance < bestCandidate.distance {
-                    selfUpdate(&bestCandidate, plane.id, worldPosition, distance)
+            if let currentBest = bestCandidate {
+                if distance < currentBest.distance {
+                    bestCandidate = (plane.id, worldPosition, distance)
                 }
             } else {
                 bestCandidate = (plane.id, worldPosition, distance)
@@ -146,42 +146,41 @@ enum SurfaceSnappingEngine {
         _ preferred: AnchoringComponent.Target.Alignment,
         _ actual: PlaneAnchor.Alignment
     ) -> Bool {
-        switch preferred {
-        case .any:
-            return true
-        case .horizontal:
-            return actual == .horizontal
-        case .vertical:
-            return actual == .vertical
-        @unknown default:
+        if preferred == .any {
             return true
         }
+        if preferred == .horizontal {
+            return actual == .horizontal
+        }
+        if preferred == .vertical {
+            return actual == .vertical
+        }
+        return true
     }
 
     private static func classificationMatches(
         _ preferred: AnchoringComponent.Target.Classification,
         _ actual: PlaneAnchor.Classification
     ) -> Bool {
-        switch preferred {
-        case .any:
-            return true
-        case .floor:
-            return actual == .floor
-        case .wall:
-            return actual == .wall
-        case .ceiling:
-            return actual == .ceiling
-        case .table:
-            return actual == .table
-        case .seat:
-            return actual == .seat
-        case .window:
-            return actual == .window
-        case .door:
-            return actual == .door
-        @unknown default:
+        if preferred == .any {
             return true
         }
+        if preferred == .floor {
+            return actual == .floor
+        }
+        if preferred == .wall {
+            return actual == .wall
+        }
+        if preferred == .ceiling {
+            return actual == .ceiling
+        }
+        if preferred == .table {
+            return actual == .table
+        }
+        if preferred == .seat {
+            return actual == .seat
+        }
+        return true
     }
 
     private static func deviceTargetPoint(
@@ -269,14 +268,6 @@ enum SurfaceSnappingEngine {
         Swift.max(minValue, Swift.min(maxValue, value))
     }
 
-    private static func selfUpdate(
-        _ candidate: inout (planeID: UUID, worldPosition: SIMD3<Float>, distance: Float)?,
-        _ planeID: UUID,
-        _ worldPosition: SIMD3<Float>,
-        _ distance: Float
-    ) {
-        candidate = (planeID, worldPosition, distance)
-    }
 }
 
 private extension simd_float4x4 {
