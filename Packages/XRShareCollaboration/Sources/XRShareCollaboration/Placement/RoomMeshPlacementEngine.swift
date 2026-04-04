@@ -74,7 +74,7 @@ enum RoomMeshPlacementEngine {
         var bestCandidate: (
             worldPosition: SIMD3<Float>,
             worldOrientation: simd_quatf?,
-            correctionDistance: Float
+            score: Float
         )?
 
         for candidate in candidates {
@@ -94,23 +94,34 @@ enum RoomMeshPlacementEngine {
             let worldOrientation = resolvedWorldOrientation(
                 for: entity,
                 modelType: modelType,
+                snappedPoint: candidate.closestPoint,
                 surfaceNormal: candidate.normal,
                 viewerWorldPosition: viewerWorldPosition
             )
+            let score = candidate.correctionDistance
+                + (candidate.perpendicularDistance * 0.35)
+                + (candidate.edgeOverflowDistance * 0.2)
+                + surfacePenalty(for: modelType, classification: candidate.classification)
+                + orientationPenalty(
+                    for: entity,
+                    snappedPoint: candidate.closestPoint,
+                    surfaceNormal: candidate.normal,
+                    viewerWorldPosition: viewerWorldPosition
+                )
 
             if let currentBest = bestCandidate {
-                if candidate.correctionDistance < currentBest.correctionDistance {
+                if score < currentBest.score {
                     bestCandidate = (
                         worldPosition,
                         worldOrientation,
-                        candidate.correctionDistance
+                        score
                     )
                 }
             } else {
                 bestCandidate = (
                     worldPosition,
                     worldOrientation,
-                    candidate.correctionDistance
+                    score
                 )
             }
         }
@@ -119,7 +130,7 @@ enum RoomMeshPlacementEngine {
         return SurfacePlacement(
             localPosition: worldToLocal(bestCandidate.worldPosition, relativeTo: sharedAnchor),
             worldOrientation: bestCandidate.worldOrientation,
-            source: .plane(roomAnchor.id)
+            source: .roomMesh(roomAnchor.id)
         )
     }
 
@@ -142,10 +153,11 @@ enum RoomMeshPlacementEngine {
         candidates.reserveCapacity(faceCount)
 
         for faceIndex in 0..<faceCount {
-            if let classifications,
+            let classification = classifications.flatMap { faceIndex < $0.count ? $0[faceIndex] : nil }
+
+            if let classification,
                !desiredClassifications.isEmpty,
-               faceIndex < classifications.count,
-               !desiredClassifications.contains(classifications[faceIndex]) {
+               !desiredClassifications.contains(classification) {
                 continue
             }
 
@@ -162,6 +174,7 @@ enum RoomMeshPlacementEngine {
                 worldA,
                 worldB,
                 worldC,
+                classification: classification,
                 preferredWorldPoint: preferredWorldPoint,
                 preferredAlignment: preferredAlignment
             ) else { continue }
@@ -176,6 +189,7 @@ enum RoomMeshPlacementEngine {
         _ a: SIMD3<Float>,
         _ b: SIMD3<Float>,
         _ c: SIMD3<Float>,
+        classification: MeshAnchor.MeshClassification?,
         preferredWorldPoint: SIMD3<Float>,
         preferredAlignment: AnchoringComponent.Target.Alignment
     ) -> TriangleCandidate? {
@@ -200,6 +214,7 @@ enum RoomMeshPlacementEngine {
 
         return TriangleCandidate(
             closestPoint: closestPoint,
+            classification: classification,
             normal: normal,
             correctionDistance: simd_distance(preferredWorldPoint, closestPoint),
             perpendicularDistance: abs(signedDistance),
@@ -291,13 +306,54 @@ enum RoomMeshPlacementEngine {
         default:
             switch modelType.plane {
             case .vertical:
-                return [.wall, .window, .door, .cabinet, .tv]
+                return [.wall]
             case .horizontal:
-                return [.floor, .table, .seat, .bed]
+                return [.floor, .table]
             default:
                 return []
             }
         }
+    }
+
+    private static func surfacePenalty(
+        for modelType: ModelType,
+        classification: MeshAnchor.MeshClassification?
+    ) -> Float {
+        guard modelType.classification == .any else { return 0 }
+
+        guard let classification else {
+            return 0.025
+        }
+
+        if modelType.plane == .vertical {
+            switch classification {
+            case .wall:
+                return 0
+            case .window:
+                return 0.04
+            case .door:
+                return 0.07
+            case .cabinet, .tv:
+                return 0.05
+            default:
+                return 0.03
+            }
+        }
+
+        if modelType.plane == .horizontal {
+            switch classification {
+            case .floor:
+                return 0
+            case .table:
+                return 0.015
+            case .seat, .bed:
+                return 0.05
+            default:
+                return 0.03
+            }
+        }
+
+        return 0.02
     }
 
     private static func alignmentMatches(
@@ -348,6 +404,7 @@ enum RoomMeshPlacementEngine {
     private static func resolvedWorldOrientation(
         for entity: Entity,
         modelType: ModelType,
+        snappedPoint: SIMD3<Float>,
         surfaceNormal: SIMD3<Float>,
         viewerWorldPosition: SIMD3<Float>
     ) -> simd_quatf? {
@@ -356,8 +413,7 @@ enum RoomMeshPlacementEngine {
 
         if modelType.plane == .vertical {
             var outward = simd_normalize(surfaceNormal)
-            let entityPosition = entity.position(relativeTo: nil)
-            if simd_dot(outward, viewerWorldPosition - entityPosition) < 0 {
+            if simd_dot(outward, viewerWorldPosition - snappedPoint) < 0 {
                 outward *= -1
             }
             return makeOrientation(forward: outward, up: worldUp)
@@ -367,6 +423,30 @@ enum RoomMeshPlacementEngine {
             return nil
         }
         return makeOrientation(forward: forward, up: worldUp)
+    }
+
+    private static func orientationPenalty(
+        for entity: Entity,
+        snappedPoint: SIMD3<Float>,
+        surfaceNormal: SIMD3<Float>,
+        viewerWorldPosition: SIMD3<Float>
+    ) -> Float {
+        let upAlignment = abs(simd_dot(simd_normalize(surfaceNormal), SIMD3<Float>(0, 1, 0)))
+        guard upAlignment <= 0.25 else { return 0 }
+
+        let worldUp = SIMD3<Float>(0, 1, 0)
+        let worldTransform = entity.transformMatrix(relativeTo: nil)
+        guard let currentForward = horizontalForwardVector(from: worldTransform, up: worldUp) else {
+            return 0
+        }
+
+        var targetForward = simd_normalize(surfaceNormal)
+        if simd_dot(targetForward, viewerWorldPosition - snappedPoint) < 0 {
+            targetForward *= -1
+        }
+
+        let alignment = max(simd_dot(currentForward, targetForward), 0)
+        return (1 - alignment) * 0.025
     }
 
     private static func ceilingAttachmentOffset(from bounds: ModelBoundsComponent?) -> SIMD3<Float> {
@@ -491,6 +571,7 @@ enum RoomMeshPlacementEngine {
 
     private struct TriangleCandidate {
         let closestPoint: SIMD3<Float>
+        let classification: MeshAnchor.MeshClassification?
         let normal: SIMD3<Float>
         let correctionDistance: Float
         let perpendicularDistance: Float

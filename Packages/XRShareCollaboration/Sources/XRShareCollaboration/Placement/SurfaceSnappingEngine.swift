@@ -5,6 +5,7 @@ import simd
 struct SurfacePlacement {
     enum Source {
         case plane(UUID)
+        case roomMesh(UUID)
     }
 
     let localPosition: SIMD3<Float>
@@ -105,7 +106,7 @@ enum SurfaceSnappingEngine {
             planeID: UUID,
             worldPosition: SIMD3<Float>,
             worldOrientation: simd_quatf?,
-            distance: Float
+            score: Float
         )?
 
         for plane in candidates {
@@ -125,14 +126,23 @@ enum SurfaceSnappingEngine {
                 plane: plane,
                 viewerWorldPosition: viewerWorldPosition
             )
+            let score = snappedPoint.correctionDistance
+                + (snappedPoint.perpendicularDistance * 0.35)
+                + (snappedPoint.edgeOverflowDistance * 0.2)
+                + surfacePenalty(for: modelType, classification: plane.classification)
+                + orientationPenalty(
+                    for: entity,
+                    plane: plane,
+                    viewerWorldPosition: viewerWorldPosition
+                )
 
             if let currentBest = bestCandidate {
-                if snappedPoint.correctionDistance < currentBest.distance {
+                if score < currentBest.score {
                     bestCandidate = (
                         plane.id,
                         worldPosition,
                         worldOrientation,
-                        snappedPoint.correctionDistance
+                        score
                     )
                 }
             } else {
@@ -140,7 +150,7 @@ enum SurfaceSnappingEngine {
                     plane.id,
                     worldPosition,
                     worldOrientation,
-                    snappedPoint.correctionDistance
+                    score
                 )
             }
         }
@@ -158,7 +168,9 @@ enum SurfaceSnappingEngine {
         from planeAnchors: [PlaneAnchor],
         allowedPlaneIDs: Set<UUID>?
     ) -> [PlaneAnchor] {
-        planeAnchors.filter { plane in
+        let allowedClassifications = allowedPlaneClassifications(for: modelType)
+
+        return planeAnchors.filter { plane in
             if let allowedPlaneIDs, !allowedPlaneIDs.contains(plane.id) {
                 return false
             }
@@ -167,7 +179,11 @@ enum SurfaceSnappingEngine {
                 return false
             }
 
-            return classificationMatches(modelType.classification, plane.classification)
+            guard let allowedClassifications else {
+                return true
+            }
+
+            return allowedClassifications.contains(plane.classification)
         }
     }
 
@@ -187,29 +203,92 @@ enum SurfaceSnappingEngine {
         return true
     }
 
-    private static func classificationMatches(
-        _ preferred: AnchoringComponent.Target.Classification,
-        _ actual: PlaneAnchor.Classification
-    ) -> Bool {
-        if preferred == .any {
-            return true
+    private static func allowedPlaneClassifications(
+        for modelType: ModelType
+    ) -> Set<PlaneAnchor.Classification>? {
+        switch modelType.classification {
+        case .floor:
+            return [.floor]
+        case .wall:
+            return [.wall]
+        case .ceiling:
+            return [.ceiling]
+        case .table:
+            return [.table]
+        case .seat:
+            return [.seat]
+        default:
+            switch modelType.plane {
+            case .vertical:
+                return [.wall]
+            case .horizontal:
+                return [.floor, .table]
+            case .any:
+                return nil
+            default:
+                return nil
+            }
         }
-        if preferred == .floor {
-            return actual == .floor
+    }
+
+    private static func surfacePenalty(
+        for modelType: ModelType,
+        classification: PlaneAnchor.Classification
+    ) -> Float {
+        switch modelType.classification {
+        case .any:
+            if modelType.plane == .vertical {
+                switch classification {
+                case .wall:
+                    return 0
+                case .window:
+                    return 0.04
+                case .door:
+                    return 0.07
+                default:
+                    return 0.03
+                }
+            }
+
+            if modelType.plane == .horizontal {
+                switch classification {
+                case .floor:
+                    return 0
+                case .table:
+                    return 0.015
+                case .seat:
+                    return 0.05
+                default:
+                    return 0.03
+                }
+            }
+
+            return 0.02
+        default:
+            return 0
         }
-        if preferred == .wall {
-            return actual == .wall
+    }
+
+    private static func orientationPenalty(
+        for entity: Entity,
+        plane: PlaneAnchor,
+        viewerWorldPosition: SIMD3<Float>
+    ) -> Float {
+        guard plane.alignment == .vertical else { return 0 }
+        let worldTransform = entity.transformMatrix(relativeTo: nil)
+        let worldUp = SIMD3<Float>(0, 1, 0)
+        guard let currentForward = horizontalForwardVector(from: worldTransform, up: worldUp) else {
+            return 0
         }
-        if preferred == .ceiling {
-            return actual == .ceiling
+
+        var targetForward = normalize(plane.normal)
+        let planeOrigin = plane.originFromAnchorTransform.translation
+        if simd_dot(targetForward, viewerWorldPosition - planeOrigin) < 0 {
+            targetForward *= -1
         }
-        if preferred == .table {
-            return actual == .table
-        }
-        if preferred == .seat {
-            return actual == .seat
-        }
-        return true
+
+        let alignment = max(simd_dot(currentForward, targetForward), 0)
+        return (1 - alignment) * 0.025
     }
 
     private static func deviceTargetPoint(
