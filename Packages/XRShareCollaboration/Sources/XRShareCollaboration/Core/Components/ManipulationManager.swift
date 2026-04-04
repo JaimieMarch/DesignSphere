@@ -69,7 +69,8 @@ class ManipulationManager {
     /// Configure an entity for manipulation
     @available(visionOS 26.0, *)
     func configureModelForManipulation(entity: Entity) {
-        
+        let initialForward = stabilizedHorizontalForward(for: entity)
+
         // Create ManipulationComponent with releaseBehavior set to .stay
         var manipulationComponent = ManipulationComponent()
         manipulationComponent.releaseBehavior = .stay
@@ -77,7 +78,7 @@ class ManipulationManager {
         // Add the component to the entity
         entity.components.set(manipulationComponent)
         if entity.components[UprightConstraintComponent.self] == nil {
-            entity.components.set(UprightConstraintComponent())
+            entity.components.set(UprightConstraintComponent(lastForward: initialForward))
         }
         
         // Add the required supporting components
@@ -91,6 +92,17 @@ class ManipulationManager {
         
         
 
+    }
+
+    private func stabilizedHorizontalForward(for entity: Entity) -> SIMD3<Float> {
+        let up = SIMD3<Float>(0, 1, 0)
+        let transform = entity.transform.matrix
+        var forward = SIMD3<Float>(transform.columns.2.x, transform.columns.2.y, transform.columns.2.z)
+        forward -= simd_dot(forward, up) * up
+        if simd_length_squared(forward) < 1e-6 {
+            return SIMD3<Float>(0, 0, 1)
+        }
+        return simd_normalize(forward)
     }
     
     @available(visionOS 26.0, *)

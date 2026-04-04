@@ -101,11 +101,19 @@ public struct ModelType: Hashable, Identifiable, Sendable {
 
             let metadata: [String: (AnchoringComponent.Target.Classification, AnchoringComponent.Target.Alignment, Bool, Bool)] = [
 
+                "65_in_tv": (.wall, .vertical, false, false),
                 "chair": (.floor, .horizontal, true, false),
-                "poster": (.wall, .vertical, false, true),
-                "table": (.floor, .horizontal, true, false),
+                "chandelier": (.ceiling, .horizontal, false, false),
+                "closet": (.floor, .horizontal, false, false),
+                "coffee_table": (.floor, .horizontal, true, false),
+                "couch": (.floor, .horizontal, true, false),
+                "dinner_table": (.floor, .horizontal, true, false),
                 "lamp": (.table, .horizontal, false, false),
-                "painting": (.wall, .vertical, false, false)
+                "painting": (.wall, .vertical, false, false),
+                "poster": (.wall, .vertical, false, true),
+                "stool": (.floor, .horizontal, true, false),
+                "table": (.floor, .horizontal, true, false),
+                "vase": (.table, .horizontal, false, false)
             ]
 
 
@@ -140,6 +148,5 @@ public struct ModelType: Hashable, Identifiable, Sendable {
     }
 }
 #endif
-
 
 

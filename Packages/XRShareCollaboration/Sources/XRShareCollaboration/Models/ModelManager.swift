@@ -435,6 +435,9 @@ public final class ModelManager: ObservableObject {
                 // Directly assign the local position so it works even before the anchor
                 // is part of the live RealityKit scene (move(to:) can no-op in that case).
                 entity.setPosition(translatedPosition, relativeTo: anchor)
+                if let worldOrientation = snappedPlacement?.worldOrientation {
+                    entity.setOrientation(worldOrientation, relativeTo: nil)
+                }
                 model.position = entity.position(relativeTo: anchor)
 
                 #if DEBUG

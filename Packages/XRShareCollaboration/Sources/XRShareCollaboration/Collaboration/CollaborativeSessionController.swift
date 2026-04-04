@@ -159,6 +159,7 @@ public final class CollaborativeSessionController: ObservableObject {
     private var roomAnchorUpdatesTask: Task<Void, Never>?
     private var trackedWorldAnchors: [UUID: WorldAnchor] = [:]
     private var trackedPlaneAnchors: [UUID: PlaneAnchor] = [:]
+    private var trackedRoomAnchors: [UUID: Any] = [:]
     private var roomPlaneIDsByRoomID: [UUID: Set<UUID>] = [:]
     private var currentProjectWorldAnchorID: UUID?
     private var currentRoomAnchorID: UUID?
@@ -292,6 +293,7 @@ public final class CollaborativeSessionController: ObservableObject {
         isSessionRunning = false
         trackedWorldAnchors.removeAll()
         trackedPlaneAnchors.removeAll()
+        trackedRoomAnchors.removeAll()
         roomPlaneIDsByRoomID.removeAll()
         currentProjectWorldAnchorID = nil
         currentRoomAnchorID = nil
@@ -798,6 +800,9 @@ public final class CollaborativeSessionController: ObservableObject {
 
     @available(visionOS 2.0, *)
     private func refreshTrackedRoomAnchors(using provider: RoomTrackingProvider) async {
+        trackedRoomAnchors = Dictionary(
+            uniqueKeysWithValues: provider.allAnchors.map { ($0.id, $0) }
+        )
         roomPlaneIDsByRoomID = Dictionary(
             uniqueKeysWithValues: provider.allAnchors.map { ($0.id, Set($0.planeAnchorIDs)) }
         )
@@ -850,11 +855,13 @@ public final class CollaborativeSessionController: ObservableObject {
     private func handleRoomAnchorUpdate(_ update: AnchorUpdate<RoomAnchor>) {
         switch update.event {
         case .added, .updated:
+            trackedRoomAnchors[update.anchor.id] = update.anchor
             roomPlaneIDsByRoomID[update.anchor.id] = Set(update.anchor.planeAnchorIDs)
             if update.anchor.isCurrentRoom {
                 currentRoomAnchorID = update.anchor.id
             }
         case .removed:
+            trackedRoomAnchors.removeValue(forKey: update.anchor.id)
             roomPlaneIDsByRoomID.removeValue(forKey: update.anchor.id)
             if currentRoomAnchorID == update.anchor.id {
                 currentRoomAnchorID = nil
@@ -872,6 +879,19 @@ public final class CollaborativeSessionController: ObservableObject {
         let deviceAnchor = worldTrackingProvider.queryDeviceAnchor(atTimestamp: CACurrentMediaTime())
         guard let deviceAnchor, deviceAnchor.isTracked else { return nil }
 
+        if #available(visionOS 2.0, *),
+           let currentRoomAnchor {
+            if let placement = RoomMeshPlacementEngine.placementForSpawn(
+                entity: entity,
+                modelType: modelType,
+                sharedAnchor: arViewModel.sharedAnchorEntity,
+                deviceTransform: deviceAnchor.originFromAnchorTransform,
+                roomAnchor: currentRoomAnchor
+            ) {
+                return placement
+            }
+        }
+
         return SurfaceSnappingEngine.placementForSpawn(
             entity: entity,
             modelType: modelType,
@@ -885,16 +905,49 @@ public final class CollaborativeSessionController: ObservableObject {
     private func snapManipulatedEntity(_ entity: Entity, instanceID: UUID) async {
         guard let model = modelManager.modelDict[instanceID] else { return }
         guard entity.parent === arViewModel.sharedAnchorEntity else { return }
+        let viewerWorldPosition: SIMD3<Float>
+        if let deviceTransform = worldTrackingProvider?
+            .queryDeviceAnchor(atTimestamp: CACurrentMediaTime())?
+            .originFromAnchorTransform {
+            viewerWorldPosition = SIMD3<Float>(
+                deviceTransform.columns.3.x,
+                deviceTransform.columns.3.y,
+                deviceTransform.columns.3.z
+            )
+        } else {
+            viewerWorldPosition = entity.position(relativeTo: nil)
+        }
+
+        if #available(visionOS 2.0, *),
+           let currentRoomAnchor,
+           let placement = RoomMeshPlacementEngine.placementForManipulation(
+               entity: entity,
+               modelType: model.modelType,
+               sharedAnchor: arViewModel.sharedAnchorEntity,
+               viewerWorldPosition: viewerWorldPosition,
+               roomAnchor: currentRoomAnchor
+           ) {
+            entity.setPosition(placement.localPosition, relativeTo: arViewModel.sharedAnchorEntity)
+            if let worldOrientation = placement.worldOrientation {
+                entity.setOrientation(worldOrientation, relativeTo: nil)
+            }
+            selectionIndicatorManager.updateIndicatorPosition()
+            return
+        }
 
         guard let placement = SurfaceSnappingEngine.placementForManipulation(
             entity: entity,
             modelType: model.modelType,
             sharedAnchor: arViewModel.sharedAnchorEntity,
             planeAnchors: Array(trackedPlaneAnchors.values),
-            allowedPlaneIDs: currentRoomPlaneIDs
+            allowedPlaneIDs: currentRoomPlaneIDs,
+            viewerWorldPosition: viewerWorldPosition
         ) else { return }
 
         entity.setPosition(placement.localPosition, relativeTo: arViewModel.sharedAnchorEntity)
+        if let worldOrientation = placement.worldOrientation {
+            entity.setOrientation(worldOrientation, relativeTo: nil)
+        }
         selectionIndicatorManager.updateIndicatorPosition()
     }
 
@@ -904,6 +957,12 @@ public final class CollaborativeSessionController: ObservableObject {
             return nil
         }
         return ids.isEmpty ? nil : ids
+    }
+
+    @available(visionOS 2.0, *)
+    private var currentRoomAnchor: RoomAnchor? {
+        guard let currentRoomAnchorID else { return nil }
+        return trackedRoomAnchors[currentRoomAnchorID] as? RoomAnchor
     }
     #endif
 

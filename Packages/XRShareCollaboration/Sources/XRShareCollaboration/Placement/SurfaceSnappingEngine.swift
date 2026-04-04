@@ -8,16 +8,29 @@ struct SurfacePlacement {
     }
 
     let localPosition: SIMD3<Float>
+    let worldOrientation: simd_quatf?
     let source: Source
 }
 
 enum SurfaceSnappingEngine {
     struct Options {
         var maxSnapDistance: Float
+        var maxPerpendicularDistance: Float
+        var maxEdgeOverflowDistance: Float
         var preferredSpawnDistance: Float
 
-        static let initialPlacement = Options(maxSnapDistance: 3.0, preferredSpawnDistance: 1.2)
-        static let manipulation = Options(maxSnapDistance: 0.6, preferredSpawnDistance: 0)
+        static let initialPlacement = Options(
+            maxSnapDistance: 0.5,
+            maxPerpendicularDistance: 0.28,
+            maxEdgeOverflowDistance: 0.12,
+            preferredSpawnDistance: 1.2
+        )
+        static let manipulation = Options(
+            maxSnapDistance: 0.12,
+            maxPerpendicularDistance: 0.06,
+            maxEdgeOverflowDistance: 0.03,
+            preferredSpawnDistance: 0
+        )
     }
 
     static func placementForSpawn(
@@ -39,10 +52,10 @@ enum SurfaceSnappingEngine {
             modelType: modelType,
             sharedAnchor: sharedAnchor,
             preferredWorldPoint: targetPoint,
-            deviceWorldPosition: deviceTransform.translation,
+            viewerWorldPosition: deviceTransform.translation,
             planeAnchors: planeAnchors,
             allowedPlaneIDs: allowedPlaneIDs,
-            maxSnapDistance: options.maxSnapDistance
+            options: options
         )
     }
 
@@ -52,20 +65,20 @@ enum SurfaceSnappingEngine {
         sharedAnchor: AnchorEntity,
         planeAnchors: [PlaneAnchor],
         allowedPlaneIDs: Set<UUID>?,
+        viewerWorldPosition: SIMD3<Float>,
         options: Options = .manipulation
     ) -> SurfacePlacement? {
         let referencePoint = snapReferencePoint(for: entity, modelType: modelType, relativeTo: nil)
-        let devicePosition = entity.position(relativeTo: nil)
 
         return resolvePlacement(
             entity: entity,
             modelType: modelType,
             sharedAnchor: sharedAnchor,
             preferredWorldPoint: referencePoint,
-            deviceWorldPosition: devicePosition,
+            viewerWorldPosition: viewerWorldPosition,
             planeAnchors: planeAnchors,
             allowedPlaneIDs: allowedPlaneIDs,
-            maxSnapDistance: options.maxSnapDistance
+            options: options
         )
     }
 
@@ -74,10 +87,10 @@ enum SurfaceSnappingEngine {
         modelType: ModelType,
         sharedAnchor: AnchorEntity,
         preferredWorldPoint: SIMD3<Float>,
-        deviceWorldPosition: SIMD3<Float>,
+        viewerWorldPosition: SIMD3<Float>,
         planeAnchors: [PlaneAnchor],
         allowedPlaneIDs: Set<UUID>?,
-        maxSnapDistance: Float
+        options: Options
     ) -> SurfacePlacement? {
         let candidates = filteredPlanes(
             for: modelType,
@@ -88,38 +101,54 @@ enum SurfaceSnappingEngine {
         guard !candidates.isEmpty else { return nil }
 
         let bounds = entity.components[ModelBoundsComponent.self]
-        var bestCandidate: (planeID: UUID, worldPosition: SIMD3<Float>, distance: Float)?
+        var bestCandidate: (
+            planeID: UUID,
+            worldPosition: SIMD3<Float>,
+            worldOrientation: simd_quatf?,
+            distance: Float
+        )?
 
         for plane in candidates {
-            guard let snappedPoint = closestPoint(
-                on: plane,
-                to: preferredWorldPoint
-            ) else { continue }
-
-            let distance = simd_distance(snappedPoint, preferredWorldPoint)
-            guard distance <= maxSnapDistance else { continue }
+            guard let snappedPoint = closestPoint(on: plane, to: preferredWorldPoint) else { continue }
+            guard snappedPoint.correctionDistance <= options.maxSnapDistance else { continue }
+            guard snappedPoint.perpendicularDistance <= options.maxPerpendicularDistance else { continue }
+            guard snappedPoint.edgeOverflowDistance <= options.maxEdgeOverflowDistance else { continue }
 
             let worldPosition = resolvedWorldPosition(
-                for: entity,
                 bounds: bounds,
-                modelType: modelType,
-                snappedPoint: snappedPoint,
+                snappedPoint: snappedPoint.worldPoint,
                 plane: plane,
-                deviceWorldPosition: deviceWorldPosition
+                viewerWorldPosition: viewerWorldPosition
+            )
+            let worldOrientation = resolvedWorldOrientation(
+                for: entity,
+                plane: plane,
+                viewerWorldPosition: viewerWorldPosition
             )
 
             if let currentBest = bestCandidate {
-                if distance < currentBest.distance {
-                    bestCandidate = (plane.id, worldPosition, distance)
+                if snappedPoint.correctionDistance < currentBest.distance {
+                    bestCandidate = (
+                        plane.id,
+                        worldPosition,
+                        worldOrientation,
+                        snappedPoint.correctionDistance
+                    )
                 }
             } else {
-                bestCandidate = (plane.id, worldPosition, distance)
+                bestCandidate = (
+                    plane.id,
+                    worldPosition,
+                    worldOrientation,
+                    snappedPoint.correctionDistance
+                )
             }
         }
 
         guard let bestCandidate else { return nil }
         return SurfacePlacement(
             localPosition: worldToLocal(bestCandidate.worldPosition, relativeTo: sharedAnchor),
+            worldOrientation: bestCandidate.worldOrientation,
             source: .plane(bestCandidate.planeID)
         )
     }
@@ -213,18 +242,16 @@ enum SurfaceSnappingEngine {
     }
 
     private static func resolvedWorldPosition(
-        for entity: Entity,
         bounds: ModelBoundsComponent?,
-        modelType: ModelType,
         snappedPoint: SIMD3<Float>,
         plane: PlaneAnchor,
-        deviceWorldPosition: SIMD3<Float>
+        viewerWorldPosition: SIMD3<Float>
     ) -> SIMD3<Float> {
         if plane.alignment == .vertical {
             let modelCenter = bounds?.center ?? .zero
             let depth = bounds?.extents.z ?? 0
             var normal = normalize(plane.normal)
-            if simd_dot(normal, deviceWorldPosition - snappedPoint) < 0 {
+            if simd_dot(normal, viewerWorldPosition - snappedPoint) < 0 {
                 normal *= -1
             }
             let wallPadding = max(depth * 0.5, 0.01)
@@ -235,7 +262,30 @@ enum SurfaceSnappingEngine {
         return snappedPoint - placementOffset
     }
 
-    private static func closestPoint(on plane: PlaneAnchor, to worldPoint: SIMD3<Float>) -> SIMD3<Float>? {
+    private static func resolvedWorldOrientation(
+        for entity: Entity,
+        plane: PlaneAnchor,
+        viewerWorldPosition: SIMD3<Float>
+    ) -> simd_quatf? {
+        let worldTransform = entity.transformMatrix(relativeTo: nil)
+        let worldUp = SIMD3<Float>(0, 1, 0)
+
+        if plane.alignment == .vertical {
+            var outward = normalize(plane.normal)
+            let planeOrigin = plane.originFromAnchorTransform.translation
+            if simd_dot(outward, viewerWorldPosition - planeOrigin) < 0 {
+                outward *= -1
+            }
+            return makeOrientation(forward: outward, up: worldUp)
+        }
+
+        guard let forward = horizontalForwardVector(from: worldTransform, up: worldUp) else {
+            return nil
+        }
+        return makeOrientation(forward: forward, up: worldUp)
+    }
+
+    private static func closestPoint(on plane: PlaneAnchor, to worldPoint: SIMD3<Float>) -> ClosestPlanePoint? {
         let planeTransform = plane.originFromAnchorTransform
         let localPoint = planeTransform.inverse.transformPoint(worldPoint)
         let extent = plane.geometry.extent
@@ -247,14 +297,26 @@ enum SurfaceSnappingEngine {
             let clampedX = clamp(localPoint.x, min: -halfWidth, max: halfWidth)
             let clampedY = clamp(localPoint.y, min: -halfHeight, max: halfHeight)
             let localSnap = SIMD3<Float>(clampedX, clampedY, 0)
-            return planeTransform.transformPoint(localSnap)
+            let edgeOverflow = simd_length(SIMD2<Float>(localPoint.x - clampedX, localPoint.y - clampedY))
+            return ClosestPlanePoint(
+                worldPoint: planeTransform.transformPoint(localSnap),
+                correctionDistance: simd_distance(localPoint, localSnap),
+                perpendicularDistance: abs(localPoint.z),
+                edgeOverflowDistance: edgeOverflow
+            )
         case .horizontal:
             let halfWidth = extent.width * 0.5
             let halfDepth = extent.height * 0.5
             let clampedX = clamp(localPoint.x, min: -halfWidth, max: halfWidth)
             let clampedZ = clamp(localPoint.z, min: -halfDepth, max: halfDepth)
             let localSnap = SIMD3<Float>(clampedX, 0, clampedZ)
-            return planeTransform.transformPoint(localSnap)
+            let edgeOverflow = simd_length(SIMD2<Float>(localPoint.x - clampedX, localPoint.z - clampedZ))
+            return ClosestPlanePoint(
+                worldPoint: planeTransform.transformPoint(localSnap),
+                correctionDistance: simd_distance(localPoint, localSnap),
+                perpendicularDistance: abs(localPoint.y),
+                edgeOverflowDistance: edgeOverflow
+            )
         @unknown default:
             return nil
         }
@@ -268,6 +330,33 @@ enum SurfaceSnappingEngine {
         Swift.max(minValue, Swift.min(maxValue, value))
     }
 
+    private static func horizontalForwardVector(from transform: simd_float4x4, up: SIMD3<Float>) -> SIMD3<Float>? {
+        var forward = SIMD3<Float>(transform.columns.2.x, transform.columns.2.y, transform.columns.2.z)
+        forward -= simd_dot(forward, up) * up
+        let magnitude = simd_length_squared(forward)
+        guard magnitude >= 1e-6 else { return nil }
+        return simd_normalize(forward)
+    }
+
+    private static func makeOrientation(forward: SIMD3<Float>, up: SIMD3<Float>) -> simd_quatf {
+        let normalizedUp = simd_normalize(up)
+        let normalizedForward = simd_normalize(forward)
+        var right = simd_cross(normalizedUp, normalizedForward)
+        if simd_length_squared(right) < 1e-6 {
+            right = SIMD3<Float>(1, 0, 0)
+        }
+        right = simd_normalize(right)
+        let adjustedForward = simd_normalize(simd_cross(right, normalizedUp))
+        let rotationMatrix = float3x3(columns: (right, normalizedUp, adjustedForward))
+        return simd_quaternion(rotationMatrix)
+    }
+
+    private struct ClosestPlanePoint {
+        let worldPoint: SIMD3<Float>
+        let correctionDistance: Float
+        let perpendicularDistance: Float
+        let edgeOverflowDistance: Float
+    }
 }
 
 private extension simd_float4x4 {
