@@ -71,9 +71,11 @@ enum RoomMeshPlacementEngine {
         guard !candidates.isEmpty else { return nil }
 
         let bounds = entity.components[ModelBoundsComponent.self]
+        let existingSnapState = entity.components[SnapStateComponent.self]
         var bestCandidate: (
             worldPosition: SIMD3<Float>,
             worldOrientation: simd_quatf?,
+            classification: String?,
             score: Float
         )?
 
@@ -98,9 +100,23 @@ enum RoomMeshPlacementEngine {
                 surfaceNormal: candidate.normal,
                 viewerWorldPosition: viewerWorldPosition
             )
+            let supportOverflow = supportFitOverflow(
+                for: entity,
+                bounds: bounds,
+                modelType: modelType,
+                worldPosition: worldPosition,
+                worldOrientation: worldOrientation ?? entity.orientation(relativeTo: nil),
+                roomAnchor: roomAnchor,
+                candidates: candidates,
+                preferredClassification: candidate.classification,
+                preferredNormal: candidate.normal
+            )
+            guard supportOverflow <= options.maxSupportDistance else { continue }
+
             let score = candidate.correctionDistance
                 + (candidate.perpendicularDistance * 0.35)
                 + (candidate.edgeOverflowDistance * 0.2)
+                + (supportOverflow * 0.45)
                 + surfacePenalty(for: modelType, classification: candidate.classification)
                 + orientationPenalty(
                     for: entity,
@@ -108,12 +124,18 @@ enum RoomMeshPlacementEngine {
                     surfaceNormal: candidate.normal,
                     viewerWorldPosition: viewerWorldPosition
                 )
+                + sameSurfacePenalty(
+                    existingSnapState,
+                    source: .roomMesh(roomAnchor.id),
+                    classification: classificationDescription(for: candidate.classification)
+                )
 
             if let currentBest = bestCandidate {
                 if score < currentBest.score {
                     bestCandidate = (
                         worldPosition,
                         worldOrientation,
+                        classificationDescription(for: candidate.classification),
                         score
                     )
                 }
@@ -121,6 +143,7 @@ enum RoomMeshPlacementEngine {
                 bestCandidate = (
                     worldPosition,
                     worldOrientation,
+                    classificationDescription(for: candidate.classification),
                     score
                 )
             }
@@ -130,7 +153,9 @@ enum RoomMeshPlacementEngine {
         return SurfacePlacement(
             localPosition: worldToLocal(bestCandidate.worldPosition, relativeTo: sharedAnchor),
             worldOrientation: bestCandidate.worldOrientation,
-            source: .roomMesh(roomAnchor.id)
+            source: .roomMesh(roomAnchor.id),
+            classification: bestCandidate.classification,
+            score: bestCandidate.score
         )
     }
 
@@ -213,6 +238,9 @@ enum RoomMeshPlacementEngine {
         let projectedPoint = preferredWorldPoint - (normal * signedDistance)
 
         return TriangleCandidate(
+            a: a,
+            b: b,
+            c: c,
             closestPoint: closestPoint,
             classification: classification,
             normal: normal,
@@ -449,6 +477,21 @@ enum RoomMeshPlacementEngine {
         return (1 - alignment) * 0.025
     }
 
+    private static func sameSurfacePenalty(
+        _ snapState: SnapStateComponent?,
+        source: SurfacePlacement.Source,
+        classification: String?
+    ) -> Float {
+        guard let snapState else { return 0 }
+        guard snapState.source == source.kind else { return 0 }
+        guard snapState.surfaceID == source.surfaceID else { return 0 }
+
+        if snapState.classification == classification {
+            return -0.03
+        }
+        return -0.015
+    }
+
     private static func ceilingAttachmentOffset(from bounds: ModelBoundsComponent?) -> SIMD3<Float> {
         guard let bounds else { return .zero }
         return SIMD3<Float>(
@@ -548,6 +591,147 @@ enum RoomMeshPlacementEngine {
         anchor.transform.matrix.inverse.transformPoint(worldPoint)
     }
 
+    private static func supportFitOverflow(
+        for entity: Entity,
+        bounds: ModelBoundsComponent?,
+        modelType: ModelType,
+        worldPosition: SIMD3<Float>,
+        worldOrientation: simd_quatf,
+        roomAnchor: RoomAnchor,
+        candidates: [TriangleCandidate],
+        preferredClassification: MeshAnchor.MeshClassification?,
+        preferredNormal: SIMD3<Float>
+    ) -> Float {
+        let localSupportPoints = supportLocalPoints(bounds: bounds, modelType: modelType)
+        guard !localSupportPoints.isEmpty else { return 0 }
+
+        var maxOverflow: Float = 0
+        for localPoint in localSupportPoints {
+            let worldPoint = worldPosition + worldOrientation.act(localPoint)
+            guard roomAnchor.contains(worldPoint) else { return .infinity }
+
+            let pointOverflow = nearestSurfaceDistance(
+                from: worldPoint,
+                candidates: candidates,
+                preferredClassification: preferredClassification,
+                preferredNormal: preferredNormal
+            )
+            maxOverflow = max(maxOverflow, pointOverflow)
+        }
+
+        return maxOverflow
+    }
+
+    private static func nearestSurfaceDistance(
+        from point: SIMD3<Float>,
+        candidates: [TriangleCandidate],
+        preferredClassification: MeshAnchor.MeshClassification?,
+        preferredNormal: SIMD3<Float>
+    ) -> Float {
+        var bestDistance = Float.infinity
+
+        for candidate in candidates {
+            if let preferredClassification,
+               let classification = candidate.classification,
+               classification != preferredClassification {
+                continue
+            }
+
+            let normalAlignment = simd_dot(candidate.normal, preferredNormal)
+            if normalAlignment < 0.94 {
+                continue
+            }
+
+            let closestPoint = closestPointOnTriangle(
+                point: point,
+                a: candidate.a,
+                b: candidate.b,
+                c: candidate.c
+            )
+            bestDistance = min(bestDistance, simd_distance(point, closestPoint))
+        }
+
+        return bestDistance
+    }
+
+    private static func supportLocalPoints(
+        bounds: ModelBoundsComponent?,
+        modelType: ModelType
+    ) -> [SIMD3<Float>] {
+        guard let bounds else { return [] }
+
+        let halfX = bounds.extents.x * 0.48
+        let halfY = bounds.extents.y * 0.48
+        let halfZ = bounds.extents.z * 0.48
+
+        if modelType.classification == .ceiling {
+            let y = bounds.center.y + (bounds.extents.y * 0.5)
+            return [
+                SIMD3<Float>(bounds.center.x - halfX, y, bounds.center.z - halfZ),
+                SIMD3<Float>(bounds.center.x - halfX, y, bounds.center.z + halfZ),
+                SIMD3<Float>(bounds.center.x + halfX, y, bounds.center.z - halfZ),
+                SIMD3<Float>(bounds.center.x + halfX, y, bounds.center.z + halfZ)
+            ]
+        }
+
+        if modelType.plane == .vertical {
+            let z = bounds.center.z - (bounds.extents.z * 0.5)
+            return [
+                SIMD3<Float>(bounds.center.x - halfX, bounds.center.y - halfY, z),
+                SIMD3<Float>(bounds.center.x - halfX, bounds.center.y + halfY, z),
+                SIMD3<Float>(bounds.center.x + halfX, bounds.center.y - halfY, z),
+                SIMD3<Float>(bounds.center.x + halfX, bounds.center.y + halfY, z)
+            ]
+        }
+
+        let y = bounds.center.y - (bounds.extents.y * 0.5)
+        return [
+            SIMD3<Float>(bounds.center.x - halfX, y, bounds.center.z - halfZ),
+            SIMD3<Float>(bounds.center.x - halfX, y, bounds.center.z + halfZ),
+            SIMD3<Float>(bounds.center.x + halfX, y, bounds.center.z - halfZ),
+            SIMD3<Float>(bounds.center.x + halfX, y, bounds.center.z + halfZ)
+        ]
+    }
+
+    private static func classificationDescription(
+        for classification: MeshAnchor.MeshClassification?
+    ) -> String? {
+        guard let classification else { return nil }
+
+        switch classification {
+        case .none:
+            return "none"
+        case .wall:
+            return "wall"
+        case .floor:
+            return "floor"
+        case .ceiling:
+            return "ceiling"
+        case .table:
+            return "table"
+        case .seat:
+            return "seat"
+        case .window:
+            return "window"
+        case .door:
+            return "door"
+        case .stairs:
+            return "stairs"
+        case .bed:
+            return "bed"
+        case .cabinet:
+            return "cabinet"
+        case .homeAppliance:
+            return "homeAppliance"
+        case .tv:
+            return "tv"
+        case .plant:
+            return "plant"
+        @unknown default:
+            return "unknown"
+        }
+    }
+
     private static func horizontalForwardVector(from transform: simd_float4x4, up: SIMD3<Float>) -> SIMD3<Float>? {
         var forward = SIMD3<Float>(transform.columns.2.x, transform.columns.2.y, transform.columns.2.z)
         forward -= simd_dot(forward, up) * up
@@ -570,6 +754,9 @@ enum RoomMeshPlacementEngine {
     }
 
     private struct TriangleCandidate {
+        let a: SIMD3<Float>
+        let b: SIMD3<Float>
+        let c: SIMD3<Float>
         let closestPoint: SIMD3<Float>
         let classification: MeshAnchor.MeshClassification?
         let normal: SIMD3<Float>

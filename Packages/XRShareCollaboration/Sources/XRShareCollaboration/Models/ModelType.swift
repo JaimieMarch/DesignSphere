@@ -100,7 +100,6 @@ public struct ModelType: Hashable, Identifiable, Sendable {
 
 
             let metadata: [String: (AnchoringComponent.Target.Classification, AnchoringComponent.Target.Alignment, Bool, Bool)] = [
-
                 "65_in_tv": (.wall, .vertical, false, false),
                 "chair": (.floor, .horizontal, true, false),
                 "chandelier": (.ceiling, .horizontal, false, false),
@@ -108,11 +107,7 @@ public struct ModelType: Hashable, Identifiable, Sendable {
                 "coffee_table": (.floor, .horizontal, true, false),
                 "couch": (.floor, .horizontal, true, false),
                 "dinner_table": (.floor, .horizontal, true, false),
-                "lamp": (.table, .horizontal, false, false),
-                "painting": (.wall, .vertical, false, false),
-                "poster": (.wall, .vertical, false, true),
                 "stool": (.floor, .horizontal, true, false),
-                "table": (.floor, .horizontal, true, false),
                 "vase": (.table, .horizontal, false, false)
             ]
 
@@ -132,8 +127,14 @@ public struct ModelType: Hashable, Identifiable, Sendable {
                     )
                 }
 
-                // Fallback if unclassified
-                return ModelType(rawValue: originalName)
+                let inferred = inferredMetadata(for: key)
+                return ModelType(
+                    rawValue: originalName,
+                    classification: inferred.0,
+                    plane: inferred.1,
+                    needsPhysics: inferred.2,
+                    canStack: inferred.3
+                )
             }
 
             return models
@@ -146,7 +147,33 @@ public struct ModelType: Hashable, Identifiable, Sendable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(rawValue.lowercased())
     }
+
+    private static func inferredMetadata(
+        for key: String
+    ) -> (AnchoringComponent.Target.Classification, AnchoringComponent.Target.Alignment, Bool, Bool) {
+        let words = Set(key.split(whereSeparator: { $0 == "_" || $0 == "-" }).map(String.init))
+
+        if words.contains("tv") || words.contains("poster") || words.contains("painting") || words.contains("mirror") || words.contains("art") {
+            return (.wall, .vertical, false, false)
+        }
+
+        if words.contains("chandelier") || words.contains("ceiling") || words.contains("pendant") {
+            return (.ceiling, .horizontal, false, false)
+        }
+
+        if words.contains("lamp") || words.contains("vase") || words.contains("plant") {
+            return (.table, .horizontal, false, false)
+        }
+
+        if words.contains("chair") || words.contains("stool") || words.contains("sofa") || words.contains("couch")
+            || words.contains("table") || words.contains("desk") || words.contains("closet") || words.contains("dresser")
+            || words.contains("cabinet") || words.contains("bed") || words.contains("shelf") {
+            return (.floor, .horizontal, true, false)
+        }
+
+        // Imported or unknown assets should behave conservatively and prefer the floor.
+        return (.floor, .horizontal, false, false)
+    }
 }
 #endif
-
 

@@ -438,6 +438,14 @@ public final class ModelManager: ObservableObject {
                 if let worldOrientation = snappedPlacement?.worldOrientation {
                     entity.setOrientation(worldOrientation, relativeTo: nil)
                 }
+                if let snappedPlacement {
+                    applySnapState(from: snappedPlacement, to: entity, phase: "spawn")
+                } else {
+                    entity.components[SnapStateComponent.self] = nil
+                    #if DEBUG
+                    print("Snap[spawn] cleared: falling back to head-relative placement")
+                    #endif
+                }
                 model.position = entity.position(relativeTo: anchor)
 
                 #if DEBUG
@@ -494,6 +502,22 @@ public final class ModelManager: ObservableObject {
             print("\(modelType.rawValue) chosen – model loaded and selected")
             #endif
         }
+    }
+
+    private func applySnapState(from placement: SurfacePlacement, to entity: Entity, phase: String) {
+        entity.components.set(
+            SnapStateComponent(
+                source: placement.source.kind,
+                surfaceID: placement.source.surfaceID,
+                classification: placement.classification,
+                score: placement.score
+            )
+        )
+
+        #if DEBUG
+        let classification = placement.classification ?? "unclassified"
+        print("Snap[\(phase)] source=\(placement.source.label) classification=\(classification) score=\(String(format: "%.3f", placement.score))")
+        #endif
     }
     
     

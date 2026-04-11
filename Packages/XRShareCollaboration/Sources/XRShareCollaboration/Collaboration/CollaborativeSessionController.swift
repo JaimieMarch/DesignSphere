@@ -905,6 +905,7 @@ public final class CollaborativeSessionController: ObservableObject {
     private func snapManipulatedEntity(_ entity: Entity, instanceID: UUID) async {
         guard let model = modelManager.modelDict[instanceID] else { return }
         guard entity.parent === arViewModel.sharedAnchorEntity else { return }
+        let snapOptions = manipulationSnapOptions(for: entity)
         let viewerWorldPosition: SIMD3<Float>
         if let deviceTransform = worldTrackingProvider?
             .queryDeviceAnchor(atTimestamp: CACurrentMediaTime())?
@@ -925,12 +926,14 @@ public final class CollaborativeSessionController: ObservableObject {
                modelType: model.modelType,
                sharedAnchor: arViewModel.sharedAnchorEntity,
                viewerWorldPosition: viewerWorldPosition,
-               roomAnchor: currentRoomAnchor
+               roomAnchor: currentRoomAnchor,
+               options: snapOptions
            ) {
             entity.setPosition(placement.localPosition, relativeTo: arViewModel.sharedAnchorEntity)
             if let worldOrientation = placement.worldOrientation {
                 entity.setOrientation(worldOrientation, relativeTo: nil)
             }
+            applySnapState(from: placement, to: entity, phase: "manipulation")
             selectionIndicatorManager.updateIndicatorPosition()
             return
         }
@@ -941,14 +944,55 @@ public final class CollaborativeSessionController: ObservableObject {
             sharedAnchor: arViewModel.sharedAnchorEntity,
             planeAnchors: Array(trackedPlaneAnchors.values),
             allowedPlaneIDs: currentRoomPlaneIDs,
-            viewerWorldPosition: viewerWorldPosition
-        ) else { return }
+            viewerWorldPosition: viewerWorldPosition,
+            options: snapOptions
+        ) else {
+            clearSnapState(
+                on: entity,
+                phase: "manipulation",
+                reason: "no compatible room-mesh or plane surface survived snap and footprint thresholds"
+            )
+            return
+        }
 
         entity.setPosition(placement.localPosition, relativeTo: arViewModel.sharedAnchorEntity)
         if let worldOrientation = placement.worldOrientation {
             entity.setOrientation(worldOrientation, relativeTo: nil)
         }
+        applySnapState(from: placement, to: entity, phase: "manipulation")
         selectionIndicatorManager.updateIndicatorPosition()
+    }
+
+    private func manipulationSnapOptions(for entity: Entity) -> SurfaceSnappingEngine.Options {
+        if entity.components[SnapStateComponent.self] != nil {
+            return .manipulation.withHysteresis()
+        }
+        return .manipulation
+    }
+
+    private func applySnapState(from placement: SurfacePlacement, to entity: Entity, phase: String) {
+        entity.components.set(
+            SnapStateComponent(
+                source: placement.source.kind,
+                surfaceID: placement.source.surfaceID,
+                classification: placement.classification,
+                score: placement.score
+            )
+        )
+
+        #if DEBUG
+        let classification = placement.classification ?? "unclassified"
+        print("Snap[\(phase)] source=\(placement.source.label) classification=\(classification) score=\(String(format: "%.3f", placement.score))")
+        #endif
+    }
+
+    private func clearSnapState(on entity: Entity, phase: String, reason: String) {
+        guard entity.components[SnapStateComponent.self] != nil else { return }
+        entity.components[SnapStateComponent.self] = nil
+
+        #if DEBUG
+        print("Snap[\(phase)] cleared: \(reason)")
+        #endif
     }
 
     private var currentRoomPlaneIDs: Set<UUID>? {

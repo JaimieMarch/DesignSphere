@@ -6,11 +6,38 @@ struct SurfacePlacement {
     enum Source {
         case plane(UUID)
         case roomMesh(UUID)
+
+        var kind: SnapStateComponent.SourceKind {
+            switch self {
+            case .plane:
+                return .plane
+            case .roomMesh:
+                return .roomMesh
+            }
+        }
+
+        var surfaceID: UUID {
+            switch self {
+            case .plane(let id), .roomMesh(let id):
+                return id
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .plane:
+                return "plane"
+            case .roomMesh:
+                return "roomMesh"
+            }
+        }
     }
 
     let localPosition: SIMD3<Float>
     let worldOrientation: simd_quatf?
     let source: Source
+    let classification: String?
+    let score: Float
 }
 
 enum SurfaceSnappingEngine {
@@ -18,20 +45,33 @@ enum SurfaceSnappingEngine {
         var maxSnapDistance: Float
         var maxPerpendicularDistance: Float
         var maxEdgeOverflowDistance: Float
+        var maxSupportDistance: Float
         var preferredSpawnDistance: Float
 
         static let initialPlacement = Options(
             maxSnapDistance: 0.5,
             maxPerpendicularDistance: 0.28,
             maxEdgeOverflowDistance: 0.12,
+            maxSupportDistance: 0.08,
             preferredSpawnDistance: 1.2
         )
         static let manipulation = Options(
             maxSnapDistance: 0.12,
             maxPerpendicularDistance: 0.06,
             maxEdgeOverflowDistance: 0.03,
+            maxSupportDistance: 0.035,
             preferredSpawnDistance: 0
         )
+
+        func withHysteresis() -> Options {
+            Options(
+                maxSnapDistance: maxSnapDistance + 0.04,
+                maxPerpendicularDistance: maxPerpendicularDistance + 0.02,
+                maxEdgeOverflowDistance: maxEdgeOverflowDistance + 0.02,
+                maxSupportDistance: maxSupportDistance + 0.015,
+                preferredSpawnDistance: preferredSpawnDistance
+            )
+        }
     }
 
     static func placementForSpawn(
@@ -102,10 +142,12 @@ enum SurfaceSnappingEngine {
         guard !candidates.isEmpty else { return nil }
 
         let bounds = entity.components[ModelBoundsComponent.self]
+        let existingSnapState = entity.components[SnapStateComponent.self]
         var bestCandidate: (
             planeID: UUID,
             worldPosition: SIMD3<Float>,
             worldOrientation: simd_quatf?,
+            classification: String?,
             score: Float
         )?
 
@@ -126,14 +168,30 @@ enum SurfaceSnappingEngine {
                 plane: plane,
                 viewerWorldPosition: viewerWorldPosition
             )
+            let supportOverflow = supportFitOverflow(
+                for: entity,
+                bounds: bounds,
+                modelType: modelType,
+                worldPosition: worldPosition,
+                worldOrientation: worldOrientation ?? entity.orientation(relativeTo: nil),
+                plane: plane
+            )
+            guard supportOverflow <= options.maxSupportDistance else { continue }
+
             let score = snappedPoint.correctionDistance
                 + (snappedPoint.perpendicularDistance * 0.35)
                 + (snappedPoint.edgeOverflowDistance * 0.2)
+                + (supportOverflow * 0.45)
                 + surfacePenalty(for: modelType, classification: plane.classification)
                 + orientationPenalty(
                     for: entity,
                     plane: plane,
                     viewerWorldPosition: viewerWorldPosition
+                )
+                + sameSurfacePenalty(
+                    existingSnapState,
+                    source: .plane(plane.id),
+                    classification: classificationDescription(for: plane.classification)
                 )
 
             if let currentBest = bestCandidate {
@@ -142,6 +200,7 @@ enum SurfaceSnappingEngine {
                         plane.id,
                         worldPosition,
                         worldOrientation,
+                        classificationDescription(for: plane.classification),
                         score
                     )
                 }
@@ -150,6 +209,7 @@ enum SurfaceSnappingEngine {
                     plane.id,
                     worldPosition,
                     worldOrientation,
+                    classificationDescription(for: plane.classification),
                     score
                 )
             }
@@ -159,7 +219,9 @@ enum SurfaceSnappingEngine {
         return SurfacePlacement(
             localPosition: worldToLocal(bestCandidate.worldPosition, relativeTo: sharedAnchor),
             worldOrientation: bestCandidate.worldOrientation,
-            source: .plane(bestCandidate.planeID)
+            source: .plane(bestCandidate.planeID),
+            classification: bestCandidate.classification,
+            score: bestCandidate.score
         )
     }
 
@@ -291,6 +353,21 @@ enum SurfaceSnappingEngine {
         return (1 - alignment) * 0.025
     }
 
+    private static func sameSurfacePenalty(
+        _ snapState: SnapStateComponent?,
+        source: SurfacePlacement.Source,
+        classification: String?
+    ) -> Float {
+        guard let snapState else { return 0 }
+        guard snapState.source == source.kind else { return 0 }
+        guard snapState.surfaceID == source.surfaceID else { return 0 }
+
+        if snapState.classification == classification {
+            return -0.03
+        }
+        return -0.015
+    }
+
     private static func deviceTargetPoint(
         from deviceTransform: simd_float4x4,
         preferredDistance: Float
@@ -405,8 +482,121 @@ enum SurfaceSnappingEngine {
         anchor.transform.matrix.inverse.transformPoint(worldPoint)
     }
 
+    private static func supportFitOverflow(
+        for entity: Entity,
+        bounds: ModelBoundsComponent?,
+        modelType: ModelType,
+        worldPosition: SIMD3<Float>,
+        worldOrientation: simd_quatf,
+        plane: PlaneAnchor
+    ) -> Float {
+        let localSupportPoints = supportLocalPoints(bounds: bounds, modelType: modelType)
+        guard !localSupportPoints.isEmpty else { return 0 }
+
+        let planeTransform = plane.originFromAnchorTransform
+        let inversePlaneTransform = planeTransform.inverse
+        let extent = plane.geometry.extent
+        var maxOverflow: Float = 0
+
+        for localPoint in localSupportPoints {
+            let worldPoint = worldPosition + worldOrientation.act(localPoint)
+            let planeLocalPoint = inversePlaneTransform.transformPoint(worldPoint)
+
+            let overflow: Float
+            let perpendicular: Float
+            switch plane.alignment {
+            case .vertical:
+                let halfWidth = extent.width * 0.5
+                let halfHeight = extent.height * 0.5
+                let clampedX = clamp(planeLocalPoint.x, min: -halfWidth, max: halfWidth)
+                let clampedY = clamp(planeLocalPoint.y, min: -halfHeight, max: halfHeight)
+                overflow = simd_length(SIMD2<Float>(planeLocalPoint.x - clampedX, planeLocalPoint.y - clampedY))
+                perpendicular = abs(planeLocalPoint.z)
+            case .horizontal:
+                let halfWidth = extent.width * 0.5
+                let halfDepth = extent.height * 0.5
+                let clampedX = clamp(planeLocalPoint.x, min: -halfWidth, max: halfWidth)
+                let clampedZ = clamp(planeLocalPoint.z, min: -halfDepth, max: halfDepth)
+                overflow = simd_length(SIMD2<Float>(planeLocalPoint.x - clampedX, planeLocalPoint.z - clampedZ))
+                perpendicular = abs(planeLocalPoint.y)
+            @unknown default:
+                return .infinity
+            }
+
+            maxOverflow = max(maxOverflow, max(overflow, perpendicular))
+        }
+
+        return maxOverflow
+    }
+
+    private static func supportLocalPoints(
+        bounds: ModelBoundsComponent?,
+        modelType: ModelType
+    ) -> [SIMD3<Float>] {
+        guard let bounds else { return [] }
+
+        let halfX = bounds.extents.x * 0.48
+        let halfY = bounds.extents.y * 0.48
+        let halfZ = bounds.extents.z * 0.48
+
+        if modelType.classification == .ceiling {
+            let y = bounds.center.y + (bounds.extents.y * 0.5)
+            return [
+                SIMD3<Float>(bounds.center.x - halfX, y, bounds.center.z - halfZ),
+                SIMD3<Float>(bounds.center.x - halfX, y, bounds.center.z + halfZ),
+                SIMD3<Float>(bounds.center.x + halfX, y, bounds.center.z - halfZ),
+                SIMD3<Float>(bounds.center.x + halfX, y, bounds.center.z + halfZ)
+            ]
+        }
+
+        if modelType.plane == .vertical {
+            let z = bounds.center.z - (bounds.extents.z * 0.5)
+            return [
+                SIMD3<Float>(bounds.center.x - halfX, bounds.center.y - halfY, z),
+                SIMD3<Float>(bounds.center.x - halfX, bounds.center.y + halfY, z),
+                SIMD3<Float>(bounds.center.x + halfX, bounds.center.y - halfY, z),
+                SIMD3<Float>(bounds.center.x + halfX, bounds.center.y + halfY, z)
+            ]
+        }
+
+        let y = bounds.center.y - (bounds.extents.y * 0.5)
+        return [
+            SIMD3<Float>(bounds.center.x - halfX, y, bounds.center.z - halfZ),
+            SIMD3<Float>(bounds.center.x - halfX, y, bounds.center.z + halfZ),
+            SIMD3<Float>(bounds.center.x + halfX, y, bounds.center.z - halfZ),
+            SIMD3<Float>(bounds.center.x + halfX, y, bounds.center.z + halfZ)
+        ]
+    }
+
     private static func clamp(_ value: Float, min minValue: Float, max maxValue: Float) -> Float {
         Swift.max(minValue, Swift.min(maxValue, value))
+    }
+
+    private static func classificationDescription(for classification: PlaneAnchor.Classification) -> String {
+        switch classification {
+        case .notAvailable:
+            return "notAvailable"
+        case .undetermined:
+            return "undetermined"
+        case .unknown:
+            return "unknown"
+        case .wall:
+            return "wall"
+        case .floor:
+            return "floor"
+        case .ceiling:
+            return "ceiling"
+        case .table:
+            return "table"
+        case .seat:
+            return "seat"
+        case .window:
+            return "window"
+        case .door:
+            return "door"
+        @unknown default:
+            return "unknown"
+        }
     }
 
     private static func horizontalForwardVector(from transform: simd_float4x4, up: SIMD3<Float>) -> SIMD3<Float>? {

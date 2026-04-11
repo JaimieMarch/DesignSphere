@@ -65,3 +65,23 @@ public struct MaterialTypeComponent: Component {
         self.materialType = materialType
     }
 }
+
+/// Stores the most recent successful surface snap so future snaps can be stickier.
+public struct SnapStateComponent: Component {
+    public enum SourceKind: String, Codable, Sendable {
+        case plane
+        case roomMesh
+    }
+
+    public var source: SourceKind
+    public var surfaceID: UUID
+    public var classification: String?
+    public var score: Float
+
+    public init(source: SourceKind, surfaceID: UUID, classification: String?, score: Float) {
+        self.source = source
+        self.surfaceID = surfaceID
+        self.classification = classification
+        self.score = score
+    }
+}
