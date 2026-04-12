@@ -122,6 +122,8 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var pendingEditModelID: UUID? = nil
     @Published public private(set) var editRequestToken: UUID? = nil
     @Published public var pendingMaterialUpdate: (entityID: UUID, material: RealityKit.Material)?
+    private var activeEditModelInstanceID: UUID? = nil
+    private var activeEditTransactionNeedsForceRecord: Bool = false
 
         
     public var selectedModelIDVar: ModelType? {
@@ -450,6 +452,7 @@ public final class CollaborativeSessionController: ObservableObject {
     public func requestEditModel(instanceID: UUID) {
         guard modelManager.placedModels.contains(where: { $0.id == instanceID }) else { return }
 
+        commitSelectedModelEditTransaction()
         modelManager.selectModel(instanceID: instanceID)
         pendingEditModelID = instanceID
         editRequestToken = UUID()
@@ -477,9 +480,15 @@ public final class CollaborativeSessionController: ObservableObject {
 
         if #available(visionOS 26.0, *),
            let modelEntity = entity.ancestorOrSelf(with: InstanceIDComponent.self) {
+            commitSelectedModelEditTransaction()
             modelManager.selectModel(entity: modelEntity)
         }
         #endif
+    }
+
+    /// Handle a tap that missed all entities in the immersive scene.
+    public func handleEmptySpatialTap() {
+        deselectModel()
     }
 
     /// Deselect the currently selected model
@@ -495,13 +504,19 @@ public final class CollaborativeSessionController: ObservableObject {
 
     private func handleModelDidAdd(_ model: Model) {
         guard !historyManager.isApplyingHistory,
+              !historyManager.isRecordingSuspended,
               let snapshot = snapshot(for: model) else { return }
         historyManager.recordAdd(snapshot)
     }
 
     private func handleModelWillRemove(_ model: Model) {
         guard !historyManager.isApplyingHistory,
+              !historyManager.isRecordingSuspended,
               let snapshot = snapshot(for: model) else { return }
+        if activeEditModelInstanceID == snapshot.instanceID {
+            activeEditModelInstanceID = nil
+            activeEditTransactionNeedsForceRecord = false
+        }
         historyManager.recordRemove(snapshot)
     }
 
@@ -630,6 +645,10 @@ public final class CollaborativeSessionController: ObservableObject {
     private func removeModelFromHistory(instanceID: UUID) {
         guard let model = modelManager.modelDict[instanceID] else { return }
         historyManager.discardTransaction(for: instanceID)
+        if activeEditModelInstanceID == instanceID {
+            activeEditModelInstanceID = nil
+            activeEditTransactionNeedsForceRecord = false
+        }
         modelManager.removeModel(model, broadcast: false)
     }
     
@@ -684,12 +703,7 @@ public final class CollaborativeSessionController: ObservableObject {
     
     /// Clears everything in the session
     public func resetScene() {
-        Task {
-            await MainActor.run {
-                self.historyManager.clear()
-                self.modelManager.reset(broadcast: true)
-            }
-        }
+        Task { await removeAllModels() }
     }
     
 
@@ -746,26 +760,47 @@ public final class CollaborativeSessionController: ObservableObject {
     /// Remove all the models from the session
     public func removeAllModels() async {
         await MainActor.run {
-            historyManager.clear()
-            modelManager.reset(broadcast: true)
+            self.beginHistoryRecordingSuppression()
+            defer {
+                self.endHistoryRecordingSuppression()
+            }
+
+            self.activeEditModelInstanceID = nil
+            self.activeEditTransactionNeedsForceRecord = false
+            self.pendingEditModelID = nil
+            self.editRequestToken = nil
+            self.historyManager.clear()
+            self.modelManager.reset(broadcast: true)
         }
+    }
+
+    public func beginHistoryRecordingSuppression() {
+        historyManager.beginRecordingSuppression()
+    }
+
+    public func endHistoryRecordingSuppression() {
+        historyManager.endRecordingSuppression()
     }
 
     
     /// Remove a single model from the session
     public func removeModel(named name: String) {
+        commitSelectedModelEditTransaction()
         if let model = modelManager.placedModels.first(where: { $0.modelType.displayName == name }) {
             modelManager.removeModel(model, broadcast: true)
         }
     }
     
     public func removeModelById(withInstanceID id: UUID) {
+        commitSelectedModelEditTransaction()
         if let model = modelManager.placedModels.first(where: { $0.id == id }) {
             modelManager.removeModel(model, broadcast: true)
         }
     }
 
     public func clearHistory() {
+        activeEditModelInstanceID = nil
+        activeEditTransactionNeedsForceRecord = false
         historyManager.clear()
     }
 
@@ -804,18 +839,40 @@ public final class CollaborativeSessionController: ObservableObject {
     public func beginSelectedModelEditTransactionIfNeeded() {
         guard let model = returnSelectedModel(),
               let snapshot = snapshot(for: model) else { return }
+        if let activeEditModelInstanceID,
+           activeEditModelInstanceID != model.id {
+            commitSelectedModelEditTransaction()
+        }
+        guard activeEditModelInstanceID != model.id else { return }
         historyManager.beginTransactionIfNeeded(with: snapshot)
+        activeEditModelInstanceID = model.id
+        activeEditTransactionNeedsForceRecord = false
     }
 
     public func commitSelectedModelEditTransaction() {
-        guard let model = returnSelectedModel(),
-              let snapshot = snapshot(for: model) else { return }
-        historyManager.commitTransaction(for: model.id, after: snapshot, forceRecord: true)
+        guard let instanceID = activeEditModelInstanceID else { return }
+        guard let model = modelManager.modelDict[instanceID],
+              let snapshot = snapshot(for: model) else {
+            historyManager.discardTransaction(for: instanceID)
+            activeEditModelInstanceID = nil
+            activeEditTransactionNeedsForceRecord = false
+            return
+        }
+
+        historyManager.commitTransaction(
+            for: instanceID,
+            after: snapshot,
+            forceRecord: activeEditTransactionNeedsForceRecord
+        )
+        activeEditModelInstanceID = nil
+        activeEditTransactionNeedsForceRecord = false
     }
 
     public func discardSelectedModelEditTransaction() {
-        guard let model = returnSelectedModel() else { return }
-        historyManager.discardTransaction(for: model.id)
+        guard let instanceID = activeEditModelInstanceID else { return }
+        historyManager.discardTransaction(for: instanceID)
+        activeEditModelInstanceID = nil
+        activeEditTransactionNeedsForceRecord = false
     }
 
     public func updateSelectedModelScale(_ scale: SIMD3<Float>) {
@@ -839,6 +896,7 @@ public final class CollaborativeSessionController: ObservableObject {
         guard let model = returnSelectedModel(),
               let entity = model.modelEntity else { return }
         beginSelectedModelEditTransactionIfNeeded()
+        activeEditTransactionNeedsForceRecord = true
         entity.replaceAndStoreOldMaterials(material: material)
         if let materialType {
             entity.components.set(MaterialTypeComponent(materialType: materialType))
@@ -851,6 +909,7 @@ public final class CollaborativeSessionController: ObservableObject {
         guard let model = returnSelectedModel(),
               let entity = model.modelEntity else { return }
         beginSelectedModelEditTransactionIfNeeded()
+        activeEditTransactionNeedsForceRecord = true
         entity.restoreOriginalMaterials()
         entity.components.remove(MaterialTypeComponent.self)
     }

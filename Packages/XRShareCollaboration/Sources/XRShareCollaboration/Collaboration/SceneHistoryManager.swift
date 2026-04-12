@@ -37,8 +37,12 @@ final class SceneHistoryManager: ObservableObject {
     private var undoStack: [SceneHistoryEntry] = []
     private var redoStack: [SceneHistoryEntry] = []
     private var activeTransactions: [UUID: ModelSnapshot] = [:]
+    private var recordingSuppressionDepth = 0
 
     private(set) var isApplyingHistory = false
+    var isRecordingSuspended: Bool {
+        recordingSuppressionDepth > 0
+    }
 
     func clear() {
         undoStack.removeAll()
@@ -48,8 +52,17 @@ final class SceneHistoryManager: ObservableObject {
         publishAvailability()
     }
 
+    func beginRecordingSuppression() {
+        recordingSuppressionDepth += 1
+    }
+
+    func endRecordingSuppression() {
+        guard recordingSuppressionDepth > 0 else { return }
+        recordingSuppressionDepth -= 1
+    }
+
     func beginTransactionIfNeeded(with snapshot: ModelSnapshot) {
-        guard !isApplyingHistory else { return }
+        guard !isApplyingHistory, !isRecordingSuspended else { return }
         guard activeTransactions[snapshot.instanceID] == nil else { return }
         activeTransactions[snapshot.instanceID] = snapshot
     }
@@ -63,7 +76,7 @@ final class SceneHistoryManager: ObservableObject {
         after snapshot: ModelSnapshot,
         forceRecord: Bool
     ) {
-        guard !isApplyingHistory else { return }
+        guard !isApplyingHistory, !isRecordingSuspended else { return }
         guard let before = activeTransactions.removeValue(forKey: instanceID) else { return }
 
         if !forceRecord, !hasMeaningfulTransformDelta(from: before, to: snapshot) {
@@ -74,13 +87,13 @@ final class SceneHistoryManager: ObservableObject {
     }
 
     func recordAdd(_ snapshot: ModelSnapshot) {
-        guard !isApplyingHistory else { return }
+        guard !isApplyingHistory, !isRecordingSuspended else { return }
         activeTransactions.removeValue(forKey: snapshot.instanceID)
         push(.add(snapshot))
     }
 
     func recordRemove(_ snapshot: ModelSnapshot) {
-        guard !isApplyingHistory else { return }
+        guard !isApplyingHistory, !isRecordingSuspended else { return }
         activeTransactions.removeValue(forKey: snapshot.instanceID)
         push(.remove(snapshot))
     }

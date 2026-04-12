@@ -259,12 +259,16 @@ class ProjectManager: ObservableObject {
 
         let project: ProjectData
         if let existingData = try? Data(contentsOf: fileURL),
-           var existingProject = try? projectDecoder().decode(ProjectData.self, from: existingData) {
+           let existingProject = try? projectDecoder().decode(ProjectData.self, from: existingData) {
+            let resolvedWorldAnchorID = worldAnchorID ?? existingProject.worldAnchorID
             // Update existing project
-            existingProject.dateModified = now
-            existingProject.models = savedModels
-            existingProject.roomName = roomName
-            project = existingProject
+            project = ProjectData(
+                roomName: roomName,
+                worldAnchorID: resolvedWorldAnchorID,
+                dateCreated: existingProject.dateCreated,
+                dateModified: now,
+                models: savedModels
+            )
             #if DEBUG
             print("Updating existing project: \(roomName)")
             #endif
@@ -317,6 +321,10 @@ class ProjectManager: ObservableObject {
         let project = try decoder.decode(ProjectData.self, from: jsonData)
 
         // Clear existing models
+        controller.beginHistoryRecordingSuppression()
+        defer {
+            controller.endHistoryRecordingSuppression()
+        }
         await controller.removeAllModels()
         await MainActor.run {
             isStreamingProject = true

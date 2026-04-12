@@ -24,16 +24,22 @@ struct DemoApp: App {
 
 #if os(visionOS)
         ImmersiveSpace(id: "CollaborativeSpace") {
+            let entityTap = SpatialTapGesture().targetedToAnyEntity()
+            let backgroundTap = SpatialTapGesture()
             RealityView { content in
                 controller.makeRealityContent(content, session: controller.immersiveSession)
             } update: { content in
                 controller.updateRealityContent(content)
             }
             .gesture(
-                SpatialTapGesture()
-                    .targetedToAnyEntity()
+                entityTap.exclusively(before: backgroundTap)
                     .onEnded { value in
-                        controller.handleSpatialTap(on: value.entity)
+                        switch value {
+                        case .first(let targetedValue):
+                            controller.handleSpatialTap(on: targetedValue.entity)
+                        case .second:
+                            controller.handleEmptySpatialTap()
+                        }
                     }
             )
         }

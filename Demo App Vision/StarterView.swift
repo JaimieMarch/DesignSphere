@@ -183,6 +183,17 @@ struct StarterView: View {
                 sheetState.showEditSheet = true
             }
         }
+        .onChange(of: controller.selectedModelInstanceIDVar) { _, newValue in
+            if newValue == nil {
+                sheetState.showEditSheet = false
+            }
+        }
+        .onChange(of: sheetState.showMeasurementOptions) { _, isPresented in
+            guard isPresented else { return }
+            if !(AppFeatureFlags.measurementToolsEnabled && appSettings.labsMeasurementToolsEnabled) {
+                sheetState.showMeasurementOptions = false
+            }
+        }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background {
                 sessionState.isImmersiveOpen = false
