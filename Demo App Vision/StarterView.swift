@@ -148,6 +148,7 @@ struct StarterView: View {
                 contentAlignment: .top
             ) {
                 ToolbarOrnament(
+                    controller: controller,
                     showMeasurementOptions: $sheetState.showMeasurementOptions,
                     showFocusModeSheet: $sheetState.showFocusModeSheet,
                     showImportSheet: $sheetState.showImportSheet

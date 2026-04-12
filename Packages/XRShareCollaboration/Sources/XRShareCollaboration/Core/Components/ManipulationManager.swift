@@ -27,6 +27,7 @@ class ManipulationManager {
     private var didInstallSubscriptions = false
     private var contentSubscriptions: [EventSubscription] = []
     var onSceneUpdate: (() -> Void)?
+    var onManipulationWillBegin: ((Entity, UUID) -> Void)?
     var onManipulationDidEnd: ((Entity, UUID) async -> Void)?
     #endif
 
@@ -142,6 +143,8 @@ class ManipulationManager {
                         modelManager.selectModel(entity: event.entity)
                     }
                 }
+
+            self.onManipulationWillBegin?(event.entity, instanceID)
             
 //            Task {
 //                await self.handleSelection(for: event.entity, instanceID: instanceID)

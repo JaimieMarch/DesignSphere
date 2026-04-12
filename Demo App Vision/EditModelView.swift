@@ -109,8 +109,7 @@ struct EditModelView: View {
 
                                         var mat = PhysicallyBasedMaterial()
                                         mat.baseColor = .init(tint: UIColor(selectedColor))
-                                        selectedEntity?.replaceAndStoreOldMaterials(material: mat)
-                                        selectedEntity?.components.set(MaterialTypeComponent(materialType: "custom"))
+                                        controller.applyMaterialToSelectedModel(mat, materialType: "custom")
                                     }
                                     .overlay(
                                         Circle().stroke(
@@ -145,8 +144,7 @@ struct EditModelView: View {
                                 if let texture = TextureCache.shared.texture(named: "wood_grain") {
                                     mat.normal = .init(texture: .init(texture))
                                 }
-                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
-                                selectedEntity?.components.set(MaterialTypeComponent(materialType: "wood"))
+                                controller.applyMaterialToSelectedModel(mat, materialType: "wood")
                             }
 
                             materialButton("Metal", icon: "shippingbox.fill") {
@@ -155,8 +153,7 @@ struct EditModelView: View {
                                 mat.roughness = 0.2
                                 mat.metallic = 1.0
                                 mat.specular = 0.5
-                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
-                                selectedEntity?.components.set(MaterialTypeComponent(materialType: "metal"))
+                                controller.applyMaterialToSelectedModel(mat, materialType: "metal")
                             }
                         }
                         
@@ -169,8 +166,7 @@ struct EditModelView: View {
                                 if let texture = TextureCache.shared.texture(named: "fabric") {
                                     mat.normal = .init(texture: .init(texture))
                                 }
-                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
-                                selectedEntity?.components.set(MaterialTypeComponent(materialType: "fabric"))
+                                controller.applyMaterialToSelectedModel(mat, materialType: "fabric")
                             }
 
                             materialButton("Leather", icon: "seal.fill") {
@@ -181,14 +177,12 @@ struct EditModelView: View {
                                 if let texture = TextureCache.shared.texture(named: "leather") {
                                     mat.normal = .init(texture: .init(texture))
                                 }
-                                selectedEntity?.replaceAndStoreOldMaterials(material: mat)
-                                selectedEntity?.components.set(MaterialTypeComponent(materialType: "leather"))
+                                controller.applyMaterialToSelectedModel(mat, materialType: "leather")
                             }
                         }
                         
                         Button {
-                            selectedEntity?.restoreOriginalMaterials()
-                            selectedEntity?.components.remove(MaterialTypeComponent.self)
+                            controller.restoreSelectedModelMaterials()
                             selectedColor = .gray
                         } label: {
                             Text("Restore")
@@ -262,7 +256,11 @@ struct EditModelView: View {
                 }
             }
             .onChange(of: controller.selectedModelInstanceIDVar) {
+                controller.commitSelectedModelEditTransaction()
                 updateSelectedEntity()
+            }
+            .onDisappear {
+                controller.commitSelectedModelEditTransaction()
             }
             .onChange(of: modelWidth) {
                 updateEntityScale()
@@ -472,8 +470,7 @@ struct EditModelView: View {
 
                     var mat = PhysicallyBasedMaterial()
                     mat.baseColor = .init(tint: UIColor(color))
-                    selectedEntity?.replaceAndStoreOldMaterials(material: mat)
-                    selectedEntity?.components.set(MaterialTypeComponent(materialType: "custom"))
+                    controller.applyMaterialToSelectedModel(mat, materialType: "custom")
                 }
                 .shadow(radius: isSelected ? 3 : 0)
                 .accessibilityLabel("\(colorName) color")
@@ -494,7 +491,7 @@ struct EditModelView: View {
             
         private func updateEntityScale() {
             guard let model = controller.returnSelectedModel(),
-                  let entity = model.modelEntity,
+                  model.modelEntity != nil,
                   let og = ogSize else { return }
             
             
@@ -507,14 +504,14 @@ struct EditModelView: View {
             let scaleY = changeHeight / og.y
             let scaleZ = changeDepth  / og.z
 
-            entity.scale = SIMD3<Float>(scaleX, scaleY, scaleZ)
+            controller.updateSelectedModelScale(SIMD3<Float>(scaleX, scaleY, scaleZ))
         }
         
         private func updateEntityPosition() {
             guard let model = controller.returnSelectedModel(),
-                  let entity = model.modelEntity else { return }
+                  model.modelEntity != nil else { return }
             
-            entity.position = SIMD3<Float>(Float(X),Float(Y),Float(Z))
+            controller.updateSelectedModelPosition(SIMD3<Float>(Float(X),Float(Y),Float(Z)))
         }
         
         private func updateSelectedEntity() {
@@ -558,4 +555,3 @@ struct EditModelView: View {
         
     }
     
-

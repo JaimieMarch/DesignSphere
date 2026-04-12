@@ -23,6 +23,8 @@ public final class ModelManager: ObservableObject {
     @Published var selectedModelInstanceID: UUID? = nil
 
     private var resetNotificationObserver: NSObjectProtocol?
+    var onModelDidAdd: ((Model) -> Void)?
+    var onModelWillRemove: ((Model) -> Void)?
 
     private let minimumVisionHeight: Float = 1.2
 
@@ -466,6 +468,7 @@ public final class ModelManager: ObservableObject {
 
             self.modelDict[model.id] = model
             self.placedModels.append(model)
+            self.onModelDidAdd?(model)
 
             #if DEBUG
             print("Loaded model \(modelType.rawValue) (InstanceID: \(instanceID)).")
@@ -618,6 +621,7 @@ public final class ModelManager: ObservableObject {
     
     @MainActor func removeModel(_ model: Model, broadcast: Bool = true) {
         guard let entity = model.modelEntity else { return }
+        onModelWillRemove?(model)
         
         
         // Use InstanceIDComponent for removal broadcast if available

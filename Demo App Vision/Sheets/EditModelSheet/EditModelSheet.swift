@@ -11,6 +11,7 @@ struct EditModelSheet: View {
                 controller.preparePendingEditSelection()
             }
             .onDisappear {
+                controller.commitSelectedModelEditTransaction()
                 controller.clearPendingEditRequest()
             }
     }

@@ -115,6 +115,8 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var loadingProgress: Float = 0.0
     @Published public private(set) var isFocusModeActive: Bool = false
     @Published public private(set) var focusRoomDimensions: FocusModeManager.FocusRoomDimensions = FocusModeManager.FocusRoomDimensions(width: 7.0, depth: 7.0, height: 3.2)
+    @Published public private(set) var canUndo: Bool = false
+    @Published public private(set) var canRedo: Bool = false
     @Published public var selectedModelID: String? = nil
     @Published public var selectedModelInstanceID: UUID? = nil
     @Published public private(set) var pendingEditModelID: UUID? = nil
@@ -145,6 +147,7 @@ public final class CollaborativeSessionController: ObservableObject {
     }
 
     private let arViewModel: ARViewModel
+    private let historyManager = SceneHistoryManager()
     public let modelManager: ModelManager
     #if os(visionOS)
     public let immersiveSession: ARKitSession
@@ -182,6 +185,12 @@ public final class CollaborativeSessionController: ObservableObject {
         arViewModel.preferredPlacementResolver = { [weak self] entity, modelType in
             await self?.resolvePreferredPlacement(for: entity, modelType: modelType)
         }
+        modelManager.onModelDidAdd = { [weak self] model in
+            self?.handleModelDidAdd(model)
+        }
+        modelManager.onModelWillRemove = { [weak self] model in
+            self?.handleModelWillRemove(model)
+        }
         bindState()
         refreshAvailableModels()
         #if os(visionOS)
@@ -189,6 +198,9 @@ public final class CollaborativeSessionController: ObservableObject {
         selectionIndicatorManager.setSharedAnchor(arViewModel.sharedAnchorEntity)
         if #available(visionOS 26.0, *),
            let manipulationManager = arViewModel.manipulationManager {
+            manipulationManager.onManipulationWillBegin = { [weak self] entity, instanceID in
+                self?.beginManipulationHistory(for: entity, instanceID: instanceID)
+            }
             manipulationManager.onSceneUpdate = { [weak self] in
                 guard let self else { return }
                 EditAffordanceFactory.syncEditAffordances(
@@ -472,12 +484,153 @@ public final class CollaborativeSessionController: ObservableObject {
 
     /// Deselect the currently selected model
     public func deselectModel() {
+        commitSelectedModelEditTransaction()
         modelManager.deselectModel()
     }
 
     public func returnSelectedModel() -> Model? {
         guard let instanceID = modelManager.selectedModelInstanceID else { return nil }
         return modelManager.placedModels.first { $0.id == instanceID }
+    }
+
+    private func handleModelDidAdd(_ model: Model) {
+        guard !historyManager.isApplyingHistory,
+              let snapshot = snapshot(for: model) else { return }
+        historyManager.recordAdd(snapshot)
+    }
+
+    private func handleModelWillRemove(_ model: Model) {
+        guard !historyManager.isApplyingHistory,
+              let snapshot = snapshot(for: model) else { return }
+        historyManager.recordRemove(snapshot)
+    }
+
+    private func beginManipulationHistory(for entity: Entity, instanceID: UUID) {
+        guard !historyManager.isApplyingHistory,
+              let model = modelManager.modelDict[instanceID],
+              let snapshot = snapshot(for: model) else { return }
+        historyManager.beginTransactionIfNeeded(with: snapshot)
+    }
+
+    private enum HistoryDirection {
+        case undo
+        case redo
+    }
+
+    private func applyHistoryEntry(
+        _ entry: SceneHistoryEntry,
+        direction: HistoryDirection
+    ) async throws {
+        switch (direction, entry) {
+        case (.undo, .add(let snapshot)):
+            removeModelFromHistory(instanceID: snapshot.instanceID)
+        case (.undo, .remove(let snapshot)):
+            try await restoreModelFromHistory(snapshot)
+        case (.undo, .update(let before, _)):
+            try await applySnapshotFromHistory(before)
+        case (.redo, .add(let snapshot)):
+            try await restoreModelFromHistory(snapshot)
+        case (.redo, .remove(let snapshot)):
+            removeModelFromHistory(instanceID: snapshot.instanceID)
+        case (.redo, .update(_, let after)):
+            try await applySnapshotFromHistory(after)
+        }
+    }
+
+    private func snapshot(for model: Model) -> ModelSnapshot? {
+        guard let entity = model.modelEntity else { return nil }
+        guard let modelComponent = entity.components[ModelComponent.self] else { return nil }
+
+        let materialType = entity.components[MaterialTypeComponent.self]?.materialType
+        let originalBounds = entity.components[OriginalBoundsComponent.self]?.originalSize
+        let snapState = entity.components[SnapStateComponent.self]
+
+        return ModelSnapshot(
+            instanceID: model.id,
+            modelType: model.modelType,
+            position: entity.position(relativeTo: sharedAnchorEntity),
+            rotation: entity.orientation(relativeTo: sharedAnchorEntity),
+            scale: entity.scale(relativeTo: sharedAnchorEntity),
+            materials: modelComponent.materials,
+            materialType: materialType,
+            originalBounds: originalBounds,
+            snapState: snapState
+        )
+    }
+
+    private func restoreModelFromHistory(_ snapshot: ModelSnapshot) async throws {
+        guard modelManager.modelDict[snapshot.instanceID] == nil else {
+            try await applySnapshotFromHistory(snapshot)
+            return
+        }
+
+        guard let model = await loadModelAtPosition(
+            modelType: snapshot.modelType,
+            instanceID: snapshot.instanceID,
+            position: snapshot.position,
+            rotation: snapshot.rotation,
+            scale: snapshot.scale
+        ) else {
+            throw NSError(
+                domain: "CollaborativeSessionController",
+                code: 1001,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to restore model \(snapshot.modelType.displayName)"]
+            )
+        }
+
+        applySnapshotComponents(snapshot, to: model)
+        modelManager.selectModel(instanceID: snapshot.instanceID)
+    }
+
+    private func applySnapshotFromHistory(_ snapshot: ModelSnapshot) async throws {
+        if let model = modelManager.modelDict[snapshot.instanceID] {
+            applySnapshotComponents(snapshot, to: model)
+            modelManager.selectModel(instanceID: snapshot.instanceID)
+            return
+        }
+
+        try await restoreModelFromHistory(snapshot)
+    }
+
+    private func applySnapshotComponents(_ snapshot: ModelSnapshot, to model: Model) {
+        guard let entity = model.modelEntity else { return }
+
+        entity.setPosition(snapshot.position, relativeTo: sharedAnchorEntity)
+        entity.setOrientation(snapshot.rotation, relativeTo: sharedAnchorEntity)
+        entity.setScale(snapshot.scale, relativeTo: sharedAnchorEntity)
+
+        if var modelComponent = entity.components[ModelComponent.self] {
+            modelComponent.materials = snapshot.materials
+            entity.components.set(modelComponent)
+        }
+
+        if let materialType = snapshot.materialType {
+            entity.components.set(MaterialTypeComponent(materialType: materialType))
+        } else {
+            entity.components.remove(MaterialTypeComponent.self)
+        }
+
+        if let originalBounds = snapshot.originalBounds {
+            entity.components.set(OriginalBoundsComponent(originalSize: originalBounds))
+        } else {
+            entity.components.remove(OriginalBoundsComponent.self)
+        }
+
+        if let snapState = snapshot.snapState {
+            entity.components.set(snapState)
+        } else {
+            entity.components.remove(SnapStateComponent.self)
+        }
+
+        #if os(visionOS)
+        selectionIndicatorManager.updateIndicatorPosition()
+        #endif
+    }
+
+    private func removeModelFromHistory(instanceID: UUID) {
+        guard let model = modelManager.modelDict[instanceID] else { return }
+        historyManager.discardTransaction(for: instanceID)
+        modelManager.removeModel(model, broadcast: false)
     }
     
     
@@ -533,6 +686,7 @@ public final class CollaborativeSessionController: ObservableObject {
     public func resetScene() {
         Task {
             await MainActor.run {
+                self.historyManager.clear()
                 self.modelManager.reset(broadcast: true)
             }
         }
@@ -566,6 +720,7 @@ public final class CollaborativeSessionController: ObservableObject {
 
         // Configure interactivity (gestures, physics, collision, etc.)
         modelManager.configureInteractivity(for: entity, arViewModel: arViewModel)
+        model.id = instanceID
 
         // Set the instance ID for each individual model
         entity.components.set(InstanceIDComponent(id: instanceID.uuidString))
@@ -591,6 +746,7 @@ public final class CollaborativeSessionController: ObservableObject {
     /// Remove all the models from the session
     public func removeAllModels() async {
         await MainActor.run {
+            historyManager.clear()
             modelManager.reset(broadcast: true)
         }
     }
@@ -607,6 +763,96 @@ public final class CollaborativeSessionController: ObservableObject {
         if let model = modelManager.placedModels.first(where: { $0.id == id }) {
             modelManager.removeModel(model, broadcast: true)
         }
+    }
+
+    public func clearHistory() {
+        historyManager.clear()
+    }
+
+    public func undo() {
+        guard let entry = historyManager.prepareUndo() else { return }
+
+        Task { @MainActor in
+            do {
+                try await applyHistoryEntry(entry, direction: .undo)
+                historyManager.finishUndo(entry)
+            } catch {
+                historyManager.cancelUndo(entry)
+                #if DEBUG
+                print("Undo failed: \(error)")
+                #endif
+            }
+        }
+    }
+
+    public func redo() {
+        guard let entry = historyManager.prepareRedo() else { return }
+
+        Task { @MainActor in
+            do {
+                try await applyHistoryEntry(entry, direction: .redo)
+                historyManager.finishRedo(entry)
+            } catch {
+                historyManager.cancelRedo(entry)
+                #if DEBUG
+                print("Redo failed: \(error)")
+                #endif
+            }
+        }
+    }
+
+    public func beginSelectedModelEditTransactionIfNeeded() {
+        guard let model = returnSelectedModel(),
+              let snapshot = snapshot(for: model) else { return }
+        historyManager.beginTransactionIfNeeded(with: snapshot)
+    }
+
+    public func commitSelectedModelEditTransaction() {
+        guard let model = returnSelectedModel(),
+              let snapshot = snapshot(for: model) else { return }
+        historyManager.commitTransaction(for: model.id, after: snapshot, forceRecord: true)
+    }
+
+    public func discardSelectedModelEditTransaction() {
+        guard let model = returnSelectedModel() else { return }
+        historyManager.discardTransaction(for: model.id)
+    }
+
+    public func updateSelectedModelScale(_ scale: SIMD3<Float>) {
+        guard let model = returnSelectedModel(),
+              let entity = model.modelEntity else { return }
+        beginSelectedModelEditTransactionIfNeeded()
+        entity.scale = scale
+    }
+
+    public func updateSelectedModelPosition(_ position: SIMD3<Float>) {
+        guard let model = returnSelectedModel(),
+              let entity = model.modelEntity else { return }
+        beginSelectedModelEditTransactionIfNeeded()
+        entity.position = position
+        #if os(visionOS)
+        selectionIndicatorManager.updateIndicatorPosition()
+        #endif
+    }
+
+    public func applyMaterialToSelectedModel(_ material: any RealityKit.Material, materialType: String?) {
+        guard let model = returnSelectedModel(),
+              let entity = model.modelEntity else { return }
+        beginSelectedModelEditTransactionIfNeeded()
+        entity.replaceAndStoreOldMaterials(material: material)
+        if let materialType {
+            entity.components.set(MaterialTypeComponent(materialType: materialType))
+        } else {
+            entity.components.remove(MaterialTypeComponent.self)
+        }
+    }
+
+    public func restoreSelectedModelMaterials() {
+        guard let model = returnSelectedModel(),
+              let entity = model.modelEntity else { return }
+        beginSelectedModelEditTransactionIfNeeded()
+        entity.restoreOriginalMaterials()
+        entity.components.remove(MaterialTypeComponent.self)
     }
 
     
@@ -934,6 +1180,9 @@ public final class CollaborativeSessionController: ObservableObject {
                 entity.setOrientation(worldOrientation, relativeTo: nil)
             }
             applySnapState(from: placement, to: entity, phase: "manipulation")
+            if let snapshot = snapshot(for: model) {
+                historyManager.commitTransaction(for: model.id, after: snapshot, forceRecord: false)
+            }
             selectionIndicatorManager.updateIndicatorPosition()
             return
         }
@@ -952,6 +1201,9 @@ public final class CollaborativeSessionController: ObservableObject {
                 phase: "manipulation",
                 reason: "no compatible room-mesh or plane surface survived snap and footprint thresholds"
             )
+            if let snapshot = snapshot(for: model) {
+                historyManager.commitTransaction(for: model.id, after: snapshot, forceRecord: false)
+            }
             return
         }
 
@@ -960,6 +1212,9 @@ public final class CollaborativeSessionController: ObservableObject {
             entity.setOrientation(worldOrientation, relativeTo: nil)
         }
         applySnapState(from: placement, to: entity, phase: "manipulation")
+        if let snapshot = snapshot(for: model) {
+            historyManager.commitTransaction(for: model.id, after: snapshot, forceRecord: false)
+        }
         selectionIndicatorManager.updateIndicatorPosition()
     }
 
@@ -1074,9 +1329,17 @@ public final class CollaborativeSessionController: ObservableObject {
                         .receive(on: DispatchQueue.main)
                         .assign(to: &$selectedModelID)
 
-                    modelManager.$selectedModelInstanceID
-                        .receive(on: DispatchQueue.main)
-                        .assign(to: &$selectedModelInstanceID)
+        modelManager.$selectedModelInstanceID
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$selectedModelInstanceID)
+
+        historyManager.$canUndo
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$canUndo)
+
+        historyManager.$canRedo
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$canRedo)
 
         // Bind focus mode manager state
         #if os(visionOS)
