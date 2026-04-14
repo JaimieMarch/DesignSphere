@@ -11,6 +11,7 @@ import ARKit
 @MainActor
 
 /// Main controller for local and shareplay sessions
+@available(visionOS 26.0, *)
 public final class CollaborativeSessionController: ObservableObject {
     public enum ModelSource: String, CaseIterable, Hashable, Sendable {
         case all
@@ -119,7 +120,6 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var canRedo: Bool = false
     @Published public var selectedModelID: String? = nil
     @Published public var selectedModelInstanceID: UUID? = nil
-    @Published public var pendingMaterialUpdate: (entityID: UUID, material: RealityKit.Material)?
     @Published public private(set) var expandedEditModelID: UUID? = nil
     private var activeEditModelInstanceID: UUID? = nil
     private var activeEditTransactionNeedsForceRecord: Bool = false
@@ -158,6 +158,7 @@ public final class CollaborativeSessionController: ObservableObject {
     private weak var editMenuAttachmentEntity: Entity?
     public let immersiveSession: ARKitSession
     public let focusModeManager: FocusModeManager
+    public let measurementManager: MeasurementManager
     public let selectionIndicatorManager: SelectionIndicatorManager
     private var worldTrackingProvider: WorldTrackingProvider?
     private var planeDetectionProvider: PlaneDetectionProvider?
@@ -186,6 +187,7 @@ public final class CollaborativeSessionController: ObservableObject {
         #if os(visionOS)
         self.immersiveSession = ARKitSession()
         self.focusModeManager = FocusModeManager()
+        self.measurementManager = MeasurementManager()
         self.selectionIndicatorManager = SelectionIndicatorManager()
         #endif
         arViewModel.preferredPlacementResolver = { [weak self] entity, modelType in
@@ -201,6 +203,8 @@ public final class CollaborativeSessionController: ObservableObject {
         refreshAvailableModels()
         #if os(visionOS)
         focusModeManager.setSharedAnchor(arViewModel.sharedAnchorEntity)
+        measurementManager.setSharedAnchor(arViewModel.sharedAnchorEntity)
+        measurementManager.setManipulationManager(arViewModel.manipulationManager)
         selectionIndicatorManager.setSharedAnchor(arViewModel.sharedAnchorEntity)
         if #available(visionOS 26.0, *),
            let manipulationManager = arViewModel.manipulationManager {
@@ -484,6 +488,10 @@ public final class CollaborativeSessionController: ObservableObject {
             return
         }
 
+        if measurementManager.handleSpatialTap(on: entity, modelsByID: modelManager.modelDict) {
+            return
+        }
+
         if #available(visionOS 26.0, *),
            let modelEntity = entity.ancestorOrSelf(with: InstanceIDComponent.self) {
             commitSelectedModelEditTransaction()
@@ -495,6 +503,10 @@ public final class CollaborativeSessionController: ObservableObject {
 
     /// Handle a tap that missed all entities in the immersive scene.
     public func handleEmptySpatialTap() {
+        if measurementManager.isAwaitingSelection {
+            measurementManager.cancelDistanceSelection()
+            return
+        }
         deselectModel()
     }
 
@@ -737,7 +749,8 @@ public final class CollaborativeSessionController: ObservableObject {
         instanceID: UUID,
         position: SIMD3<Float>,
         rotation: simd_quatf,
-        scale: SIMD3<Float>
+        scale: SIMD3<Float>,
+        notifyDidAdd: Bool = true
     ) async -> Model? {
         let model = await Model.load(modelType: modelType, arViewModel: arViewModel)
 
@@ -768,6 +781,9 @@ public final class CollaborativeSessionController: ObservableObject {
         // Add to model manager
         modelManager.placedModels.append(model)
         modelManager.modelDict[model.id] = model
+        if notifyDidAdd {
+            modelManager.onModelDidAdd?(model)
+        }
 
         return model
     }
@@ -785,6 +801,7 @@ public final class CollaborativeSessionController: ObservableObject {
             self.activeEditTransactionNeedsForceRecord = false
             self.expandedEditModelID = nil
             self.editMenuAttachmentEntity?.removeFromParent()
+            self.measurementManager.reset()
             self.historyManager.clear()
             self.modelManager.reset(broadcast: true)
         }
@@ -932,6 +949,73 @@ public final class CollaborativeSessionController: ObservableObject {
         entity.components.remove(MaterialTypeComponent.self)
     }
 
+    public func rotateSelectedModelByQuarterTurn(clockwise: Bool = true) {
+        guard let model = returnSelectedModel(),
+              let entity = model.modelEntity else { return }
+
+        beginSelectedModelEditTransactionIfNeeded()
+        let angle: Float = clockwise ? -.pi / 2 : .pi / 2
+        let rotation = simd_quatf(angle: angle, axis: SIMD3<Float>(0, 1, 0))
+        entity.orientation = rotation * entity.orientation
+        #if os(visionOS)
+        finalizeDiscreteTransformEdit(for: model, entity: entity)
+        #else
+        commitSelectedModelEditTransaction()
+        #endif
+    }
+
+    public func nudgeSelectedModel(by offset: SIMD3<Float>) {
+        guard let model = returnSelectedModel(),
+              let entity = model.modelEntity else { return }
+
+        beginSelectedModelEditTransactionIfNeeded()
+        entity.position += offset
+        #if os(visionOS)
+        finalizeDiscreteTransformEdit(for: model, entity: entity)
+        #else
+        commitSelectedModelEditTransaction()
+        #endif
+    }
+
+    public func duplicateSelectedModel() {
+        guard let model = returnSelectedModel(),
+              let entity = model.modelEntity,
+              let snapshot = snapshot(for: model) else { return }
+
+        commitSelectedModelEditTransaction()
+        let duplicateID = UUID()
+        let duplicatePosition = duplicatedPosition(for: entity)
+
+        Task { @MainActor in
+            guard let duplicatedModel = await self.loadModelAtPosition(
+                modelType: snapshot.modelType,
+                instanceID: duplicateID,
+                position: duplicatePosition,
+                rotation: snapshot.rotation,
+                scale: snapshot.scale,
+                notifyDidAdd: false
+            ) else {
+                return
+            }
+
+            self.applyDuplicatedVisualState(from: snapshot, to: duplicatedModel)
+            self.modelManager.selectModel(instanceID: duplicateID)
+            self.expandedEditModelID = duplicateID
+
+            if let duplicateEntity = duplicatedModel.modelEntity {
+                #if os(visionOS)
+                await self.snapManipulatedEntity(duplicateEntity, instanceID: duplicateID)
+                #else
+                self.commitSelectedModelEditTransaction()
+                #endif
+            }
+
+            if let addSnapshot = self.snapshot(for: duplicatedModel) {
+                self.historyManager.recordAdd(addSnapshot)
+            }
+        }
+    }
+
     public func syncEditMenuAttachment(_ attachment: Entity?) {
         if editMenuAttachmentEntity !== attachment {
             editMenuAttachmentEntity?.removeFromParent()
@@ -969,14 +1053,6 @@ public final class CollaborativeSessionController: ObservableObject {
             }
         }
     }
-    
-    public func setMaterial(for entityID: UUID, to material: RealityKit.Material) {
-        pendingMaterialUpdate = (entityID, material)
-    }
-    
-    
-
-    
     
 // MARK: - RealityView
 
@@ -1052,26 +1128,6 @@ public final class CollaborativeSessionController: ObservableObject {
     }
             return false
         }
-//        
-//        if let job = pendingMaterialUpdate {
-//                
-//                if let placedModel = modelManager.placedModels.first(where: { $0.id == job.entityID }),
-//                   let entity = placedModel.modelEntity {
-//
-//                    // Mutate a COPY of ModelComponent
-//                    if var modelComponent = entity.model {
-//                        modelComponent.materials = Array(
-//                            repeating: job.material,
-//                            count: modelComponent.materials.count
-//                        )
-//                        entity.model = modelComponent
-//                    }
-//                }
-//
-//                pendingMaterialUpdate = nil
-//            }
-
-
         if let manipulationManager = arViewModel.manipulationManager {
             manipulationManager.setupManipulationEventHandlers(for: content)
         }
@@ -1085,6 +1141,8 @@ public final class CollaborativeSessionController: ObservableObject {
         }
         updateEditMenuAttachmentPosition()
         selectionIndicatorManager.updateIndicatorPosition()
+        measurementManager.setManipulationManager(arViewModel.manipulationManager)
+        measurementManager.syncScene(with: modelManager.placedModels)
         modelManager.updatePlacedModels(arViewModel: arViewModel)
     }
     #endif
@@ -1093,6 +1151,16 @@ public final class CollaborativeSessionController: ObservableObject {
     
     public var sharedAnchorEntity: AnchorEntity {
         arViewModel.sharedAnchorEntity
+    }
+
+    public var worldTrackingDeviceTransform: simd_float4x4? {
+        #if os(visionOS)
+        return worldTrackingProvider?
+            .queryDeviceAnchor(atTimestamp: CACurrentMediaTime())?
+            .originFromAnchorTransform
+        #else
+        return nil
+        #endif
     }
 
     #if os(visionOS)
@@ -1116,7 +1184,6 @@ public final class CollaborativeSessionController: ObservableObject {
         }
     }
 
-    @available(visionOS 2.0, *)
     private func observeRoomAnchors(using provider: RoomTrackingProvider) {
         roomAnchorUpdatesTask?.cancel()
         roomAnchorUpdatesTask = Task { [weak self] in
@@ -1143,7 +1210,6 @@ public final class CollaborativeSessionController: ObservableObject {
         trackedPlaneAnchors = Dictionary(uniqueKeysWithValues: provider.allAnchors.map { ($0.id, $0) })
     }
 
-    @available(visionOS 2.0, *)
     private func refreshTrackedRoomAnchors(using provider: RoomTrackingProvider) async {
         trackedRoomAnchors = Dictionary(
             uniqueKeysWithValues: provider.allAnchors.map { ($0.id, $0) }
@@ -1196,7 +1262,6 @@ public final class CollaborativeSessionController: ObservableObject {
         }
     }
 
-    @available(visionOS 2.0, *)
     private func handleRoomAnchorUpdate(_ update: AnchorUpdate<RoomAnchor>) {
         switch update.event {
         case .added, .updated:
@@ -1357,7 +1422,6 @@ public final class CollaborativeSessionController: ObservableObject {
         return ids.isEmpty ? nil : ids
     }
 
-    @available(visionOS 2.0, *)
     private var currentRoomAnchor: RoomAnchor? {
         guard let currentRoomAnchorID else { return nil }
         return trackedRoomAnchors[currentRoomAnchorID] as? RoomAnchor
@@ -1426,6 +1490,55 @@ public final class CollaborativeSessionController: ObservableObject {
             relativeTo: arViewModel.sharedAnchorEntity
         )
         attachment.isEnabled = true
+    }
+
+    private func finalizeDiscreteTransformEdit(for model: Model, entity: Entity) {
+        selectionIndicatorManager.updateIndicatorPosition()
+        measurementManager.syncScene(with: modelManager.placedModels)
+        Task { @MainActor in
+            await self.snapManipulatedEntity(entity, instanceID: model.id)
+        }
+    }
+
+    private func duplicatedPosition(for entity: Entity) -> SIMD3<Float> {
+        let bounds = entity.visualBounds(relativeTo: sharedAnchorEntity)
+        let horizontalSpacing = max(bounds.extents.x + 0.18, 0.35)
+
+        if let deviceTransform = worldTrackingProvider?
+            .queryDeviceAnchor(atTimestamp: CACurrentMediaTime())?
+            .originFromAnchorTransform {
+            let viewerWorldPosition = SIMD3<Float>(
+                deviceTransform.columns.3.x,
+                deviceTransform.columns.3.y,
+                deviceTransform.columns.3.z
+            )
+            let viewerLocalPosition = sharedAnchorEntity.convert(position: viewerWorldPosition, from: nil)
+            let sideSign: Float = viewerLocalPosition.x >= bounds.center.x ? -1 : 1
+            return entity.position(relativeTo: sharedAnchorEntity) + SIMD3<Float>(horizontalSpacing * sideSign, 0, 0)
+        }
+
+        return entity.position(relativeTo: sharedAnchorEntity) + SIMD3<Float>(horizontalSpacing, 0, 0)
+    }
+
+    private func applyDuplicatedVisualState(from snapshot: ModelSnapshot, to model: Model) {
+        guard let entity = model.modelEntity else { return }
+
+        if var modelComponent = entity.components[ModelComponent.self] {
+            modelComponent.materials = snapshot.materials
+            entity.components.set(modelComponent)
+        }
+
+        if let materialType = snapshot.materialType {
+            entity.components.set(MaterialTypeComponent(materialType: materialType))
+        } else {
+            entity.components.remove(MaterialTypeComponent.self)
+        }
+
+        if let originalBounds = snapshot.originalBounds {
+            entity.components.set(OriginalBoundsComponent(originalSize: originalBounds))
+        }
+
+        entity.components.remove(SnapStateComponent.self)
     }
     #endif
 

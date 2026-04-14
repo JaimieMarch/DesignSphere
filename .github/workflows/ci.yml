@@ -12,12 +12,42 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install SwiftLint
         run: brew install swiftlint
 
-      - name: Run SwiftLint
-        run: swiftlint lint --strict
+      - name: Determine changed Swift files
+        id: changed-swift-files
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+          else
+            base_sha="${{ github.event.before }}"
+          fi
+
+          if [[ -z "$base_sha" || "$base_sha" == "0000000000000000000000000000000000000000" ]]; then
+            base_sha="$(git rev-list --max-parents=0 HEAD)"
+          fi
+
+          mapfile -t swift_files < <(git diff --name-only --diff-filter=ACMR "$base_sha" "${{ github.sha }}" -- '*.swift')
+
+          echo "count=${#swift_files[@]}" >> "$GITHUB_OUTPUT"
+          echo "SCRIPT_INPUT_FILE_COUNT=${#swift_files[@]}" >> "$GITHUB_ENV"
+
+          for index in "${!swift_files[@]}"; do
+            echo "SCRIPT_INPUT_FILE_${index}=${swift_files[$index]}" >> "$GITHUB_ENV"
+          done
+
+      - name: Run SwiftLint On Changed Files
+        if: steps.changed-swift-files.outputs.count != '0'
+        run: swiftlint lint --strict --use-script-input-files
+
+      - name: Skip SwiftLint When No Swift Files Changed
+        if: steps.changed-swift-files.outputs.count == '0'
+        run: echo "No Swift files changed. Skipping SwiftLint."
 
   build-visionos:
     name: Build visionOS

@@ -179,7 +179,7 @@ struct StarterView: View {
         }
         .onChange(of: sheetState.showMeasurementOptions) { _, isPresented in
             guard isPresented else { return }
-            if !(AppFeatureFlags.measurementToolsEnabled && appSettings.labsMeasurementToolsEnabled) {
+            if !AppFeatureFlags.measurementToolsEnabled {
                 sheetState.showMeasurementOptions = false
             }
         }
@@ -190,8 +190,11 @@ struct StarterView: View {
         }
         // Sheets for action items
         .sheet(isPresented: $sheetState.showMeasurementOptions) {
-            if AppFeatureFlags.measurementToolsEnabled && appSettings.labsMeasurementToolsEnabled {
-                MeasurementSheet(isPresented: $sheetState.showMeasurementOptions)
+            if AppFeatureFlags.measurementToolsEnabled {
+                MeasurementSheet(
+                    isPresented: $sheetState.showMeasurementOptions,
+                    controller: controller
+                )
             }
         }
         .sheet(isPresented: $sheetState.showFocusModeSheet) {

@@ -6,7 +6,6 @@ import XRShareCollaboration
 
 struct ToolbarOrnament: View {
     @ObservedObject var controller: CollaborativeSessionController
-    @EnvironmentObject private var appSettings: AppSettings
     @Binding var showMeasurementOptions: Bool
     @Binding var showFocusModeSheet: Bool
     @Binding var showImportSheet: Bool
@@ -62,7 +61,7 @@ struct ToolbarOrnament: View {
                         .accessibilityLabel("Import model")
                         .accessibilityHint("Import a custom 3D model from your device")
 
-                        if AppFeatureFlags.measurementToolsEnabled && appSettings.labsMeasurementToolsEnabled {
+                        if AppFeatureFlags.measurementToolsEnabled {
                             Button {
                                 showMeasurementOptions = true
                             } label: {

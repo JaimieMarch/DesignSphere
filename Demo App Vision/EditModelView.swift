@@ -58,6 +58,18 @@ struct EditModelView: View {
             .pickerStyle(.segmented)
             .accessibilityLabel("Edit mode selector")
             .accessibilityHint("Choose between size, position, or style editing")
+
+            HStack(spacing: 10) {
+                quickActionButton(title: "Duplicate", icon: "plus.square.on.square") {
+                    controller.duplicateSelectedModel()
+                    refreshSelectedModelState()
+                }
+
+                quickActionButton(title: "Rotate 90", icon: "rotate.right") {
+                    controller.rotateSelectedModelByQuarterTurn()
+                    refreshSelectedModelState()
+                }
+            }
             
             VStack(spacing: 20) {
                 if selectedTab == 0 {
@@ -80,6 +92,8 @@ struct EditModelView: View {
                     .accessibilityHint("Permanently removes this item from your design")
                     .padding(.top, 8)
                 } else if selectedTab == 1 {
+                    nudgePad
+                        .padding(.bottom, 10)
                     coordinateControl(title: "X Position", value: $X)
                         .padding(.vertical, 8)
                     coordinateControl(title: "Y Position", value: $Y)
@@ -557,6 +571,72 @@ struct EditModelView: View {
         private func removeSelectedModel() {
             guard let model = controller.returnSelectedModel() else { return }
             controller.removeModelById(withInstanceID: model.id)
+        }
+
+        private func quickActionButton(
+            title: String,
+            icon: String,
+            action: @escaping () -> Void
+        ) -> some View {
+            Button(action: action) {
+                Label(title, systemImage: icon)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity, minHeight: 42)
+                    .background(.thinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+
+        private var nudgePad: some View {
+            VStack(spacing: 10) {
+                Text("Quick Position")
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    Spacer()
+                    nudgeButton(icon: "arrow.up", offset: SIMD3<Float>(0, 0, -0.05))
+                    nudgeButton(icon: "arrow.up.to.line.compact", offset: SIMD3<Float>(0, 0.05, 0))
+                    Spacer()
+                }
+
+                HStack(spacing: 10) {
+                    nudgeButton(icon: "arrow.left", offset: SIMD3<Float>(-0.05, 0, 0))
+                    nudgeButton(icon: "arrow.down.to.line.compact", offset: SIMD3<Float>(0, -0.05, 0))
+                    nudgeButton(icon: "arrow.right", offset: SIMD3<Float>(0.05, 0, 0))
+                }
+
+                HStack(spacing: 10) {
+                    Spacer()
+                    nudgeButton(icon: "arrow.down", offset: SIMD3<Float>(0, 0, 0.05))
+                    Spacer()
+                }
+            }
+            .padding(14)
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+
+        private func nudgeButton(icon: String, offset: SIMD3<Float>) -> some View {
+            Button {
+                controller.nudgeSelectedModel(by: offset)
+                refreshSelectedModelState()
+            } label: {
+                Image(systemName: icon)
+                    .font(.headline)
+                    .frame(width: 52, height: 44)
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+
+        private func refreshSelectedModelState() {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 120_000_000)
+                updateSelectedEntity()
+            }
         }
         
     }

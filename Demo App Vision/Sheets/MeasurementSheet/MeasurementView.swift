@@ -1,13 +1,14 @@
 import SwiftUI
+import XRShareCollaboration
 
+@available(visionOS 26.0, *)
 struct MeasurementView: View {
     @Binding var isPresented: Bool
-    @State private var measurementUnit = "inches"
-    @State private var showDimensions = false
+    @ObservedObject var measurementManager: MeasurementManager
+    let spawnRuler: () -> Void
 
     var body: some View {
         VStack(spacing: 24) {
-            // Header section matching other sheets
             VStack(spacing: 16) {
                 Image(systemName: "ruler")
                     .font(.largeTitle)
@@ -20,35 +21,80 @@ struct MeasurementView: View {
             }
 
             VStack(spacing: 20) {
-                Picker("Unit", selection: $measurementUnit) {
-                    Text("Inches").tag("inches")
-                    Text("Feet").tag("feet")
-                    Text("Centimeters").tag("cm")
-                    Text("Meters").tag("m")
+                Picker("Unit", selection: Binding(
+                    get: { measurementManager.unit },
+                    set: { measurementManager.setUnit($0) }
+                )) {
+                    ForEach(MeasurementManager.Unit.allCases) { unit in
+                        Text(unit.displayName).tag(unit)
+                    }
                 }
                 .pickerStyle(.segmented)
                 .accessibilityLabel("Measurement unit")
 
-                Toggle("Show Dimensions on Objects", isOn: $showDimensions)
-                    .padding(.vertical, 8)
-                    .accessibilityLabel("Show dimensions on objects")
-                    .accessibilityHint("Display size labels on placed models")
+                Toggle(
+                    "Show Dimensions on Objects",
+                    isOn: Binding(
+                        get: { measurementManager.showDimensions },
+                        set: { measurementManager.setShowDimensions($0) }
+                    )
+                )
+                .padding(.vertical, 8)
+                .accessibilityLabel("Show dimensions on objects")
+                .accessibilityHint("Display size labels on placed models")
 
-                Button(action: { spawnRuler() }) {
-                    Label("Spawn Virtual Ruler", systemImage: "ruler")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                Button(action: spawnRuler) {
+                    Label(
+                        measurementManager.hasVirtualRuler ? "Replace Virtual Ruler" : "Spawn Virtual Ruler",
+                        systemImage: "ruler"
+                    )
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
-                Button(action: { measureDistance() }) {
-                    Label("Measure Distance", systemImage: "arrow.up.left.and.arrow.down.right")
+                if measurementManager.hasVirtualRuler {
+                    Button(action: { measurementManager.clearVirtualRuler() }) {
+                        Label("Clear Ruler", systemImage: "trash")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                }
+
+                Button(action: { measurementManager.startDistanceMeasurement() }) {
+                    Label("Measure Between Objects", systemImage: "arrow.left.and.right")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.large)
+
+                if measurementManager.hasActiveDistanceMeasurement || measurementManager.isAwaitingSelection {
+                    Button(action: clearOrCancelMeasurement) {
+                        Label(
+                            measurementManager.isAwaitingSelection ? "Cancel Measurement" : "Clear Measurement",
+                            systemImage: "xmark"
+                        )
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.large)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Status")
+                        .font(.headline)
+                    Text(measurementManager.statusText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
 
             Spacer()
@@ -64,15 +110,11 @@ struct MeasurementView: View {
         .padding(32)
     }
 
-    private func spawnRuler() {
-        #if DEBUG
-        print("Spawn Ruler - NOT YET IMPLEMENTED")
-        #endif
-    }
-
-    private func measureDistance() {
-        #if DEBUG
-        print("Measure Distance - NOT YET IMPLEMENTED")
-        #endif
+    private func clearOrCancelMeasurement() {
+        if measurementManager.isAwaitingSelection {
+            measurementManager.cancelDistanceSelection()
+        } else {
+            measurementManager.clearDistanceMeasurement()
+        }
     }
 }
