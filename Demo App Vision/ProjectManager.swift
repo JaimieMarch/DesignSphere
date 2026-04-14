@@ -371,6 +371,13 @@ class ProjectManager: ObservableObject {
 
         // Load each model
         for (index, savedModel) in project.models.enumerated() {
+            defer {
+                let progress = Double(index + 1) / Double(max(project.models.count, 1))
+                Task { @MainActor in
+                    self.streamingProgress = progress
+                }
+            }
+
             // Find the model type
             guard let modelType = ModelType.allCases().first(where: { $0.rawValue == savedModel.modelTypeName }) else {
                 #if DEBUG
@@ -414,10 +421,6 @@ class ProjectManager: ObservableObject {
                 #endif
             }
 
-            let progress = Double(index + 1) / Double(max(project.models.count, 1))
-            await MainActor.run {
-                streamingProgress = progress
-            }
         }
 
         #if DEBUG

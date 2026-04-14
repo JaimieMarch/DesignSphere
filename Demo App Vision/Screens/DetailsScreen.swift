@@ -253,8 +253,8 @@ struct DetailsScreen: View {
                     sharedAnchor: controller.sharedAnchorEntity
                 )
 
-                // Update the room name field
-                self.roomName = ""
+                // Keep the loaded project name in the field so save/update remains immediate.
+                self.roomName = roomName
 
                 switch anchorStatus {
                 case .noneSaved:
