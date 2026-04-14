@@ -119,9 +119,8 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var canRedo: Bool = false
     @Published public var selectedModelID: String? = nil
     @Published public var selectedModelInstanceID: UUID? = nil
-    @Published public private(set) var pendingEditModelID: UUID? = nil
-    @Published public private(set) var editRequestToken: UUID? = nil
     @Published public var pendingMaterialUpdate: (entityID: UUID, material: RealityKit.Material)?
+    @Published public private(set) var expandedEditModelID: UUID? = nil
     private var activeEditModelInstanceID: UUID? = nil
     private var activeEditTransactionNeedsForceRecord: Bool = false
 
@@ -133,6 +132,10 @@ public final class CollaborativeSessionController: ObservableObject {
     public var selectedModelInstanceIDVar: UUID? {
             modelManager.selectedModelInstanceID
         }
+
+    public var expandedEditModelInstanceIDVar: UUID? {
+        expandedEditModelID
+    }
 
     public var sessionName: String {
         get { arViewModel.sessionName }
@@ -152,6 +155,7 @@ public final class CollaborativeSessionController: ObservableObject {
     private let historyManager = SceneHistoryManager()
     public let modelManager: ModelManager
     #if os(visionOS)
+    private weak var editMenuAttachmentEntity: Entity?
     public let immersiveSession: ARKitSession
     public let focusModeManager: FocusModeManager
     public let selectionIndicatorManager: SelectionIndicatorManager
@@ -207,9 +211,12 @@ public final class CollaborativeSessionController: ObservableObject {
                 guard let self else { return }
                 EditAffordanceFactory.syncEditAffordances(
                     for: self.modelManager.placedModels,
-                    relativeTo: self.arViewModel.sharedAnchorEntity
+                    relativeTo: self.arViewModel.sharedAnchorEntity,
+                    selectedInstanceID: self.modelManager.selectedModelInstanceID,
+                    expandedInstanceID: self.expandedEditModelID
                 )
                 self.selectionIndicatorManager.updateIndicatorPosition()
+                self.updateEditMenuAttachmentPosition()
             }
             manipulationManager.onManipulationDidEnd = { [weak self] entity, instanceID in
                 await self?.snapManipulatedEntity(entity, instanceID: instanceID)
@@ -452,21 +459,20 @@ public final class CollaborativeSessionController: ObservableObject {
     public func requestEditModel(instanceID: UUID) {
         guard modelManager.placedModels.contains(where: { $0.id == instanceID }) else { return }
 
+        if expandedEditModelID == instanceID {
+            collapseEditMenu()
+            return
+        }
+
         commitSelectedModelEditTransaction()
         modelManager.selectModel(instanceID: instanceID)
-        pendingEditModelID = instanceID
-        editRequestToken = UUID()
+        expandedEditModelID = instanceID
     }
 
-    /// Re-applies the pending edit selection if the editor is about to open.
-    public func preparePendingEditSelection() {
-        guard let pendingEditModelID else { return }
-        modelManager.selectModel(instanceID: pendingEditModelID)
-    }
-
-    /// Clears the current edit request after the editor is dismissed.
-    public func clearPendingEditRequest() {
-        pendingEditModelID = nil
+    public func collapseEditMenu() {
+        commitSelectedModelEditTransaction()
+        expandedEditModelID = nil
+        editMenuAttachmentEntity?.removeFromParent()
     }
 
     /// Handle a spatial tap in the immersive scene.
@@ -481,6 +487,7 @@ public final class CollaborativeSessionController: ObservableObject {
         if #available(visionOS 26.0, *),
            let modelEntity = entity.ancestorOrSelf(with: InstanceIDComponent.self) {
             commitSelectedModelEditTransaction()
+            expandedEditModelID = nil
             modelManager.selectModel(entity: modelEntity)
         }
         #endif
@@ -494,6 +501,7 @@ public final class CollaborativeSessionController: ObservableObject {
     /// Deselect the currently selected model
     public func deselectModel() {
         commitSelectedModelEditTransaction()
+        expandedEditModelID = nil
         modelManager.deselectModel()
     }
 
@@ -513,6 +521,10 @@ public final class CollaborativeSessionController: ObservableObject {
         guard !historyManager.isApplyingHistory,
               !historyManager.isRecordingSuspended,
               let snapshot = snapshot(for: model) else { return }
+        if expandedEditModelID == snapshot.instanceID {
+            expandedEditModelID = nil
+            editMenuAttachmentEntity?.removeFromParent()
+        }
         if activeEditModelInstanceID == snapshot.instanceID {
             activeEditModelInstanceID = nil
             activeEditTransactionNeedsForceRecord = false
@@ -645,6 +657,10 @@ public final class CollaborativeSessionController: ObservableObject {
     private func removeModelFromHistory(instanceID: UUID) {
         guard let model = modelManager.modelDict[instanceID] else { return }
         historyManager.discardTransaction(for: instanceID)
+        if expandedEditModelID == instanceID {
+            expandedEditModelID = nil
+            editMenuAttachmentEntity?.removeFromParent()
+        }
         if activeEditModelInstanceID == instanceID {
             activeEditModelInstanceID = nil
             activeEditTransactionNeedsForceRecord = false
@@ -767,8 +783,8 @@ public final class CollaborativeSessionController: ObservableObject {
 
             self.activeEditModelInstanceID = nil
             self.activeEditTransactionNeedsForceRecord = false
-            self.pendingEditModelID = nil
-            self.editRequestToken = nil
+            self.expandedEditModelID = nil
+            self.editMenuAttachmentEntity?.removeFromParent()
             self.historyManager.clear()
             self.modelManager.reset(broadcast: true)
         }
@@ -801,6 +817,8 @@ public final class CollaborativeSessionController: ObservableObject {
     public func clearHistory() {
         activeEditModelInstanceID = nil
         activeEditTransactionNeedsForceRecord = false
+        expandedEditModelID = nil
+        editMenuAttachmentEntity?.removeFromParent()
         historyManager.clear()
     }
 
@@ -912,6 +930,25 @@ public final class CollaborativeSessionController: ObservableObject {
         activeEditTransactionNeedsForceRecord = true
         entity.restoreOriginalMaterials()
         entity.components.remove(MaterialTypeComponent.self)
+    }
+
+    public func syncEditMenuAttachment(_ attachment: Entity?) {
+        if editMenuAttachmentEntity !== attachment {
+            editMenuAttachmentEntity?.removeFromParent()
+            editMenuAttachmentEntity = attachment
+        }
+
+        guard let attachment else { return }
+
+        if #available(visionOS 2.0, *),
+           attachment.components[BillboardComponent.self] == nil {
+            var billboard = BillboardComponent()
+            billboard.blendFactor = 1.0
+            attachment.components.set(billboard)
+        }
+
+        attachment.scale = SIMD3<Float>(repeating: 0.001)
+        updateEditMenuAttachmentPosition()
     }
 
     
@@ -1041,9 +1078,12 @@ public final class CollaborativeSessionController: ObservableObject {
         if #available(visionOS 26.0, *) {
             EditAffordanceFactory.syncEditAffordances(
                 for: modelManager.placedModels,
-                relativeTo: arViewModel.sharedAnchorEntity
+                relativeTo: arViewModel.sharedAnchorEntity,
+                selectedInstanceID: modelManager.selectedModelInstanceID,
+                expandedInstanceID: expandedEditModelID
             )
         }
+        updateEditMenuAttachmentPosition()
         selectionIndicatorManager.updateIndicatorPosition()
         modelManager.updatePlacedModels(arViewModel: arViewModel)
     }
@@ -1321,6 +1361,71 @@ public final class CollaborativeSessionController: ObservableObject {
     private var currentRoomAnchor: RoomAnchor? {
         guard let currentRoomAnchorID else { return nil }
         return trackedRoomAnchors[currentRoomAnchorID] as? RoomAnchor
+    }
+
+    private func updateEditMenuAttachmentPosition() {
+        guard let attachment = editMenuAttachmentEntity else { return }
+        guard let expandedEditModelID,
+              let model = modelManager.modelDict[expandedEditModelID],
+              let modelEntity = model.modelEntity,
+              modelEntity.parent != nil else {
+            attachment.removeFromParent()
+            return
+        }
+
+        if attachment.parent !== arViewModel.sharedAnchorEntity {
+            arViewModel.sharedAnchorEntity.addChild(attachment)
+        }
+
+        let bounds = modelEntity.visualBounds(relativeTo: arViewModel.sharedAnchorEntity)
+        let size = bounds.extents
+        let maxDimension = max(size.x, max(size.y, size.z))
+        let verticalOffset = min(max(maxDimension * 0.24, 0.14), 0.26)
+        let lateralOffset = min(max(size.x * 0.78, 0.28), 0.48)
+        let forwardOffset: Float = min(max(maxDimension * 0.10, 0.06), 0.12)
+
+        var sideSign: Float = 1
+        var viewerLocalPosition: SIMD3<Float>? = nil
+        if let deviceTransform = worldTrackingProvider?
+            .queryDeviceAnchor(atTimestamp: CACurrentMediaTime())?
+            .originFromAnchorTransform {
+            let viewerWorldPosition = SIMD3<Float>(
+                deviceTransform.columns.3.x,
+                deviceTransform.columns.3.y,
+                deviceTransform.columns.3.z
+            )
+            viewerLocalPosition = arViewModel.sharedAnchorEntity.convert(
+                position: viewerWorldPosition,
+                from: nil
+            )
+            if let viewerLocalPosition {
+                sideSign = viewerLocalPosition.x >= bounds.center.x ? -1 : 1
+            }
+        }
+
+        let panelCenter = SIMD3<Float>(bounds.center.x, bounds.center.y, bounds.center.z)
+        let viewerOffset: SIMD3<Float>
+        if let viewerLocalPosition {
+            let rawDirection = viewerLocalPosition - panelCenter
+            let horizontalDirection = SIMD3<Float>(rawDirection.x, 0, rawDirection.z)
+            if simd_length_squared(horizontalDirection) > 0.0001 {
+                viewerOffset = simd_normalize(horizontalDirection) * forwardOffset
+            } else {
+                viewerOffset = SIMD3<Float>(0, 0, forwardOffset)
+            }
+        } else {
+            viewerOffset = SIMD3<Float>(0, 0, forwardOffset)
+        }
+
+        attachment.setPosition(
+            SIMD3<Float>(
+                bounds.center.x + (lateralOffset * sideSign) + viewerOffset.x,
+                bounds.max.y + verticalOffset,
+                bounds.center.z + viewerOffset.z
+            ),
+            relativeTo: arViewModel.sharedAnchorEntity
+        )
+        attachment.isEnabled = true
     }
     #endif
 

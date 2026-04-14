@@ -26,10 +26,19 @@ struct DemoApp: App {
         ImmersiveSpace(id: "CollaborativeSpace") {
             let entityTap = SpatialTapGesture().targetedToAnyEntity()
             let backgroundTap = SpatialTapGesture()
-            RealityView { content in
+            RealityView { content, attachments in
                 controller.makeRealityContent(content, session: controller.immersiveSession)
-            } update: { content in
+                controller.syncEditMenuAttachment(attachments.entity(for: "model-edit-panel"))
+            } update: { content, attachments in
                 controller.updateRealityContent(content)
+                controller.syncEditMenuAttachment(attachments.entity(for: "model-edit-panel"))
+            } attachments: {
+                if controller.expandedEditModelInstanceIDVar != nil {
+                    Attachment(id: "model-edit-panel") {
+                        EditModelView(controller: controller)
+                            .frame(width: 380)
+                    }
+                }
             }
             .gesture(
                 entityTap.exclusively(before: backgroundTap)

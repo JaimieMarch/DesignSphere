@@ -6,11 +6,16 @@ import UIKit
 @available(visionOS 26.0, *)
 @MainActor
 enum EditAffordanceFactory {
-    private static let rootWidth: Float = 0.18
-    private static let rootHeight: Float = 0.074
-    private static let rootDepth: Float = 0.014
+    private static let rootWidth: Float = 0.152
+    private static let rootHeight: Float = 0.062
+    private static let rootDepth: Float = 0.012
 
-    static func syncEditAffordances(for models: [Model], relativeTo sharedAnchor: AnchorEntity) {
+    static func syncEditAffordances(
+        for models: [Model],
+        relativeTo sharedAnchor: AnchorEntity,
+        selectedInstanceID: UUID?,
+        expandedInstanceID: UUID?
+    ) {
         let liveInstanceIDs = Set(models.map(\.id))
 
         for child in sharedAnchor.children {
@@ -21,6 +26,14 @@ enum EditAffordanceFactory {
 
         for model in models {
             guard let modelEntity = model.modelEntity else { continue }
+            if model.id != selectedInstanceID {
+                existingAffordance(for: model.id, relativeTo: sharedAnchor)?.removeFromParent()
+                continue
+            }
+            if model.id == expandedInstanceID {
+                existingAffordance(for: model.id, relativeTo: sharedAnchor)?.removeFromParent()
+                continue
+            }
             updateAffordance(for: model.id, modelEntity: modelEntity, relativeTo: sharedAnchor)
         }
     }
@@ -34,7 +47,7 @@ enum EditAffordanceFactory {
 
         let bounds = modelEntity.visualBounds(relativeTo: sharedAnchor)
         let size = bounds.extents
-        let yOffset = min(max(max(size.x, size.y, size.z) * 0.24, 0.12), 0.28)
+        let yOffset = min(max(max(size.x, size.y, size.z) * 0.18, 0.10), 0.22)
 
         affordance.setPosition(
             SIMD3<Float>(bounds.center.x, bounds.max.y + yOffset, bounds.center.z),
@@ -80,8 +93,8 @@ enum EditAffordanceFactory {
 
     private static func createBackgroundMaterial() -> UnlitMaterial {
         var material = UnlitMaterial()
-        material.color = .init(tint: UIColor(red: 0.15, green: 0.18, blue: 0.22, alpha: 0.92))
-        material.blending = .transparent(opacity: 0.92)
+        material.color = .init(tint: UIColor(red: 0.12, green: 0.15, blue: 0.18, alpha: 0.82))
+        material.blending = .transparent(opacity: 0.82)
         return material
     }
 
@@ -96,18 +109,25 @@ enum EditAffordanceFactory {
         )
 
         var material = UnlitMaterial()
-        material.color = .init(tint: UIColor.white)
+        material.color = .init(tint: UIColor(white: 0.98, alpha: 0.98))
 
         let title = ModelEntity(mesh: textMesh, materials: [material])
-        title.position = SIMD3<Float>(-0.04, -0.012, 0.008)
-        title.scale = SIMD3<Float>(repeating: 0.016)
+        title.position = SIMD3<Float>(-0.032, -0.011, 0.007)
+        title.scale = SIMD3<Float>(repeating: 0.0145)
 
         let icon = ModelEntity(
-            mesh: .generateBox(size: [0.014, 0.014, 0.006], cornerRadius: 0.003),
+            mesh: .generateBox(size: [0.010, 0.020, 0.005], cornerRadius: 0.003),
             materials: [material]
         )
-        icon.position = SIMD3<Float>(0.052, 0, 0.004)
+        icon.position = SIMD3<Float>(0.044, 0, 0.004)
         title.addChild(icon)
+
+        let detail = ModelEntity(
+            mesh: .generateBox(size: [0.0032, 0.012, 0.006], cornerRadius: 0.002),
+            materials: [material]
+        )
+        detail.position = SIMD3<Float>(0.054, 0.002, 0.004)
+        title.addChild(detail)
         return title
     }
 }

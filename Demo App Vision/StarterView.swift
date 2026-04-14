@@ -31,7 +31,6 @@ struct NavigationState {
 struct SheetVisibilityState {
     var showMeasurementOptions = false
     var showFocusModeSheet = false
-    var showEditSheet = false
     var showImportSheet = false
     var showTutorial = false
 }
@@ -178,16 +177,6 @@ struct StarterView: View {
         .onReceive(NotificationCenter.default.publisher(for: AppSettings.tutorialReplayRequestedNotification)) { _ in
             sheetState.showTutorial = true
         }
-        .onChange(of: controller.editRequestToken) { _, _ in
-            if controller.pendingEditModelID != nil {
-                sheetState.showEditSheet = true
-            }
-        }
-        .onChange(of: controller.selectedModelInstanceIDVar) { _, newValue in
-            if newValue == nil {
-                sheetState.showEditSheet = false
-            }
-        }
         .onChange(of: sheetState.showMeasurementOptions) { _, isPresented in
             guard isPresented else { return }
             if !(AppFeatureFlags.measurementToolsEnabled && appSettings.labsMeasurementToolsEnabled) {
@@ -207,9 +196,6 @@ struct StarterView: View {
         }
         .sheet(isPresented: $sheetState.showFocusModeSheet) {
             FocusModeSheet(isPresented: $sheetState.showFocusModeSheet, controller: controller)
-        }
-        .sheet(isPresented: $sheetState.showEditSheet) {
-            EditModelSheet(isPresented: $sheetState.showEditSheet, controller: controller)
         }
         .sheet(isPresented: $sheetState.showImportSheet) {
             ImportModelSheet(isPresented: $sheetState.showImportSheet, controller: controller)

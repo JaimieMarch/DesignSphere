@@ -7,12 +7,5 @@ struct EditModelSheet: View {
         
     var body: some View {
         EditModelView(controller: controller)
-            .onAppear {
-                controller.preparePendingEditSelection()
-            }
-            .onDisappear {
-                controller.commitSelectedModelEditTransaction()
-                controller.clearPendingEditRequest()
-            }
     }
 }

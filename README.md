@@ -187,6 +187,8 @@ As this is an active course project, we're continuously iterating based on:
 
 The roadmap remains flexible and will adapt as we learn more about how users interact with spatial design tools and as Apple's visionOS platform matures.
 
+AUDIT FIXES IS THE LAST STABLE COMMIT PRE-REWORKED VERSION OF EDIT MODEL VIEW
+
 ## Credits
 
 This project is powered by XRShare - with special thanks to:

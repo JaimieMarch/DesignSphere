@@ -12,6 +12,8 @@ public final class SelectionIndicatorManager: ObservableObject {
     private var indicatorRoot: Entity?
     private var focusPlate: ModelEntity?
     private var cornerSegments: [ModelEntity] = []
+    private var guideStem: ModelEntity?
+    private var guideCap: ModelEntity?
     private var lastSignature: Signature?
 
     private let updateThreshold: Float = 0.001
@@ -40,16 +42,22 @@ public final class SelectionIndicatorManager: ObservableObject {
         let root = Entity()
         let plate = createPlateEntity()
         let segments = (0..<8).map { _ in createCornerSegment() }
+        let stem = createGuideStem()
+        let cap = createGuideCap()
 
         root.addChild(plate)
         for segment in segments {
             root.addChild(segment)
         }
+        root.addChild(stem)
+        root.addChild(cap)
         sharedAnchor.addChild(root)
 
         indicatorRoot = root
         focusPlate = plate
         cornerSegments = segments
+        guideStem = stem
+        guideCap = cap
         trackedEntity = entity
         lastSignature = nil
 
@@ -61,6 +69,8 @@ public final class SelectionIndicatorManager: ObservableObject {
         indicatorRoot = nil
         focusPlate = nil
         cornerSegments.removeAll()
+        guideStem = nil
+        guideCap = nil
         trackedEntity = nil
         lastSignature = nil
     }
@@ -69,6 +79,8 @@ public final class SelectionIndicatorManager: ObservableObject {
         guard let sharedAnchor = sharedAnchorEntity,
               let root = indicatorRoot,
               let plate = focusPlate,
+              let guideStem,
+              let guideCap,
               cornerSegments.count == 8 else {
             return
         }
@@ -102,6 +114,8 @@ public final class SelectionIndicatorManager: ObservableObject {
             to: root,
             plate: plate,
             cornerSegments: cornerSegments,
+            guideStem: guideStem,
+            guideCap: guideCap,
             bounds: bounds,
             relativeTo: sharedAnchor
         )
@@ -113,19 +127,25 @@ public final class SelectionIndicatorManager: ObservableObject {
         to root: Entity,
         plate: ModelEntity,
         cornerSegments: [ModelEntity],
+        guideStem: ModelEntity,
+        guideCap: ModelEntity,
         bounds: BoundingBox,
         relativeTo sharedAnchor: AnchorEntity
     ) {
         let maxDimension = max(bounds.extents.x, bounds.extents.y, bounds.extents.z)
-        let horizontalPadding = min(max(maxDimension * 0.11, 0.045), 0.12)
-        let verticalOffset = min(max(maxDimension * 0.055, 0.04), 0.09)
+        let horizontalPadding = min(max(maxDimension * 0.095, 0.04), 0.10)
+        let verticalOffset = min(max(maxDimension * 0.065, 0.05), 0.10)
         let width = max(bounds.extents.x + horizontalPadding, 0.12)
         let depth = max(bounds.extents.z + horizontalPadding, 0.12)
-        let thickness = min(max(maxDimension * 0.012, 0.005), 0.012)
-        let segmentWidth = min(max(width * 0.22, 0.045), 0.16)
-        let segmentDepth = min(max(depth * 0.22, 0.045), 0.16)
-        let plateHeight = thickness * 0.24
-        let plateInset = thickness * 1.8
+        let thickness = min(max(maxDimension * 0.010, 0.004), 0.010)
+        let segmentWidth = min(max(width * 0.20, 0.04), 0.14)
+        let segmentDepth = min(max(depth * 0.20, 0.04), 0.14)
+        let plateHeight = thickness * 0.18
+        let plateInset = thickness * 1.4
+        let stemHeight = max(verticalOffset - (thickness * 1.2), thickness * 1.8)
+        let capHeight = thickness * 1.4
+        let capWidth = min(max(width * 0.22, 0.035), 0.08)
+        let capDepth = min(max(depth * 0.16, 0.03), 0.06)
 
         root.setPosition(
             SIMD3<Float>(bounds.center.x, bounds.max.y + verticalOffset, bounds.center.z),
@@ -138,6 +158,10 @@ public final class SelectionIndicatorManager: ObservableObject {
             plateHeight,
             max(depth - plateInset, thickness * 2)
         )
+        guideStem.position = SIMD3<Float>(0, -(stemHeight * 0.5), 0)
+        guideStem.scale = SIMD3<Float>(thickness * 0.8, stemHeight, thickness * 0.8)
+        guideCap.position = SIMD3<Float>(0, plateHeight * 0.85, 0)
+        guideCap.scale = SIMD3<Float>(capWidth, capHeight, capDepth)
 
         let halfWidth = width * 0.5
         let halfDepth = depth * 0.5
@@ -179,16 +203,37 @@ public final class SelectionIndicatorManager: ObservableObject {
         return segment
     }
 
+    private func createGuideStem() -> ModelEntity {
+        ModelEntity(
+            mesh: .generateBox(size: SIMD3<Float>(repeating: 1), cornerRadius: 0.24),
+            materials: [stemMaterial()]
+        )
+    }
+
+    private func createGuideCap() -> ModelEntity {
+        ModelEntity(
+            mesh: .generateBox(size: SIMD3<Float>(repeating: 1), cornerRadius: 0.45),
+            materials: [accentMaterial()]
+        )
+    }
+
     private func accentMaterial() -> UnlitMaterial {
         var material = UnlitMaterial()
-        material.color = .init(tint: UIColor(red: 0.95, green: 0.82, blue: 0.56, alpha: 0.98))
+        material.color = .init(tint: UIColor(red: 0.94, green: 0.84, blue: 0.66, alpha: 0.94))
         return material
     }
 
     private func plateMaterial() -> UnlitMaterial {
         var material = UnlitMaterial()
-        material.color = .init(tint: UIColor(red: 0.95, green: 0.82, blue: 0.56, alpha: 0.14))
-        material.blending = .transparent(opacity: 0.14)
+        material.color = .init(tint: UIColor(red: 0.95, green: 0.86, blue: 0.72, alpha: 0.10))
+        material.blending = .transparent(opacity: 0.10)
+        return material
+    }
+
+    private func stemMaterial() -> UnlitMaterial {
+        var material = UnlitMaterial()
+        material.color = .init(tint: UIColor(red: 0.95, green: 0.86, blue: 0.72, alpha: 0.36))
+        material.blending = .transparent(opacity: 0.36)
         return material
     }
 }

@@ -8,17 +8,12 @@ import XRShareCollaboration
 
 
 struct EditModelView: View {
-    @Environment(\.dismiss) private var dismiss
     @ObservedObject var controller: CollaborativeSessionController
     
-    @State private var modelScale: SIMD3<Float> = SIMD3<Float>(1, 1, 1)
     @State private var modelDepth: Float = 10
     @State private var modelHeight: Float = 10
     @State private var modelWidth: Float = 10
     @State private var selectedTab = 0
-    @State private var width: Double = 50
-    @State private var height: Double = 80
-    @State private var depth: Double = 50
     @State private var X: Double = 0
     @State private var Y: Double = 0
     @State private var Z: Double = 0
@@ -30,24 +25,31 @@ struct EditModelView: View {
     private let presetColors: [Color] = [.red, .green, .blue, .orange, .purple]
     
     var body: some View {
-        VStack(spacing: 24) {
-            
-            Image(systemName: "pencil")
-                .font(.largeTitle)
-                .imageScale(.large)
-                .foregroundStyle(.secondary)
-            
-            Text("Edit Model")
-                .font(.title)
-                .bold()
-                .multilineTextAlignment(.center)
-            
-            Text(controller.selectedModelIDVar?.displayName ?? "Unknown Model")
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            
-            
+        VStack(spacing: 18) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Edit Model")
+                        .font(.title3.weight(.semibold))
+
+                    Text(controller.selectedModelIDVar?.displayName ?? "Unknown Model")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer()
+
+                Button {
+                    controller.collapseEditMenu()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.headline)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Close edit menu")
+            }
+
             Picker("Edit Mode", selection: $selectedTab) {
                 Text("Size").tag(0)
                 Text("Position").tag(1)
@@ -68,8 +70,6 @@ struct EditModelView: View {
                     Spacer(minLength:12)
                     Button {
                         removeSelectedModel()
-                        dismiss()
-
                     } label: {
                         Text("Remove Furniture")
                             .frame(maxWidth: .infinity, minHeight: 50)
@@ -205,7 +205,6 @@ struct EditModelView: View {
                 HStack(spacing: 12) {
                     Button {
                         controller.deselectModel()
-                        dismiss()
                     } label: {
                         Text("Deselect")
                             .frame(maxWidth: .infinity)
@@ -214,16 +213,23 @@ struct EditModelView: View {
                     .accessibilityLabel("Deselect model")
                     .accessibilityHint("Deselects the current model and closes the editor")
 
-                    Button(action: { dismiss() }) {
-                        Text("Close")
+                    Button(action: { controller.collapseEditMenu() }) {
+                        Text("Hide")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
-                    .accessibilityLabel("Close editor")
+                    .accessibilityLabel("Hide edit menu")
                     .accessibilityHint("Closes the edit panel while keeping the model selected")
                 }
             }
-            .padding(32)
+            .padding(20)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .stroke(Color.white.opacity(0.12))
+            )
+            .shadow(color: .black.opacity(0.18), radius: 20, y: 8)
             .onAppear {
                 
                 if let model = controller.returnSelectedModel(),
