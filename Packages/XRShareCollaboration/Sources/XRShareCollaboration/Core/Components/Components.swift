@@ -85,3 +85,52 @@ public struct SnapStateComponent: Component {
         self.score = score
     }
 }
+
+public enum FurnitureCollisionMode: String, CaseIterable, Identifiable, Sendable {
+    case off
+    case warn
+    case prevent
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .off:
+            return "Collision Off"
+        case .warn:
+            return "Warn"
+        case .prevent:
+            return "Prevent"
+        }
+    }
+
+    public var detail: String {
+        switch self {
+        case .off:
+            return "Allow furniture to overlap."
+        case .warn:
+            return "Allow overlap, but flag it."
+        case .prevent:
+            return "Keep furniture from settling into overlap."
+        }
+    }
+
+    public var symbolName: String {
+        switch self {
+        case .off:
+            return "cube.transparent"
+        case .warn:
+            return "exclamationmark.triangle"
+        case .prevent:
+            return "shield.lefthalf.filled"
+        }
+    }
+}
+
+public struct CollisionStateComponent: Component {
+    public var lastValidPosition: SIMD3<Float>
+
+    public init(lastValidPosition: SIMD3<Float>) {
+        self.lastValidPosition = lastValidPosition
+    }
+}

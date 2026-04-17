@@ -51,6 +51,50 @@ enum RoomMeshPlacementEngine {
         )
     }
 
+    static func supportsPosition(
+        entity: Entity,
+        modelType: ModelType,
+        worldPosition: SIMD3<Float>,
+        worldOrientation: simd_quatf,
+        roomAnchor: RoomAnchor,
+        requiredClassification: String?,
+        maxSupportDistance: Float = SurfaceSnappingEngine.Options.manipulation.withHysteresis().maxSupportDistance
+    ) -> Bool {
+        guard roomAnchor.contains(worldPosition) else { return false }
+
+        let desiredClassifications = meshClassifications(for: modelType)
+        let candidates = extractCandidates(
+            from: roomAnchor,
+            preferredWorldPoint: worldPosition,
+            desiredClassifications: desiredClassifications,
+            preferredAlignment: modelType.plane
+        )
+        guard !candidates.isEmpty else { return false }
+
+        let preferredClassification = meshClassification(from: requiredClassification)
+        guard let preferredCandidate = nearestCandidate(
+            to: worldPosition,
+            candidates: candidates,
+            preferredClassification: preferredClassification
+        ) else {
+            return false
+        }
+
+        let supportOverflow = supportFitOverflow(
+            for: entity,
+            bounds: entity.components[ModelBoundsComponent.self],
+            modelType: modelType,
+            worldPosition: worldPosition,
+            worldOrientation: worldOrientation,
+            roomAnchor: roomAnchor,
+            candidates: candidates,
+            preferredClassification: preferredCandidate.classification,
+            preferredNormal: preferredCandidate.normal
+        )
+
+        return supportOverflow <= maxSupportDistance
+    }
+
     private static func resolvePlacement(
         entity: Entity,
         modelType: ModelType,
@@ -654,6 +698,30 @@ enum RoomMeshPlacementEngine {
         return bestDistance
     }
 
+    private static func nearestCandidate(
+        to point: SIMD3<Float>,
+        candidates: [TriangleCandidate],
+        preferredClassification: MeshAnchor.MeshClassification?
+    ) -> TriangleCandidate? {
+        var bestCandidate: TriangleCandidate?
+        var bestDistance = Float.infinity
+
+        for candidate in candidates {
+            if let preferredClassification,
+               candidate.classification != preferredClassification {
+                continue
+            }
+
+            let distance = simd_distance(point, candidate.closestPoint)
+            if distance < bestDistance {
+                bestDistance = distance
+                bestCandidate = candidate
+            }
+        }
+
+        return bestCandidate
+    }
+
     private static func supportLocalPoints(
         bounds: ModelBoundsComponent?,
         modelType: ModelType
@@ -729,6 +797,43 @@ enum RoomMeshPlacementEngine {
             return "plant"
         @unknown default:
             return "unknown"
+        }
+    }
+
+    private static func meshClassification(from description: String?) -> MeshAnchor.MeshClassification? {
+        guard let description else { return nil }
+
+        switch description {
+        case "none":
+            return .none
+        case "wall":
+            return .wall
+        case "floor":
+            return .floor
+        case "ceiling":
+            return .ceiling
+        case "table":
+            return .table
+        case "seat":
+            return .seat
+        case "window":
+            return .window
+        case "door":
+            return .door
+        case "stairs":
+            return .stairs
+        case "bed":
+            return .bed
+        case "cabinet":
+            return .cabinet
+        case "homeAppliance":
+            return .homeAppliance
+        case "tv":
+            return .tv
+        case "plant":
+            return .plant
+        default:
+            return nil
         }
     }
 

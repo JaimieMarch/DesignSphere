@@ -158,6 +158,7 @@ struct StarterView: View {
             sessionState.isImmersiveOpen = false
             loadingState.isLoading = true
             loadFavorites()
+            controller.setCollisionMode(appSettings.collisionMode)
         }
         .task { await prepareExperience() }
         .onChange(of: favoriteModels) {
@@ -170,6 +171,9 @@ struct StarterView: View {
                 favoriteModels.removeAll()
                 appSettings.clearStoredFavorites()
             }
+        }
+        .onChange(of: appSettings.collisionMode) { _, mode in
+            controller.setCollisionMode(mode)
         }
         .onReceive(NotificationCenter.default.publisher(for: AppSettings.favoritesDidResetNotification)) { _ in
             favoriteModels.removeAll()

@@ -123,6 +123,46 @@ enum SurfaceSnappingEngine {
         )
     }
 
+    static func supportsPosition(
+        entity: Entity,
+        modelType: ModelType,
+        worldPosition: SIMD3<Float>,
+        worldOrientation: simd_quatf,
+        planeAnchors: [PlaneAnchor],
+        requiredPlaneID: UUID,
+        requiredClassification: String?,
+        maxSupportDistance: Float = Options.manipulation.withHysteresis().maxSupportDistance
+    ) -> Bool {
+        guard let plane = planeAnchors.first(where: { $0.id == requiredPlaneID }) else {
+            return false
+        }
+
+        if let requiredClassification,
+           classificationDescription(for: plane.classification) != requiredClassification {
+            return false
+        }
+
+        if !alignmentMatches(modelType.plane, plane.alignment) {
+            return false
+        }
+
+        if let allowedClassifications = allowedPlaneClassifications(for: modelType),
+           !allowedClassifications.contains(plane.classification) {
+            return false
+        }
+
+        let supportOverflow = supportFitOverflow(
+            for: entity,
+            bounds: entity.components[ModelBoundsComponent.self],
+            modelType: modelType,
+            worldPosition: worldPosition,
+            worldOrientation: worldOrientation,
+            plane: plane
+        )
+
+        return supportOverflow <= maxSupportDistance
+    }
+
     private static func resolvePlacement(
         entity: Entity,
         modelType: ModelType,

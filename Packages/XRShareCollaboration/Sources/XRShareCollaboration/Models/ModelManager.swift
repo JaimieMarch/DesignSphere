@@ -56,22 +56,8 @@ public final class ModelManager: ObservableObject {
         self.modelTypes = ModelType.allCases()
     }
     
-// MARK: - Collision-based Positioning
-    
-    private func positionModelWithCollisionAvoidance(entity: Entity, anchor: Entity) {
-        
-        // Wait a bit for bounds to be properly calculated
-        Task {
-            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
-            await MainActor.run {
-                self.performCollisionCheck(entity: entity, anchor: anchor)
-            }
-        }
-    }
+// MARK: - Placement
 
-
-    /// The old version of spawning logic
-    /// Serves as back up in case ours fails
     private func resolvedInitialPlacement(anchor: AnchorEntity, arViewModel: ARViewModel?) async -> SIMD3<Float> {
 #if targetEnvironment(simulator)
         return SIMD3<Float>(0, 1.4, -1.2)
@@ -123,243 +109,6 @@ public final class ModelManager: ObservableObject {
         let extents = fallbackBounds.extents
         let bottomY = center.y - (extents.y * 0.5)
         return SIMD3<Float>(center.x, bottomY, center.z)
-    }
-
-    
-    private func performCollisionCheck(entity: Entity, anchor: Entity) {
-        let minSpacing: Float = 0.1 // Minimum 10cm between model edges
-        
-        // Get the bounds of the new entity
-        let newBounds = entity.visualBounds(relativeTo: anchor)
-        let newExtents = newBounds.extents
-        let newCenter = newBounds.center
-        
-        
-        // Use the full extents for more accurate collision detection
-        let newHalfWidth = newExtents.x * 0.5
-        let newHalfDepth = newExtents.z * 0.5
-        
-        // If this is the first model or bounds are invalid, just place at center
-        if placedModels.count <= 1 || newExtents.x <= 0 || newExtents.z <= 0 {
-            #if DEBUG
-            print("First model or invalid bounds, skipping collision check")
-            #endif
-            return
-        }
-        
-        
-        #if DEBUG
-        print("New model bounds: width=\(newExtents.x), depth=\(newExtents.z)")
-        #endif
-        
-        // Check all existing models for collisions
-        var collidingModels: [(entity: Entity, model: Model, overlap: Float)] = []
-        
-        for model in placedModels {
-            guard let existingEntity = model.modelEntity,
-                  existingEntity !== entity else { continue }
-            
-            // Get bounds of existing model
-            let existingBounds = existingEntity.visualBounds(relativeTo: anchor)
-            let existingExtents = existingBounds.extents
-            let existingCenter = existingBounds.center
-            
-            if existingExtents.x <= 0 || existingExtents.z <= 0 {
-                #if DEBUG
-                print("Skipping model with invalid bounds")
-                #endif
-                continue
-            }
-            
-            
-            // Calculate if bounding boxes overlap on all three axes (X, Y, Z)
-            // X-axis
-            let newLeft = newCenter.x - newHalfWidth
-            let newRight = newCenter.x + newHalfWidth
-            let existingHalfWidth = existingExtents.x * 0.5
-            let existingLeft = existingCenter.x - existingHalfWidth
-            let existingRight = existingCenter.x + existingHalfWidth
-            let xOverlap = min(newRight, existingRight) - max(newLeft, existingLeft) + minSpacing
-
-            // Y-axis (height) - must also overlap vertically for a true collision
-            let newHalfHeight = newExtents.y * 0.5
-            let newBottom = newCenter.y - newHalfHeight
-            let newTop = newCenter.y + newHalfHeight
-            let existingHalfHeight = existingExtents.y * 0.5
-            let existingBottom = existingCenter.y - existingHalfHeight
-            let existingTop = existingCenter.y + existingHalfHeight
-            let yOverlap = min(newTop, existingTop) - max(newBottom, existingBottom) + minSpacing
-
-            // Z-axis (depth)
-            let existingHalfDepth = existingExtents.z * 0.5
-            let newFront = newCenter.z - newHalfDepth
-            let newBack = newCenter.z + newHalfDepth
-            let existingFront = existingCenter.z - existingHalfDepth
-            let existingBack = existingCenter.z + existingHalfDepth
-            let zOverlap = min(newBack, existingBack) - max(newFront, existingFront) + minSpacing
-
-            // All three axes must overlap for a true 3D collision
-            if xOverlap > 0 && yOverlap > 0 && zOverlap > 0 {
-                collidingModels.append((entity: existingEntity, model: model, overlap: xOverlap))
-                #if DEBUG
-                print("Collision detected: xOverlap=\(xOverlap)m, yOverlap=\(yOverlap)m, zOverlap=\(zOverlap)m")
-                #endif
-            }
-        }
-        
-        
-        
-        // If there are collisions reposition
-        if !collidingModels.isEmpty {
-            #if DEBUG
-            print("Found \(collidingModels.count) colliding models, repositioning...")
-            #endif
-            
-            // Sort by overlap amount
-            let sortedCollisions = collidingModels.sorted { $0.overlap > $1.overlap }
-            
-            // Push colliding models away from center
-            for (collidingEntity, _, overlap) in sortedCollisions {
-                
-                
-                // Determine push direction based on current position
-                let collidingBounds = collidingEntity.visualBounds(relativeTo: anchor)
-                let currentCenterX = collidingBounds.center.x
-                let pushDirection: Float
-                
-                if abs(currentCenterX) < 0.01 {
-                    // If at center, alternate push direction based on model count
-                    let modelIndex = placedModels.firstIndex { $0.modelEntity === collidingEntity } ?? 0
-                    pushDirection = modelIndex % 2 == 0 ? -1.0 : 1.0
-                } else {
-                    // Push away from center
-                    pushDirection = currentCenterX >= 0 ? 1.0 : -1.0
-                }
-                
-                // Push by the overlap amount plus a small buffer
-                let pushDistance = overlap + 0.05
-                
-                // Calculate new position
-                var newPosition = collidingEntity.position
-                newPosition.x += pushDirection * pushDistance
-                    
-                
-                
-                // Apply the movement
-                collidingEntity.position = newPosition
-                
-                let newCenterX = currentCenterX + pushDirection * pushDistance
-                #if DEBUG
-                print("Moved existing model center from x=\(currentCenterX) to x=\(newCenterX) (push distance: \(pushDistance))" )
-                #endif
-            }
-            
-            
-            Task {
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                await MainActor.run {
-                    self.cascadeRepositioning(excluding: entity, anchor: anchor, depth: 0)
-                }
-        }
-        }
-    }
-    
-    
-    private func cascadeRepositioning(excluding newEntity: Entity, anchor: Entity, depth: Int = 0) {
-        
-        guard depth < 5 else {
-            #if DEBUG
-            print("Max repositioning depth reached")
-            #endif
-            return
-        }
-        
-        let minSpacing: Float = 0.1
-        var repositioned = false
-        let activeEntities = placedModels.compactMap(\.modelEntity).filter { $0 !== newEntity }
-        guard activeEntities.count > 1 else { return }
-
-        // Cache bounds once per entity per pass to avoid repeated visualBounds calls.
-        var boundsCache: [ObjectIdentifier: (center: SIMD3<Float>, extents: SIMD3<Float>)] = [:]
-        for entity in activeEntities {
-            let bounds = entity.visualBounds(relativeTo: anchor)
-            let extents = bounds.extents
-            guard extents.x > 0 && extents.z > 0 else { continue }
-            boundsCache[ObjectIdentifier(entity)] = (bounds.center, extents)
-        }
-        
-        // Check all pairs of existing models for collisions
-        for index in 0..<(activeEntities.count - 1) {
-            let entity1 = activeEntities[index]
-            guard let state1 = boundsCache[ObjectIdentifier(entity1)] else { continue }
-
-            for nextIndex in (index + 1)..<activeEntities.count {
-                let entity2 = activeEntities[nextIndex]
-                guard let state2 = boundsCache[ObjectIdentifier(entity2)] else { continue }
-
-                let extents1 = state1.extents
-                let center1 = state1.center
-                let extents2 = state2.extents
-                let center2 = state2.center
-
-                
-                // Calculate bounding box overlap on all three axes
-                // X-axis
-                let halfWidth1 = extents1.x * 0.5
-                let halfWidth2 = extents2.x * 0.5
-                let left1 = center1.x - halfWidth1
-                let right1 = center1.x + halfWidth1
-                let left2 = center2.x - halfWidth2
-                let right2 = center2.x + halfWidth2
-                let xOverlap = min(right1, right2) - max(left1, left2) + minSpacing
-
-                // Y-axis (height)
-                let halfHeight1 = extents1.y * 0.5
-                let halfHeight2 = extents2.y * 0.5
-                let bottom1 = center1.y - halfHeight1
-                let top1 = center1.y + halfHeight1
-                let bottom2 = center2.y - halfHeight2
-                let top2 = center2.y + halfHeight2
-                let yOverlap = min(top1, top2) - max(bottom1, bottom2) + minSpacing
-
-                // Z-axis (depth)
-                let halfDepth1 = extents1.z * 0.5
-                let halfDepth2 = extents2.z * 0.5
-                let front1 = center1.z - halfDepth1
-                let back1 = center1.z + halfDepth1
-                let front2 = center2.z - halfDepth2
-                let back2 = center2.z + halfDepth2
-                let zOverlap = min(back1, back2) - max(front1, front2) + minSpacing
-
-                // All three axes must overlap for a true 3D collision
-                if xOverlap > 0 && yOverlap > 0 && zOverlap > 0 {
-                    // Push the rightmost model further right
-                    let pushDistance = xOverlap + 0.05
-                    if center2.x > center1.x {
-                        entity2.position.x += pushDistance
-                        boundsCache[ObjectIdentifier(entity2)] = (
-                            center: SIMD3<Float>(center2.x + pushDistance, center2.y, center2.z),
-                            extents: extents2
-                        )
-                    } else {
-                        entity1.position.x += pushDistance
-                        boundsCache[ObjectIdentifier(entity1)] = (
-                            center: SIMD3<Float>(center1.x + pushDistance, center1.y, center1.z),
-                            extents: extents1
-                        )
-                    }
-                    repositioned = true
-                    #if DEBUG
-                    print("Cascade: Pushed models apart by \(pushDistance)m")
-                    #endif
-                }
-            }
-        }
-        
-        // If we repositioned anything, check again with increased depth
-        if repositioned {
-            cascadeRepositioning(excluding: newEntity, anchor: anchor, depth: depth + 1)
-        }
     }
     
     /// Returns the currently selected model instance
@@ -454,8 +203,15 @@ public final class ModelManager: ObservableObject {
                 print("Placed \(modelType.rawValue) at position: base=\(basePosition) pivot=\(translatedPosition), isAnchored=\(anchor.isAnchored), scene? \(entity.scene != nil)")
                 #endif
 
-                // Check for collisions and reposition if needed
-                self.positionModelWithCollisionAvoidance(entity: entity, anchor: anchor)
+                if let placementPostProcessor = arViewModel?.spawnedModelPlacementPostProcessor {
+                    let acceptedPlacement = await placementPostProcessor(entity, modelType, model.id)
+                    guard acceptedPlacement else {
+                        entity.removeFromParent()
+                        self.selectedModelID = nil
+                        self.selectedModelInstanceID = nil
+                        return
+                    }
+                }
 
                 #if DEBUG
                 print("Parented model \(modelType.rawValue) to sharedAnchorEntity at local position \(entity.position(relativeTo: anchor))")

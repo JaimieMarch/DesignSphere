@@ -36,6 +36,7 @@ class ARViewModel: NSObject, ObservableObject {
     var openWindowAction: ((String) -> Void)?
     var dismissWindowAction: ((String) -> Void)?
     var preferredPlacementResolver: ((ModelEntity, ModelType) async -> SurfacePlacement?)?
+    var spawnedModelPlacementPostProcessor: ((ModelEntity, ModelType, UUID) async -> Bool)?
 
     // Pending placement coordinate
     @Published var pendingPlacementPosition: SIMD3<Float>? = nil

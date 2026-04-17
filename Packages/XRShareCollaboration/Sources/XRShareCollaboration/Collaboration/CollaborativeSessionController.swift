@@ -116,6 +116,8 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var loadingProgress: Float = 0.0
     @Published public private(set) var isFocusModeActive: Bool = false
     @Published public private(set) var focusRoomDimensions: FocusModeManager.FocusRoomDimensions = FocusModeManager.FocusRoomDimensions(width: 7.0, depth: 7.0, height: 3.2)
+    @Published public private(set) var collisionMode: FurnitureCollisionMode = .warn
+    @Published public private(set) var collisionWarningCount: Int = 0
     @Published public private(set) var canUndo: Bool = false
     @Published public private(set) var canRedo: Bool = false
     @Published public var selectedModelID: String? = nil
@@ -192,6 +194,9 @@ public final class CollaborativeSessionController: ObservableObject {
         #endif
         arViewModel.preferredPlacementResolver = { [weak self] entity, modelType in
             await self?.resolvePreferredPlacement(for: entity, modelType: modelType)
+        }
+        arViewModel.spawnedModelPlacementPostProcessor = { [weak self] entity, modelType, instanceID in
+            await self?.finalizeSpawnedModelPlacement(entity: entity, modelType: modelType, instanceID: instanceID) ?? false
         }
         modelManager.onModelDidAdd = { [weak self] model in
             self?.handleModelDidAdd(model)
@@ -439,6 +444,17 @@ public final class CollaborativeSessionController: ObservableObject {
         #endif
     }
 
+// MARK: - Collision
+
+    public func setCollisionMode(_ mode: FurnitureCollisionMode) {
+        collisionMode = mode
+        if mode == .off {
+            collisionWarningCount = 0
+        } else {
+            collisionWarningCount = countCurrentCollisions()
+        }
+    }
+
 // MARK: - Selection Indicator
 
     /// Update the selection indicator to show the currently selected model
@@ -554,6 +570,12 @@ public final class CollaborativeSessionController: ObservableObject {
     private enum HistoryDirection {
         case undo
         case redo
+    }
+
+    private struct EntityPoseState {
+        let localPosition: SIMD3<Float>
+        let worldOrientation: simd_quatf
+        let snapState: SnapStateComponent?
     }
 
     private func applyHistoryEntry(
@@ -777,6 +799,7 @@ public final class CollaborativeSessionController: ObservableObject {
         entity.setPosition(position, relativeTo: sharedAnchorEntity)
         entity.setOrientation(rotation, relativeTo: sharedAnchorEntity)
         entity.setScale(scale, relativeTo: sharedAnchorEntity)
+        entity.components.set(CollisionStateComponent(lastValidPosition: position))
 
         // Add to model manager
         modelManager.placedModels.append(model)
@@ -1143,6 +1166,7 @@ public final class CollaborativeSessionController: ObservableObject {
         selectionIndicatorManager.updateIndicatorPosition()
         measurementManager.setManipulationManager(arViewModel.manipulationManager)
         measurementManager.syncScene(with: modelManager.placedModels)
+        collisionWarningCount = countCurrentCollisions()
         modelManager.updatePlacedModels(arViewModel: arViewModel)
     }
     #endif
@@ -1312,9 +1336,36 @@ public final class CollaborativeSessionController: ObservableObject {
         )
     }
 
+    private func finalizeSpawnedModelPlacement(
+        entity: Entity,
+        modelType: ModelType,
+        instanceID: UUID
+    ) async -> Bool {
+        guard entity.parent === arViewModel.sharedAnchorEntity else { return false }
+
+        let collisionResult = resolveCollisionIfNeeded(
+            for: entity,
+            instanceID: instanceID,
+            modelType: modelType,
+            positionValidator: collisionSupportValidator(for: entity, modelType: modelType)
+        )
+
+        if collisionMode == .prevent,
+           collisionResult.hasOverlap,
+           collisionResult.resolvedPosition == nil {
+            collisionWarningCount = countCurrentCollisions()
+            return false
+        }
+
+        refreshCollisionState(for: entity, instanceID: instanceID, modelType: modelType)
+        selectionIndicatorManager.updateIndicatorPosition()
+        return true
+    }
+
     private func snapManipulatedEntity(_ entity: Entity, instanceID: UUID) async {
         guard let model = modelManager.modelDict[instanceID] else { return }
         guard entity.parent === arViewModel.sharedAnchorEntity else { return }
+        let previousPose = capturePoseState(for: entity)
         let snapOptions = manipulationSnapOptions(for: entity)
         let viewerWorldPosition: SIMD3<Float>
         if let deviceTransform = worldTrackingProvider?
@@ -1344,6 +1395,18 @@ public final class CollaborativeSessionController: ObservableObject {
                 entity.setOrientation(worldOrientation, relativeTo: nil)
             }
             applySnapState(from: placement, to: entity, phase: "manipulation")
+            let collisionResult = resolveCollisionIfNeeded(
+                for: entity,
+                instanceID: model.id,
+                modelType: model.modelType,
+                positionValidator: collisionSupportValidator(for: entity, modelType: model.modelType)
+            )
+            if collisionMode == .prevent,
+               collisionResult.hasOverlap,
+               collisionResult.resolvedPosition == nil {
+                restorePoseState(previousPose, on: entity)
+            }
+            refreshCollisionState(for: entity, instanceID: model.id, modelType: model.modelType)
             if let snapshot = snapshot(for: model) {
                 historyManager.commitTransaction(for: model.id, after: snapshot, forceRecord: false)
             }
@@ -1365,9 +1428,21 @@ public final class CollaborativeSessionController: ObservableObject {
                 phase: "manipulation",
                 reason: "no compatible room-mesh or plane surface survived snap and footprint thresholds"
             )
+            let collisionResult = resolveCollisionIfNeeded(
+                for: entity,
+                instanceID: model.id,
+                modelType: model.modelType
+            )
+            if collisionMode == .prevent,
+               collisionResult.hasOverlap,
+               collisionResult.resolvedPosition == nil {
+                restorePoseState(previousPose, on: entity)
+            }
+            refreshCollisionState(for: entity, instanceID: model.id, modelType: model.modelType)
             if let snapshot = snapshot(for: model) {
                 historyManager.commitTransaction(for: model.id, after: snapshot, forceRecord: false)
             }
+            selectionIndicatorManager.updateIndicatorPosition()
             return
         }
 
@@ -1376,6 +1451,18 @@ public final class CollaborativeSessionController: ObservableObject {
             entity.setOrientation(worldOrientation, relativeTo: nil)
         }
         applySnapState(from: placement, to: entity, phase: "manipulation")
+        let collisionResult = resolveCollisionIfNeeded(
+            for: entity,
+            instanceID: model.id,
+            modelType: model.modelType,
+            positionValidator: collisionSupportValidator(for: entity, modelType: model.modelType)
+        )
+        if collisionMode == .prevent,
+           collisionResult.hasOverlap,
+           collisionResult.resolvedPosition == nil {
+            restorePoseState(previousPose, on: entity)
+        }
+        refreshCollisionState(for: entity, instanceID: model.id, modelType: model.modelType)
         if let snapshot = snapshot(for: model) {
             historyManager.commitTransaction(for: model.id, after: snapshot, forceRecord: false)
         }
@@ -1490,6 +1577,149 @@ public final class CollaborativeSessionController: ObservableObject {
             relativeTo: arViewModel.sharedAnchorEntity
         )
         attachment.isEnabled = true
+    }
+
+    private func resolveCollisionIfNeeded(
+        for entity: Entity,
+        instanceID: UUID,
+        modelType: ModelType,
+        positionValidator: ((SIMD3<Float>) -> Bool)? = nil
+    ) -> FurnitureCollisionEngine.Result {
+        guard entity.parent === arViewModel.sharedAnchorEntity else {
+            return FurnitureCollisionEngine.Result(overlaps: [], resolvedPosition: nil)
+        }
+
+        let lastValidPosition = entity.components[CollisionStateComponent.self]?.lastValidPosition
+        let result = FurnitureCollisionEngine.resolve(
+            entity: entity,
+            instanceID: instanceID,
+            modelType: modelType,
+            relativeTo: arViewModel.sharedAnchorEntity,
+            among: modelManager.placedModels,
+            mode: collisionMode,
+            lastValidPosition: lastValidPosition,
+            positionValidator: positionValidator
+        )
+
+        if collisionMode == .prevent,
+           result.hasOverlap,
+           let resolvedPosition = result.resolvedPosition {
+            entity.setPosition(resolvedPosition, relativeTo: arViewModel.sharedAnchorEntity)
+        }
+
+        return result
+    }
+
+    private func capturePoseState(for entity: Entity) -> EntityPoseState {
+        EntityPoseState(
+            localPosition: entity.position(relativeTo: arViewModel.sharedAnchorEntity),
+            worldOrientation: entity.orientation(relativeTo: nil),
+            snapState: entity.components[SnapStateComponent.self]
+        )
+    }
+
+    private func restorePoseState(_ poseState: EntityPoseState, on entity: Entity) {
+        entity.setPosition(poseState.localPosition, relativeTo: arViewModel.sharedAnchorEntity)
+        entity.setOrientation(poseState.worldOrientation, relativeTo: nil)
+
+        if let snapState = poseState.snapState {
+            entity.components.set(snapState)
+        } else {
+            entity.components.remove(SnapStateComponent.self)
+        }
+    }
+
+    private func collisionSupportValidator(
+        for entity: Entity,
+        modelType: ModelType
+    ) -> ((SIMD3<Float>) -> Bool)? {
+        guard let snapState = entity.components[SnapStateComponent.self] else {
+            return nil
+        }
+
+        let worldOrientation = entity.orientation(relativeTo: nil)
+
+        switch snapState.source {
+        case .plane:
+            let requiredPlaneID = snapState.surfaceID
+            let requiredClassification = snapState.classification
+            let planeAnchors = Array(trackedPlaneAnchors.values)
+            guard planeAnchors.contains(where: { $0.id == requiredPlaneID }) else {
+                return { _ in false }
+            }
+
+            return { candidatePosition in
+                SurfaceSnappingEngine.supportsPosition(
+                    entity: entity,
+                    modelType: modelType,
+                    worldPosition: candidatePosition,
+                    worldOrientation: worldOrientation,
+                    planeAnchors: planeAnchors,
+                    requiredPlaneID: requiredPlaneID,
+                    requiredClassification: requiredClassification
+                )
+            }
+        case .roomMesh:
+            guard #available(visionOS 2.0, *),
+                  let currentRoomAnchor,
+                  currentRoomAnchor.id == snapState.surfaceID else {
+                return { _ in false }
+            }
+
+            let requiredClassification = snapState.classification
+            return { candidatePosition in
+                RoomMeshPlacementEngine.supportsPosition(
+                    entity: entity,
+                    modelType: modelType,
+                    worldPosition: candidatePosition,
+                    worldOrientation: worldOrientation,
+                    roomAnchor: currentRoomAnchor,
+                    requiredClassification: requiredClassification
+                )
+            }
+        }
+    }
+
+    private func refreshCollisionState(
+        for entity: Entity,
+        instanceID: UUID,
+        modelType: ModelType
+    ) {
+        let stillOverlapping = FurnitureCollisionEngine.hasOverlap(
+            entity: entity,
+            instanceID: instanceID,
+            modelType: modelType,
+            relativeTo: arViewModel.sharedAnchorEntity,
+            among: modelManager.placedModels
+        )
+
+        if !stillOverlapping {
+            entity.components.set(
+                CollisionStateComponent(
+                    lastValidPosition: entity.position(relativeTo: arViewModel.sharedAnchorEntity)
+                )
+            )
+        }
+
+        collisionWarningCount = countCurrentCollisions()
+    }
+
+    private func countCurrentCollisions() -> Int {
+        guard collisionMode != .off else { return 0 }
+
+        return modelManager.placedModels.reduce(into: 0) { count, model in
+            guard let entity = model.modelEntity,
+                  FurnitureCollisionEngine.hasOverlap(
+                    entity: entity,
+                    instanceID: model.id,
+                    modelType: model.modelType,
+                    relativeTo: arViewModel.sharedAnchorEntity,
+                    among: modelManager.placedModels
+                  ) else {
+                return
+            }
+            count += 1
+        }
     }
 
     private func finalizeDiscreteTransformEdit(for model: Model, entity: Entity) {

@@ -1,4 +1,5 @@
 import Foundation
+import XRShareCollaboration
 
 @MainActor
 final class AppSettings: ObservableObject {
@@ -10,6 +11,7 @@ final class AppSettings: ObservableObject {
         static let highContrastText = "settings.highContrastTextEnabled"
         static let rememberFavorites = "settings.rememberFavoritesEnabled"
         static let labsMeasurementTools = "settings.labs.measurementToolsEnabled"
+        static let collisionMode = "settings.collisionMode"
         static let onboardingCompleted = "settings.onboardingCompleted"
     }
 
@@ -31,6 +33,12 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    @Published var collisionMode: FurnitureCollisionMode {
+        didSet {
+            UserDefaults.standard.set(collisionMode.rawValue, forKey: Keys.collisionMode)
+        }
+    }
+
     init() {
         let defaults = UserDefaults.standard
         highContrastTextEnabled = defaults.bool(forKey: Keys.highContrastText)
@@ -40,6 +48,8 @@ final class AppSettings: ObservableObject {
             rememberFavoritesEnabled = defaults.bool(forKey: Keys.rememberFavorites)
         }
         labsMeasurementToolsEnabled = defaults.bool(forKey: Keys.labsMeasurementTools)
+        let storedCollisionMode = defaults.string(forKey: Keys.collisionMode)
+        collisionMode = storedCollisionMode.flatMap(FurnitureCollisionMode.init(rawValue:)) ?? .warn
     }
 
     func clearStoredFavorites() {
@@ -49,6 +59,7 @@ final class AppSettings: ObservableObject {
 
     func resetLabsPreferences() {
         labsMeasurementToolsEnabled = false
+        collisionMode = .warn
     }
 
     func requestTutorialReplay() {
