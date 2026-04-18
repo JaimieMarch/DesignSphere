@@ -269,7 +269,9 @@ public final class ModelManager: ObservableObject {
                 source: placement.source.kind,
                 surfaceID: placement.source.surfaceID,
                 classification: placement.classification,
-                score: placement.score
+                score: placement.score,
+                supportPosition: placement.supportWorldPosition,
+                supportNormal: placement.supportWorldNormal
             )
         )
 

@@ -58,6 +58,8 @@ enum RoomMeshPlacementEngine {
         worldOrientation: simd_quatf,
         roomAnchor: RoomAnchor,
         requiredClassification: String?,
+        referenceSupportPoint: SIMD3<Float>? = nil,
+        referenceSupportNormal: SIMD3<Float>? = nil,
         maxSupportDistance: Float = SurfaceSnappingEngine.Options.manipulation.withHysteresis().maxSupportDistance
     ) -> Bool {
         guard roomAnchor.contains(worldPosition) else { return false }
@@ -75,8 +77,15 @@ enum RoomMeshPlacementEngine {
         guard let preferredCandidate = nearestCandidate(
             to: worldPosition,
             candidates: candidates,
-            preferredClassification: preferredClassification
+            preferredClassification: preferredClassification,
+            referenceSupportPoint: referenceSupportPoint,
+            referenceSupportNormal: referenceSupportNormal
         ) else {
+            return false
+        }
+
+        if let referenceSupportPoint,
+           simd_distance(preferredCandidate.closestPoint, referenceSupportPoint) > 0.35 {
             return false
         }
 
@@ -120,7 +129,9 @@ enum RoomMeshPlacementEngine {
             worldPosition: SIMD3<Float>,
             worldOrientation: simd_quatf?,
             classification: String?,
-            score: Float
+            score: Float,
+            supportWorldPosition: SIMD3<Float>,
+            supportWorldNormal: SIMD3<Float>
         )?
 
         for candidate in candidates {
@@ -180,7 +191,9 @@ enum RoomMeshPlacementEngine {
                         worldPosition,
                         worldOrientation,
                         classificationDescription(for: candidate.classification),
-                        score
+                        score,
+                        candidate.closestPoint,
+                        candidate.normal
                     )
                 }
             } else {
@@ -188,7 +201,9 @@ enum RoomMeshPlacementEngine {
                     worldPosition,
                     worldOrientation,
                     classificationDescription(for: candidate.classification),
-                    score
+                    score,
+                    candidate.closestPoint,
+                    candidate.normal
                 )
             }
         }
@@ -199,7 +214,9 @@ enum RoomMeshPlacementEngine {
             worldOrientation: bestCandidate.worldOrientation,
             source: .roomMesh(roomAnchor.id),
             classification: bestCandidate.classification,
-            score: bestCandidate.score
+            score: bestCandidate.score,
+            supportWorldPosition: bestCandidate.supportWorldPosition,
+            supportWorldNormal: bestCandidate.supportWorldNormal
         )
     }
 
@@ -701,7 +718,9 @@ enum RoomMeshPlacementEngine {
     private static func nearestCandidate(
         to point: SIMD3<Float>,
         candidates: [TriangleCandidate],
-        preferredClassification: MeshAnchor.MeshClassification?
+        preferredClassification: MeshAnchor.MeshClassification?,
+        referenceSupportPoint: SIMD3<Float>? = nil,
+        referenceSupportNormal: SIMD3<Float>? = nil
     ) -> TriangleCandidate? {
         var bestCandidate: TriangleCandidate?
         var bestDistance = Float.infinity
@@ -712,7 +731,13 @@ enum RoomMeshPlacementEngine {
                 continue
             }
 
-            let distance = simd_distance(point, candidate.closestPoint)
+            if let referenceSupportNormal,
+               simd_dot(candidate.normal, simd_normalize(referenceSupportNormal)) < 0.94 {
+                continue
+            }
+
+            let distanceSource = referenceSupportPoint ?? point
+            let distance = simd_distance(distanceSource, candidate.closestPoint)
             if distance < bestDistance {
                 bestDistance = distance
                 bestCandidate = candidate

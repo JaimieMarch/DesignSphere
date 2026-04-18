@@ -14,13 +14,10 @@ enum FurnitureCollisionEngine {
 
     private struct Footprint {
         let center: SIMD2<Float>
-        let extents: SIMD2<Float>
+        let axisX: SIMD2<Float>
+        let axisZ: SIMD2<Float>
+        let halfExtents: SIMD2<Float>
         let yRange: ClosedRange<Float>
-
-        var minX: Float { center.x - (extents.x * 0.5) }
-        var maxX: Float { center.x + (extents.x * 0.5) }
-        var minZ: Float { center.y - (extents.y * 0.5) }
-        var maxZ: Float { center.y + (extents.y * 0.5) }
     }
 
     private static let horizontalStep: Float = 0.05
@@ -35,7 +32,8 @@ enum FurnitureCollisionEngine {
         among placedModels: [Model],
         mode: FurnitureCollisionMode,
         lastValidPosition: SIMD3<Float>? = nil,
-        positionValidator: ((SIMD3<Float>) -> Bool)? = nil
+        positionValidator: ((SIMD3<Float>) -> Bool)? = nil,
+        allowSearch: Bool = true
     ) -> Result {
         guard shouldCheckCollisions(for: modelType) else {
             return Result(overlaps: [], resolvedPosition: nil)
@@ -61,14 +59,15 @@ enum FurnitureCollisionEngine {
             return Result(overlaps: overlaps, resolvedPosition: currentPosition)
         }
 
-        if let resolvedPosition = nearestFreePosition(
-            from: currentPosition,
-            using: baseFootprint,
-            excluding: instanceID,
-            among: placedModels,
-            relativeTo: anchor,
-            positionValidator: positionValidator
-        ) {
+        if allowSearch,
+           let resolvedPosition = nearestFreePosition(
+                from: currentPosition,
+                using: baseFootprint,
+                excluding: instanceID,
+                among: placedModels,
+                relativeTo: anchor,
+                positionValidator: positionValidator
+           ) {
             return Result(overlaps: overlaps, resolvedPosition: resolvedPosition)
         }
 
@@ -106,6 +105,26 @@ enum FurnitureCollisionEngine {
             among: placedModels,
             relativeTo: anchor
         ).isEmpty
+    }
+
+    static func overlappingIDs(
+        entity: Entity,
+        instanceID: UUID,
+        modelType: ModelType,
+        relativeTo anchor: Entity,
+        among placedModels: [Model]
+    ) -> [UUID] {
+        guard shouldCheckCollisions(for: modelType),
+              let movingFootprint = footprint(for: entity, relativeTo: anchor) else {
+            return []
+        }
+
+        return overlappingInstanceIDs(
+            movingFootprint: movingFootprint,
+            excluding: instanceID,
+            among: placedModels,
+            relativeTo: anchor
+        )
     }
 
     private static func nearestFreePosition(
@@ -199,7 +218,9 @@ enum FurnitureCollisionEngine {
         let delta = proposedPosition - currentPosition
         return Footprint(
             center: footprint.center + SIMD2<Float>(delta.x, delta.z),
-            extents: footprint.extents,
+            axisX: footprint.axisX,
+            axisZ: footprint.axisZ,
+            halfExtents: footprint.halfExtents,
             yRange: (footprint.yRange.lowerBound + delta.y)...(footprint.yRange.upperBound + delta.y)
         )
     }
@@ -225,9 +246,19 @@ enum FurnitureCollisionEngine {
     }
 
     private static func footprintsOverlap(lhs: Footprint, rhs: Footprint) -> Bool {
-        let xOverlap = min(lhs.maxX, rhs.maxX) - max(lhs.minX, rhs.minX)
-        let zOverlap = min(lhs.maxZ, rhs.maxZ) - max(lhs.minZ, rhs.minZ)
-        return xOverlap > -spacingMargin && zOverlap > -spacingMargin
+        let axes = [lhs.axisX, lhs.axisZ, rhs.axisX, rhs.axisZ]
+        for axis in axes {
+            let normalizedAxis = normalized(axis)
+            let centerDelta = abs(simd_dot(rhs.center - lhs.center, normalizedAxis))
+            let lhsRadius = projectionRadius(of: lhs, onto: normalizedAxis)
+            let rhsRadius = projectionRadius(of: rhs, onto: normalizedAxis)
+
+            if centerDelta > (lhsRadius + rhsRadius + spacingMargin) {
+                return false
+            }
+        }
+
+        return true
     }
 
     private static func yRangesOverlap(_ lhs: ClosedRange<Float>, _ rhs: ClosedRange<Float>) -> Bool {
@@ -235,6 +266,22 @@ enum FurnitureCollisionEngine {
     }
 
     private static func footprint(for entity: Entity, relativeTo anchor: Entity) -> Footprint? {
+        if let modelBounds = entity.components[ModelBoundsComponent.self] {
+            let centerWorld = entity.convert(position: modelBounds.center, to: anchor)
+            let transform = entity.transformMatrix(relativeTo: anchor)
+            let axisX3 = SIMD3<Float>(transform.columns.0.x, 0, transform.columns.0.z)
+            let axisZ3 = SIMD3<Float>(transform.columns.2.x, 0, transform.columns.2.z)
+            let bounds = entity.visualBounds(relativeTo: anchor)
+
+            return Footprint(
+                center: SIMD2<Float>(centerWorld.x, centerWorld.z),
+                axisX: normalized(SIMD2<Float>(axisX3.x, axisX3.z)),
+                axisZ: normalized(SIMD2<Float>(axisZ3.x, axisZ3.z)),
+                halfExtents: SIMD2<Float>(modelBounds.extents.x * 0.5, modelBounds.extents.z * 0.5),
+                yRange: bounds.min.y...bounds.max.y
+            )
+        }
+
         let bounds = entity.visualBounds(relativeTo: anchor)
         guard bounds.extents.x.isFinite,
               bounds.extents.y.isFinite,
@@ -246,9 +293,25 @@ enum FurnitureCollisionEngine {
 
         return Footprint(
             center: SIMD2<Float>(bounds.center.x, bounds.center.z),
-            extents: SIMD2<Float>(bounds.extents.x, bounds.extents.z),
+            axisX: SIMD2<Float>(1, 0),
+            axisZ: SIMD2<Float>(0, 1),
+            halfExtents: SIMD2<Float>(bounds.extents.x * 0.5, bounds.extents.z * 0.5),
             yRange: bounds.min.y...bounds.max.y
         )
+    }
+
+    private static func projectionRadius(of footprint: Footprint, onto axis: SIMD2<Float>) -> Float {
+        let normalizedAxis = normalized(axis)
+        return footprint.halfExtents.x * abs(simd_dot(normalizedAxis, footprint.axisX))
+            + footprint.halfExtents.y * abs(simd_dot(normalizedAxis, footprint.axisZ))
+    }
+
+    private static func normalized(_ axis: SIMD2<Float>) -> SIMD2<Float> {
+        let magnitudeSquared = simd_length_squared(axis)
+        guard magnitudeSquared > 1e-6 else {
+            return SIMD2<Float>(1, 0)
+        }
+        return simd_normalize(axis)
     }
 
     private static func shouldCheckCollisions(for modelType: ModelType) -> Bool {

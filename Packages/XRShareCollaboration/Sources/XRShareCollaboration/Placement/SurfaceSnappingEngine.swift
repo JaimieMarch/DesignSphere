@@ -38,6 +38,8 @@ struct SurfacePlacement {
     let source: Source
     let classification: String?
     let score: Float
+    let supportWorldPosition: SIMD3<Float>
+    let supportWorldNormal: SIMD3<Float>
 }
 
 enum SurfaceSnappingEngine {
@@ -131,6 +133,8 @@ enum SurfaceSnappingEngine {
         planeAnchors: [PlaneAnchor],
         requiredPlaneID: UUID,
         requiredClassification: String?,
+        referenceSupportPoint: SIMD3<Float>? = nil,
+        referenceSupportNormal: SIMD3<Float>? = nil,
         maxSupportDistance: Float = Options.manipulation.withHysteresis().maxSupportDistance
     ) -> Bool {
         guard let plane = planeAnchors.first(where: { $0.id == requiredPlaneID }) else {
@@ -148,6 +152,24 @@ enum SurfaceSnappingEngine {
 
         if let allowedClassifications = allowedPlaneClassifications(for: modelType),
            !allowedClassifications.contains(plane.classification) {
+            return false
+        }
+
+        if let referenceSupportNormal {
+            let planeNormal = simd_normalize(plane.normal)
+            if abs(simd_dot(planeNormal, simd_normalize(referenceSupportNormal))) < 0.94 {
+                return false
+            }
+        }
+
+        if let referenceSupportPoint,
+           let supportedPoint = supportReferenceWorldPoint(
+                for: entity,
+                modelType: modelType,
+                worldPosition: worldPosition,
+                worldOrientation: worldOrientation
+           ),
+           simd_distance(supportedPoint, referenceSupportPoint) > 0.45 {
             return false
         }
 
@@ -188,7 +210,9 @@ enum SurfaceSnappingEngine {
             worldPosition: SIMD3<Float>,
             worldOrientation: simd_quatf?,
             classification: String?,
-            score: Float
+            score: Float,
+            supportWorldPosition: SIMD3<Float>,
+            supportWorldNormal: SIMD3<Float>
         )?
 
         for plane in candidates {
@@ -241,7 +265,9 @@ enum SurfaceSnappingEngine {
                         worldPosition,
                         worldOrientation,
                         classificationDescription(for: plane.classification),
-                        score
+                        score,
+                        snappedPoint.worldPoint,
+                        simd_normalize(plane.normal)
                     )
                 }
             } else {
@@ -250,7 +276,9 @@ enum SurfaceSnappingEngine {
                     worldPosition,
                     worldOrientation,
                     classificationDescription(for: plane.classification),
-                    score
+                    score,
+                    snappedPoint.worldPoint,
+                    simd_normalize(plane.normal)
                 )
             }
         }
@@ -261,7 +289,9 @@ enum SurfaceSnappingEngine {
             worldOrientation: bestCandidate.worldOrientation,
             source: .plane(bestCandidate.planeID),
             classification: bestCandidate.classification,
-            score: bestCandidate.score
+            score: bestCandidate.score,
+            supportWorldPosition: bestCandidate.supportWorldPosition,
+            supportWorldNormal: bestCandidate.supportWorldNormal
         )
     }
 
@@ -606,6 +636,36 @@ enum SurfaceSnappingEngine {
             SIMD3<Float>(bounds.center.x + halfX, y, bounds.center.z - halfZ),
             SIMD3<Float>(bounds.center.x + halfX, y, bounds.center.z + halfZ)
         ]
+    }
+
+    private static func supportReferenceWorldPoint(
+        for entity: Entity,
+        modelType: ModelType,
+        worldPosition: SIMD3<Float>,
+        worldOrientation: simd_quatf
+    ) -> SIMD3<Float>? {
+        guard let bounds = entity.components[ModelBoundsComponent.self] else {
+            return worldPosition
+        }
+
+        let localPoint: SIMD3<Float>
+        if modelType.classification == .ceiling {
+            localPoint = SIMD3<Float>(
+                bounds.center.x,
+                bounds.center.y + (bounds.extents.y * 0.5),
+                bounds.center.z
+            )
+        } else if modelType.plane == .vertical {
+            localPoint = SIMD3<Float>(
+                bounds.center.x,
+                bounds.center.y,
+                bounds.center.z - (bounds.extents.z * 0.5)
+            )
+        } else {
+            localPoint = bounds.placementOffset
+        }
+
+        return worldPosition + worldOrientation.act(localPoint)
     }
 
     private static func clamp(_ value: Float, min minValue: Float, max maxValue: Float) -> Float {

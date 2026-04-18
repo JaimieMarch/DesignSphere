@@ -799,7 +799,12 @@ public final class CollaborativeSessionController: ObservableObject {
         entity.setPosition(position, relativeTo: sharedAnchorEntity)
         entity.setOrientation(rotation, relativeTo: sharedAnchorEntity)
         entity.setScale(scale, relativeTo: sharedAnchorEntity)
-        entity.components.set(CollisionStateComponent(lastValidPosition: position))
+        entity.components.set(
+            CollisionStateComponent(
+                lastValidPosition: position,
+                lastValidOrientation: entity.orientation(relativeTo: nil)
+            )
+        )
 
         // Add to model manager
         modelManager.placedModels.append(model)
@@ -1482,7 +1487,9 @@ public final class CollaborativeSessionController: ObservableObject {
                 source: placement.source.kind,
                 surfaceID: placement.source.surfaceID,
                 classification: placement.classification,
-                score: placement.score
+                score: placement.score,
+                supportPosition: placement.supportWorldPosition,
+                supportNormal: placement.supportWorldNormal
             )
         )
 
@@ -1598,7 +1605,8 @@ public final class CollaborativeSessionController: ObservableObject {
             among: modelManager.placedModels,
             mode: collisionMode,
             lastValidPosition: lastValidPosition,
-            positionValidator: positionValidator
+            positionValidator: positionValidator,
+            allowSearch: collisionSearchAllowed(for: entity)
         )
 
         if collisionMode == .prevent,
@@ -1612,10 +1620,20 @@ public final class CollaborativeSessionController: ObservableObject {
 
     private func capturePoseState(for entity: Entity) -> EntityPoseState {
         EntityPoseState(
-            localPosition: entity.position(relativeTo: arViewModel.sharedAnchorEntity),
-            worldOrientation: entity.orientation(relativeTo: nil),
+            localPosition: entity.components[CollisionStateComponent.self]?.lastValidPosition
+                ?? entity.position(relativeTo: arViewModel.sharedAnchorEntity),
+            worldOrientation: entity.components[CollisionStateComponent.self]?.lastValidOrientation
+                ?? entity.orientation(relativeTo: nil),
             snapState: entity.components[SnapStateComponent.self]
         )
+    }
+
+    private func collisionSearchAllowed(for entity: Entity) -> Bool {
+        guard let snapState = entity.components[SnapStateComponent.self] else {
+            return true
+        }
+
+        return snapState.source != .roomMesh
     }
 
     private func restorePoseState(_ poseState: EntityPoseState, on entity: Entity) {
@@ -1656,7 +1674,9 @@ public final class CollaborativeSessionController: ObservableObject {
                     worldOrientation: worldOrientation,
                     planeAnchors: planeAnchors,
                     requiredPlaneID: requiredPlaneID,
-                    requiredClassification: requiredClassification
+                    requiredClassification: requiredClassification,
+                    referenceSupportPoint: snapState.supportPosition,
+                    referenceSupportNormal: snapState.supportNormal
                 )
             }
         case .roomMesh:
@@ -1674,7 +1694,9 @@ public final class CollaborativeSessionController: ObservableObject {
                     worldPosition: candidatePosition,
                     worldOrientation: worldOrientation,
                     roomAnchor: currentRoomAnchor,
-                    requiredClassification: requiredClassification
+                    requiredClassification: requiredClassification,
+                    referenceSupportPoint: snapState.supportPosition,
+                    referenceSupportNormal: snapState.supportNormal
                 )
             }
         }
@@ -1696,7 +1718,8 @@ public final class CollaborativeSessionController: ObservableObject {
         if !stillOverlapping {
             entity.components.set(
                 CollisionStateComponent(
-                    lastValidPosition: entity.position(relativeTo: arViewModel.sharedAnchorEntity)
+                    lastValidPosition: entity.position(relativeTo: arViewModel.sharedAnchorEntity),
+                    lastValidOrientation: entity.orientation(relativeTo: nil)
                 )
             )
         }
@@ -1707,19 +1730,28 @@ public final class CollaborativeSessionController: ObservableObject {
     private func countCurrentCollisions() -> Int {
         guard collisionMode != .off else { return 0 }
 
-        return modelManager.placedModels.reduce(into: 0) { count, model in
-            guard let entity = model.modelEntity,
-                  FurnitureCollisionEngine.hasOverlap(
-                    entity: entity,
-                    instanceID: model.id,
-                    modelType: model.modelType,
-                    relativeTo: arViewModel.sharedAnchorEntity,
-                    among: modelManager.placedModels
-                  ) else {
-                return
+        var collisionPairs: Set<String> = []
+
+        for model in modelManager.placedModels {
+            guard let entity = model.modelEntity else { continue }
+
+            let overlaps = FurnitureCollisionEngine.overlappingIDs(
+                entity: entity,
+                instanceID: model.id,
+                modelType: model.modelType,
+                relativeTo: arViewModel.sharedAnchorEntity,
+                among: modelManager.placedModels
+            )
+
+            for overlappingID in overlaps {
+                let pairKey = [model.id.uuidString, overlappingID.uuidString]
+                    .sorted()
+                    .joined(separator: "|")
+                collisionPairs.insert(pairKey)
             }
-            count += 1
         }
+
+        return collisionPairs.count
     }
 
     private func finalizeDiscreteTransformEdit(for model: Model, entity: Entity) {

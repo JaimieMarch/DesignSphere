@@ -1,5 +1,6 @@
 import Foundation
 import UniformTypeIdentifiers
+import XRShareCollaboration
 
 enum BackupCategory: String, CaseIterable, Identifiable, Hashable {
     case projects
@@ -81,6 +82,7 @@ struct DesignSphereBackupPayload: Codable {
         let highContrastTextEnabled: Bool
         let rememberFavoritesEnabled: Bool
         let labsMeasurementToolsEnabled: Bool
+        let collisionMode: String?
     }
 
     let formatVersion: Int
@@ -137,7 +139,8 @@ enum BackupManager {
             preferences = .init(
                 highContrastTextEnabled: appSettings.highContrastTextEnabled,
                 rememberFavoritesEnabled: appSettings.rememberFavoritesEnabled,
-                labsMeasurementToolsEnabled: appSettings.labsMeasurementToolsEnabled
+                labsMeasurementToolsEnabled: appSettings.labsMeasurementToolsEnabled,
+                collisionMode: appSettings.collisionMode.rawValue
             )
         } else {
             preferences = nil
@@ -196,6 +199,10 @@ enum BackupManager {
             appSettings.highContrastTextEnabled = importedPreferences.highContrastTextEnabled
             appSettings.rememberFavoritesEnabled = importedPreferences.rememberFavoritesEnabled
             appSettings.labsMeasurementToolsEnabled = importedPreferences.labsMeasurementToolsEnabled
+            if let collisionModeRawValue = importedPreferences.collisionMode,
+               let collisionMode = FurnitureCollisionMode(rawValue: collisionModeRawValue) {
+                appSettings.collisionMode = collisionMode
+            }
             summary.appliedPreferences = true
         }
 

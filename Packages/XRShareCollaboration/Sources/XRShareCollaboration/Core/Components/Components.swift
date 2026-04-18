@@ -77,12 +77,23 @@ public struct SnapStateComponent: Component {
     public var surfaceID: UUID
     public var classification: String?
     public var score: Float
+    public var supportPosition: SIMD3<Float>?
+    public var supportNormal: SIMD3<Float>?
 
-    public init(source: SourceKind, surfaceID: UUID, classification: String?, score: Float) {
+    public init(
+        source: SourceKind,
+        surfaceID: UUID,
+        classification: String?,
+        score: Float,
+        supportPosition: SIMD3<Float>? = nil,
+        supportNormal: SIMD3<Float>? = nil
+    ) {
         self.source = source
         self.surfaceID = surfaceID
         self.classification = classification
         self.score = score
+        self.supportPosition = supportPosition
+        self.supportNormal = supportNormal
     }
 }
 
@@ -129,8 +140,10 @@ public enum FurnitureCollisionMode: String, CaseIterable, Identifiable, Sendable
 
 public struct CollisionStateComponent: Component {
     public var lastValidPosition: SIMD3<Float>
+    public var lastValidOrientation: simd_quatf
 
-    public init(lastValidPosition: SIMD3<Float>) {
+    public init(lastValidPosition: SIMD3<Float>, lastValidOrientation: simd_quatf) {
         self.lastValidPosition = lastValidPosition
+        self.lastValidOrientation = lastValidOrientation
     }
 }
