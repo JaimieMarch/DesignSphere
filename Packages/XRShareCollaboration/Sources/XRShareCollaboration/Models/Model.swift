@@ -54,7 +54,7 @@ public final class Model: ObservableObject, Identifiable {
     var cancellables = Set<AnyCancellable>()
     
     // Unique identifier for each model instance
-    public var id: UUID = UUID()
+    public nonisolated(unsafe) var id: UUID = UUID()
     
     // Use ModelType for type identification
     var typeId: ModelType { modelType }

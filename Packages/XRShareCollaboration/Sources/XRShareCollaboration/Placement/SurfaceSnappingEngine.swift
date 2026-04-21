@@ -38,6 +38,7 @@ struct SurfacePlacement {
     let source: Source
     let classification: String?
     let score: Float
+    let supportRegionID: String?
     let supportWorldPosition: SIMD3<Float>
     let supportWorldNormal: SIMD3<Float>
 }
@@ -157,7 +158,7 @@ enum SurfaceSnappingEngine {
 
         if let referenceSupportNormal {
             let planeNormal = simd_normalize(plane.normal)
-            if abs(simd_dot(planeNormal, simd_normalize(referenceSupportNormal))) < 0.94 {
+            if abs(simd_dot(planeNormal, simd_normalize(referenceSupportNormal))) < SupportSurfacePolicy.normalAlignmentThreshold(for: modelType) {
                 return false
             }
         }
@@ -169,7 +170,7 @@ enum SurfaceSnappingEngine {
                 worldPosition: worldPosition,
                 worldOrientation: worldOrientation
            ),
-           simd_distance(supportedPoint, referenceSupportPoint) > 0.45 {
+           simd_distance(supportedPoint, referenceSupportPoint) > SupportSurfacePolicy.driftLimit(for: modelType) {
             return false
         }
 
@@ -290,6 +291,7 @@ enum SurfaceSnappingEngine {
             source: .plane(bestCandidate.planeID),
             classification: bestCandidate.classification,
             score: bestCandidate.score,
+            supportRegionID: nil,
             supportWorldPosition: bestCandidate.supportWorldPosition,
             supportWorldNormal: bestCandidate.supportWorldNormal
         )

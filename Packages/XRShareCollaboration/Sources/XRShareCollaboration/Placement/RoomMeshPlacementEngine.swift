@@ -58,6 +58,7 @@ enum RoomMeshPlacementEngine {
         worldOrientation: simd_quatf,
         roomAnchor: RoomAnchor,
         requiredClassification: String?,
+        requiredRegionID: String? = nil,
         referenceSupportPoint: SIMD3<Float>? = nil,
         referenceSupportNormal: SIMD3<Float>? = nil,
         maxSupportDistance: Float = SurfaceSnappingEngine.Options.manipulation.withHysteresis().maxSupportDistance
@@ -78,6 +79,7 @@ enum RoomMeshPlacementEngine {
             to: worldPosition,
             candidates: candidates,
             preferredClassification: preferredClassification,
+            preferredRegionID: requiredRegionID,
             referenceSupportPoint: referenceSupportPoint,
             referenceSupportNormal: referenceSupportNormal
         ) else {
@@ -85,7 +87,7 @@ enum RoomMeshPlacementEngine {
         }
 
         if let referenceSupportPoint,
-           simd_distance(preferredCandidate.closestPoint, referenceSupportPoint) > 0.35 {
+           simd_distance(preferredCandidate.closestPoint, referenceSupportPoint) > SupportSurfacePolicy.driftLimit(for: modelType) {
             return false
         }
 
@@ -130,6 +132,7 @@ enum RoomMeshPlacementEngine {
             worldOrientation: simd_quatf?,
             classification: String?,
             score: Float,
+            supportRegionID: String?,
             supportWorldPosition: SIMD3<Float>,
             supportWorldNormal: SIMD3<Float>
         )?
@@ -182,6 +185,7 @@ enum RoomMeshPlacementEngine {
                 + sameSurfacePenalty(
                     existingSnapState,
                     source: .roomMesh(roomAnchor.id),
+                    regionID: candidate.regionID,
                     classification: classificationDescription(for: candidate.classification)
                 )
 
@@ -192,6 +196,7 @@ enum RoomMeshPlacementEngine {
                         worldOrientation,
                         classificationDescription(for: candidate.classification),
                         score,
+                        candidate.regionID,
                         candidate.closestPoint,
                         candidate.normal
                     )
@@ -202,6 +207,7 @@ enum RoomMeshPlacementEngine {
                     worldOrientation,
                     classificationDescription(for: candidate.classification),
                     score,
+                    candidate.regionID,
                     candidate.closestPoint,
                     candidate.normal
                 )
@@ -215,6 +221,7 @@ enum RoomMeshPlacementEngine {
             source: .roomMesh(roomAnchor.id),
             classification: bestCandidate.classification,
             score: bestCandidate.score,
+            supportRegionID: bestCandidate.supportRegionID,
             supportWorldPosition: bestCandidate.supportWorldPosition,
             supportWorldNormal: bestCandidate.supportWorldNormal
         )
@@ -234,6 +241,7 @@ enum RoomMeshPlacementEngine {
         guard faces.primitive == .triangle else { return [] }
 
         let roomTransform = roomAnchor.originFromAnchorTransform
+        let inverseRoomTransform = simd_inverse(roomTransform)
         let faceCount = faces.count
         var candidates: [TriangleCandidate] = []
         candidates.reserveCapacity(faceCount)
@@ -256,7 +264,7 @@ enum RoomMeshPlacementEngine {
             let worldB = roomTransform.transformPoint(vertices[indices.1])
             let worldC = roomTransform.transformPoint(vertices[indices.2])
 
-            guard let candidate = candidateForTriangle(
+            guard var candidate = candidateForTriangle(
                 worldA,
                 worldB,
                 worldC,
@@ -264,6 +272,14 @@ enum RoomMeshPlacementEngine {
                 preferredWorldPoint: preferredWorldPoint,
                 preferredAlignment: preferredAlignment
             ) else { continue }
+
+            let localSupportPoint = inverseRoomTransform.transformPoint(candidate.closestPoint)
+            let localNormal = simd_normalize(simd_cross(vertices[indices.1] - vertices[indices.0], vertices[indices.2] - vertices[indices.0]))
+            candidate.regionID = regionIdentifier(
+                for: localSupportPoint,
+                localNormal: localNormal,
+                classification: classification
+            )
 
             candidates.append(candidate)
         }
@@ -307,7 +323,8 @@ enum RoomMeshPlacementEngine {
             normal: normal,
             correctionDistance: simd_distance(preferredWorldPoint, closestPoint),
             perpendicularDistance: abs(signedDistance),
-            edgeOverflowDistance: simd_distance(projectedPoint, closestPoint)
+            edgeOverflowDistance: simd_distance(projectedPoint, closestPoint),
+            regionID: nil
         )
     }
 
@@ -541,11 +558,18 @@ enum RoomMeshPlacementEngine {
     private static func sameSurfacePenalty(
         _ snapState: SnapStateComponent?,
         source: SurfacePlacement.Source,
+        regionID: String?,
         classification: String?
     ) -> Float {
         guard let snapState else { return 0 }
         guard snapState.source == source.kind else { return 0 }
         guard snapState.surfaceID == source.surfaceID else { return 0 }
+
+        if let regionID,
+           let previousRegionID = snapState.supportRegionID,
+           previousRegionID == regionID {
+            return -0.04
+        }
 
         if snapState.classification == classification {
             return -0.03
@@ -719,11 +743,13 @@ enum RoomMeshPlacementEngine {
         to point: SIMD3<Float>,
         candidates: [TriangleCandidate],
         preferredClassification: MeshAnchor.MeshClassification?,
+        preferredRegionID: String? = nil,
         referenceSupportPoint: SIMD3<Float>? = nil,
         referenceSupportNormal: SIMD3<Float>? = nil
     ) -> TriangleCandidate? {
         var bestCandidate: TriangleCandidate?
         var bestDistance = Float.infinity
+        let requiresSameRegion = preferredRegionID != nil
 
         for candidate in candidates {
             if let preferredClassification,
@@ -731,8 +757,13 @@ enum RoomMeshPlacementEngine {
                 continue
             }
 
+            if let preferredRegionID,
+               candidate.regionID != preferredRegionID {
+                continue
+            }
+
             if let referenceSupportNormal,
-               simd_dot(candidate.normal, simd_normalize(referenceSupportNormal)) < 0.94 {
+               simd_dot(candidate.normal, simd_normalize(referenceSupportNormal)) < SupportSurfacePolicy.normalAlignmentThreshold(for: preferredClassification) {
                 continue
             }
 
@@ -742,6 +773,10 @@ enum RoomMeshPlacementEngine {
                 bestDistance = distance
                 bestCandidate = candidate
             }
+        }
+
+        if bestCandidate == nil, requiresSameRegion {
+            return nil
         }
 
         return bestCandidate
@@ -825,6 +860,36 @@ enum RoomMeshPlacementEngine {
         }
     }
 
+    private static func regionIdentifier(
+        for localSupportPoint: SIMD3<Float>,
+        localNormal: SIMD3<Float>,
+        classification: MeshAnchor.MeshClassification?
+    ) -> String {
+        let normalizedNormal = simd_normalize(localNormal)
+        let classificationKey = classificationDescription(for: classification) ?? "unclassified"
+        let quantizedNormal = SIMD3<Int>(
+            Int((normalizedNormal.x * 10).rounded()),
+            Int((normalizedNormal.y * 10).rounded()),
+            Int((normalizedNormal.z * 10).rounded())
+        )
+
+        if abs(normalizedNormal.y) >= 0.85 {
+            let cellSize: Float = abs(normalizedNormal.y) >= 0.98 ? 0.18 : 0.24
+            return "\(classificationKey):h:\(quantize(localSupportPoint.x, cellSize)):\(quantize(localSupportPoint.z, cellSize)):\(quantizedNormal.y)"
+        }
+
+        let cellSize: Float = 0.16
+        if abs(normalizedNormal.x) >= abs(normalizedNormal.z) {
+            return "\(classificationKey):x:\(quantize(localSupportPoint.z, cellSize)):\(quantize(localSupportPoint.y, cellSize)):\(quantizedNormal.x)"
+        }
+
+        return "\(classificationKey):z:\(quantize(localSupportPoint.x, cellSize)):\(quantize(localSupportPoint.y, cellSize)):\(quantizedNormal.z)"
+    }
+
+    private static func quantize(_ value: Float, _ cellSize: Float) -> Int {
+        Int((value / cellSize).rounded())
+    }
+
     private static func meshClassification(from description: String?) -> MeshAnchor.MeshClassification? {
         guard let description else { return nil }
 
@@ -893,6 +958,7 @@ enum RoomMeshPlacementEngine {
         let correctionDistance: Float
         let perpendicularDistance: Float
         let edgeOverflowDistance: Float
+        var regionID: String?
     }
 }
 

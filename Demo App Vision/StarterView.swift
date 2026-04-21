@@ -90,68 +90,75 @@ struct StarterView: View {
     }
     
     var body: some View {
-        ZStack {
-            // Keep all screens in memory for smooth transitions
+        GeometryReader { proxy in
             ZStack {
-                // Home Screen
-                HomeScreen(
-                    controller: controller,
-                    favoriteModels: $favoriteModels
-                )
-                .opacity(navigationState.currentScreen == .home ? navigationState.transitionOpacity : 0)
-                .scaleEffect(navigationState.currentScreen == .home ? navigationState.contentScale : 0.96)
-                .blur(radius: navigationState.currentScreen == .home ? 0 : 1)
-                .allowsHitTesting(navigationState.currentScreen == .home)
-                
-                // Details Screen
-                DetailsScreen(controller: controller)
-                    .opacity(navigationState.currentScreen == .details ? navigationState.transitionOpacity : 0)
-                    .scaleEffect(navigationState.currentScreen == .details ? navigationState.contentScale : 0.96)
-                    .blur(radius: navigationState.currentScreen == .details ? 0 : 1)
-                    .allowsHitTesting(navigationState.currentScreen == .details)
-                
-                // Settings Screen
-                if AppFeatureFlags.settingsScreenEnabled {
-                    SettingsScreen()
-                        .opacity(navigationState.currentScreen == .settings ? navigationState.transitionOpacity : 0)
-                        .scaleEffect(navigationState.currentScreen == .settings ? navigationState.contentScale : 0.96)
-                        .blur(radius: navigationState.currentScreen == .settings ? 0 : 1)
-                        .allowsHitTesting(navigationState.currentScreen == .settings)
-                }
-            }
-            .animation(.interactiveSpring(
-                response: 0.35,
-                dampingFraction: 0.86,
-                blendDuration: 0.25
-            ), value: navigationState.currentScreen)
-            .animation(.interactiveSpring(
-                response: 0.2,
-                dampingFraction: 0.9,
-                blendDuration: 0
-            ), value: navigationState.contentScale)
-            .ornament(
-                visibility: .visible,
-                attachmentAnchor: .scene(.leading),
-                contentAlignment: .leading
-            ) {
-                NavigationOrnament(
-                    currentScreen: $navigationState.currentScreen,
-                    onTabWillChange: { newTab in
-                        performTabTransition(to: newTab)
+                // Keep all screens in memory for smooth transitions
+                ZStack(alignment: .topLeading) {
+                    // Home Screen
+                    HomeScreen(
+                        controller: controller,
+                        favoriteModels: $favoriteModels
+                    )
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                    .opacity(navigationState.currentScreen == .home ? navigationState.transitionOpacity : 0)
+                    .scaleEffect(navigationState.currentScreen == .home ? navigationState.contentScale : 0.96)
+                    .blur(radius: navigationState.currentScreen == .home ? 0 : 1)
+                    .allowsHitTesting(navigationState.currentScreen == .home)
+                    
+                    // Details Screen
+                    DetailsScreen(controller: controller)
+                        .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                        .opacity(navigationState.currentScreen == .details ? navigationState.transitionOpacity : 0)
+                        .scaleEffect(navigationState.currentScreen == .details ? navigationState.contentScale : 0.96)
+                        .blur(radius: navigationState.currentScreen == .details ? 0 : 1)
+                        .allowsHitTesting(navigationState.currentScreen == .details)
+                    
+                    // Settings Screen
+                    if AppFeatureFlags.settingsScreenEnabled {
+                        SettingsScreen()
+                            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                            .opacity(navigationState.currentScreen == .settings ? navigationState.transitionOpacity : 0)
+                            .scaleEffect(navigationState.currentScreen == .settings ? navigationState.contentScale : 0.96)
+                            .blur(radius: navigationState.currentScreen == .settings ? 0 : 1)
+                            .allowsHitTesting(navigationState.currentScreen == .settings)
                     }
-                )
-            }
-            .ornament(
-                visibility: .visible,
-                attachmentAnchor: .scene(.bottom),
-                contentAlignment: .top
-            ) {
-                ToolbarOrnament(
-                    controller: controller,
-                    showMeasurementOptions: $sheetState.showMeasurementOptions,
-                    showFocusModeSheet: $sheetState.showFocusModeSheet,
-                    showImportSheet: $sheetState.showImportSheet
-                )
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                .clipped()
+                .animation(.interactiveSpring(
+                    response: 0.35,
+                    dampingFraction: 0.86,
+                    blendDuration: 0.25
+                ), value: navigationState.currentScreen)
+                .animation(.interactiveSpring(
+                    response: 0.2,
+                    dampingFraction: 0.9,
+                    blendDuration: 0
+                ), value: navigationState.contentScale)
+                .ornament(
+                    visibility: .visible,
+                    attachmentAnchor: .scene(.leading),
+                    contentAlignment: .leading
+                ) {
+                    NavigationOrnament(
+                        currentScreen: $navigationState.currentScreen,
+                        onTabWillChange: { newTab in
+                            performTabTransition(to: newTab)
+                        }
+                    )
+                }
+                .ornament(
+                    visibility: .visible,
+                    attachmentAnchor: .scene(.bottom),
+                    contentAlignment: .top
+                ) {
+                    ToolbarOrnament(
+                        controller: controller,
+                        showMeasurementOptions: $sheetState.showMeasurementOptions,
+                        showFocusModeSheet: $sheetState.showFocusModeSheet,
+                        showImportSheet: $sheetState.showImportSheet
+                    )
+                }
             }
         }
         .onAppear {
@@ -296,6 +303,9 @@ struct StarterView: View {
             await MainActor.run { sessionState.isImmersiveOpen = true }
 
             // Start world tracking for world anchor persistence
+            #if targetEnvironment(simulator)
+            return
+            #else
             do {
                 try await controller.startWorldTracking()
             } catch {
@@ -303,6 +313,7 @@ struct StarterView: View {
                 print("Failed to start world tracking: \(error)")
                 #endif
             }
+            #endif
         }
     }
 }

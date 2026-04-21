@@ -20,7 +20,6 @@ import ARKit
 class VisionOSSpatialCoordinator {
    // private var session: GroupSession<DemoActivity>
     private var rootEntity: Entity?
-    private var realityViewContent: RealityViewContent?
     private var worldAnchorEntity: Entity?
     private(set) var currentAnchorID: UUID?
     private(set) var isAligned: Bool = false
@@ -38,10 +37,9 @@ class VisionOSSpatialCoordinator {
 
     func configureSession(
         for entity: Entity,
-        in realityViewContent: RealityViewContent
+        in _: RealityViewContent
     ) async {
         self.rootEntity           = entity
-        self.realityViewContent   = realityViewContent
 
         // Initialise world tracking and create/share the anchor.
         await setupWorldTracking()
@@ -152,8 +150,8 @@ class VisionOSSpatialCoordinator {
     private func setupWorldTracking() async {
         
         // If we have an existing ARKit session, use its provider
-        if let session = self.arKitSession,
-           let provider = worldTrackingProvider as? WorldTrackingProvider {
+        if arKitSession != nil,
+           worldTrackingProvider is WorldTrackingProvider {
             
             // Provider already set up in configureWithARKitSession
             #if DEBUG
@@ -376,7 +374,6 @@ class VisionOSSpatialCoordinator {
         isAligned = false
         worldAnchorEntity = nil
         rootEntity = nil
-        realityViewContent = nil
         onAnchorTransformUpdated = nil
         initialAnchorTransform = nil
 
@@ -386,4 +383,3 @@ class VisionOSSpatialCoordinator {
     }
 }
 #endif
-

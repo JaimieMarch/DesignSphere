@@ -8,20 +8,19 @@
 
 import Foundation
 import RealityKit
-import Combine
 
 @MainActor
-class ModelCache: ObservableObject {
+class ModelCache {
     static let shared = ModelCache()
     
     // Cache for loaded model entities
     private var cache: [ModelType: ModelEntity] = [:]
     
-    // Loading states for UI feedback
-    @Published var isPreloading = false
-    @Published var loadingProgress: Float = 0.0
-    @Published var currentlyLoadingModel: String = ""
-    @Published var preloadingComplete = false
+    // Loading states for preload flow coordination
+    private(set) var isPreloading = false
+    private(set) var loadingProgress: Float = 0.0
+    private(set) var currentlyLoadingModel: String = ""
+    private(set) var preloadingComplete = false
     
     
     // Track which models are currently being loaded to prevent duplicate loads
@@ -34,9 +33,6 @@ class ModelCache: ObservableObject {
     /// Preload all available models at app startup
     func preloadAllModels() async {
         guard !isPreloading && !preloadingComplete else {
-            #if DEBUG
-            print("ModelCache: already preloading or has arleady completed")
-            #endif
             return
         }
         
@@ -46,11 +42,6 @@ class ModelCache: ObservableObject {
         let modelTypes = ModelType.allCases()
         let totalModels = Float(modelTypes.count)
         var loadedCount: Float = 0
-        
-        #if DEBUG
-        print("ModelCache: Starting preload of \(modelTypes.count) models")
-        #endif
-        
         
         for modelType in modelTypes {
             currentlyLoadingModel = modelType.displayName
@@ -64,18 +55,12 @@ class ModelCache: ObservableObject {
             loadedCount += 1
             loadingProgress = loadedCount / totalModels
             
-            #if DEBUG
-            print("ModelCache: Loaded \(modelType.rawValue) (\(Int(loadingProgress * 100))% complete)")
-            #endif
         }
         
         
         isPreloading = false
         preloadingComplete = true
         currentlyLoadingModel = ""
-        #if DEBUG
-        print("ModelCache: Preloading complete. \(cache.count) models cached.")
-        #endif
     }
     
     
@@ -97,17 +82,11 @@ class ModelCache: ObservableObject {
         
         // Return cached entity if available
         if let cached = cache[modelType] {
-            #if DEBUG
-            print("ModelCache: Returning cached entity for \(modelType.rawValue)")
-            #endif
             return cached.clone(recursive: true)
         }
         
         
         // Load if not cached
-        #if DEBUG
-        print("ModelCache: Cache miss for \(modelType.rawValue), loading...")
-        #endif
         let entity = await loadModel(modelType)
         return entity?.clone(recursive: true)
     }
@@ -116,9 +95,6 @@ class ModelCache: ObservableObject {
     /// Load a model and and then cache it
     private func loadModel(_ modelType: ModelType) async -> ModelEntity? {
         if let inFlight = loadingTasks[modelType] {
-            #if DEBUG
-            print("ModelCache: \(modelType.rawValue) is already being loaded")
-            #endif
             return await inFlight.value
         }
 
@@ -156,15 +132,9 @@ class ModelCache: ObservableObject {
 
         if let entity = modelEntity {
             cache[modelType] = entity
-            #if DEBUG
-            print("ModelCache: Successfully cached \(modelType.rawValue)")
-            #endif
             return entity
         }
 
-        #if DEBUG
-        print("ModelCache: Failed to find \(modelType.rawValue)")
-        #endif
         return nil
     }
     
@@ -174,17 +144,11 @@ class ModelCache: ObservableObject {
     func clearCache() {
         cache.removeAll()
         preloadingComplete = false
-        #if DEBUG
-        print("ModelCache: Cache cleared")
-        #endif
     }
     
     /// Remove specific model from cache
     func removeFromCache(_ modelType: ModelType) {
         cache.removeValue(forKey: modelType)
-        #if DEBUG
-        print("ModelCache: Removed \(modelType.rawValue) from cache")
-        #endif
     }
     
     
@@ -200,5 +164,4 @@ class ModelCache: ObservableObject {
     }
 }
 #endif
-
 

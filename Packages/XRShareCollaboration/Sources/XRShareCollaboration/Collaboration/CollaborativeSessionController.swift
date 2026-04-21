@@ -1488,6 +1488,7 @@ public final class CollaborativeSessionController: ObservableObject {
                 surfaceID: placement.source.surfaceID,
                 classification: placement.classification,
                 score: placement.score,
+                supportRegionID: placement.supportRegionID,
                 supportPosition: placement.supportWorldPosition,
                 supportNormal: placement.supportWorldNormal
             )
@@ -1633,7 +1634,16 @@ public final class CollaborativeSessionController: ObservableObject {
             return true
         }
 
-        return snapState.source != .roomMesh
+        if snapState.source == .roomMesh {
+            return false
+        }
+
+        switch snapState.classification {
+        case "wall", "ceiling":
+            return false
+        default:
+            return true
+        }
     }
 
     private func restorePoseState(_ poseState: EntityPoseState, on entity: Entity) {
@@ -1695,6 +1705,7 @@ public final class CollaborativeSessionController: ObservableObject {
                     worldOrientation: worldOrientation,
                     roomAnchor: currentRoomAnchor,
                     requiredClassification: requiredClassification,
+                    requiredRegionID: snapState.supportRegionID,
                     referenceSupportPoint: snapState.supportPosition,
                     referenceSupportNormal: snapState.supportNormal
                 )

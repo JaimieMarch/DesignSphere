@@ -68,7 +68,10 @@ struct ToolbarOrnament: View {
                                     appSettings.collisionMode = mode
                                     controller.setCollisionMode(mode)
                                 } label: {
-                                    Label(mode.label, systemImage: mode == controller.collisionMode ? "checkmark.circle.fill" : mode.symbolName)
+                                    Label(
+                                        mode.label,
+                                        systemImage: mode == controller.collisionMode ? "checkmark.circle.fill" : mode.symbolName
+                                    )
                                 }
                             }
                         } label: {
@@ -92,7 +95,7 @@ struct ToolbarOrnament: View {
                         .accessibilityLabel("Collision mode")
                         .accessibilityHint("Switch between off, warn, and prevent collision behavior")
 
-                        if AppFeatureFlags.measurementToolsEnabled {
+                        if AppFeatureFlags.measurementToolsEnabled && appSettings.labsMeasurementToolsEnabled {
                             Button {
                                 showMeasurementOptions = true
                             } label: {

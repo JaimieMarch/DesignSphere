@@ -311,5 +311,5 @@ enum BackupManager {
 }
 
 extension UTType {
-    static let designSphereBackup = UTType(exportedAs: "com.designsphere.backup")
+    static let designSphereBackup = UTType(importedAs: "com.designsphere.backup")
 }

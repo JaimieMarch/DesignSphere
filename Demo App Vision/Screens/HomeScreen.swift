@@ -24,99 +24,192 @@ struct HomeScreen: View {
     @State private var searchText: String = ""
     
     var body: some View {
-        VStack(spacing: 14) {
-            HStack {
-                Text("Catalog").font(.largeTitle.bold())
-                Spacer()
-                
-                HStack(spacing: 12) {
-                    Picker("Model source", selection: $selectedSource) {
-                        ForEach(CollaborativeSessionController.ModelSource.allCases, id: \.self) { source in
-                            if source != .unknown {
-                                Text(source.label).tag(source)
+        GeometryReader { proxy in
+            VStack(alignment: .leading, spacing: 18) {
+                headerSection
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+
+                ScrollView {
+                    LazyVGrid(columns: gridColumns(for: proxy.size.width), spacing: 14) {
+                        ForEach(filteredModels) { descriptor in
+                            let isFavorite = favoriteModels.contains(descriptor.name)
+                            CatalogCell(
+                                name: descriptor.name,
+                                isFavorite: isFavorite,
+                                onFavoriteToggle: {
+                                    if favoriteModels.contains(descriptor.name) {
+                                        favoriteModels.remove(descriptor.name)
+                                    } else {
+                                        favoriteModels.insert(descriptor.name)
+                                    }
+                                },
+                                modelType: descriptor.type
+                            )
+                            .onTapGesture { controller.addModel(descriptor) }
+                            .contextMenu {
+                                Button("Add") { controller.addModel(descriptor) }
                             }
+                            .accessibilityLabel("\(descriptor.name)\(isFavorite ? ", favorited" : "")")
+                            .accessibilityHint("Tap to add \(descriptor.name) to your design")
+                            .accessibilityAddTraits(.isButton)
                         }
                     }
-                    .pickerStyle(.segmented)
-                    .frame(width: 280)
-                    .accessibilityLabel("Model source filter")
-                    .accessibilityHint("Filter models by presets, scans, or imports")
-
-                    Picker("Category", selection: $selectedCategory) {
-                        ForEach(CollaborativeSessionController.ModelCategory.allCases, id: \.self) { category in
-                            if category != .unknown {
-                                Text(category.label).tag(category)
-                            }
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 360)
-                    .accessibilityLabel("Category")
-                    .accessibilityHint("Filter models by furniture category")
-
-                    Picker("Sort order", selection: $sortMode) {
-                        ForEach(Sorting.allCases) { mode in
-                            Text(mode.rawValue).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 260)
-                    .accessibilityLabel("Sort order")
-                    .accessibilityHint("Sort models alphabetically, by date, or show favorites only")
-
-                    HStack(spacing: 6) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                            .imageScale(.small)
-                        TextField("Search", text: $searchText)
-                            .textFieldStyle(.plain)
-                            .frame(width: 140)
-                            .accessibilityLabel("Search models")
-                            .accessibilityHint("Type to filter models by name")
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(.thinMaterial)
-                    )
+                    .padding(16)
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 24))
+                .glassBackground(cornerRadius: 24)
+                .shadow(radius: 10)
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            
-            ScrollView {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 12) {
-                    ForEach(filtered(controller.availableModels)) { descriptor in
-                        let isFavorite = favoriteModels.contains(descriptor.name)
-                        CatalogCell(
-                            name: descriptor.name,
-                            isFavorite: isFavorite,
-                            onFavoriteToggle: {
-                                if favoriteModels.contains(descriptor.name) {
-                                    favoriteModels.remove(descriptor.name)
-                                } else {
-                                    favoriteModels.insert(descriptor.name)
-                                }
-                            },
-                            modelType: descriptor.type
-                        )
-                        .onTapGesture { controller.addModel(descriptor) }
-                        .contextMenu {
-                            Button("Add") { controller.addModel(descriptor) }
-                        }
-                        .accessibilityLabel("\(descriptor.name)\(isFavorite ? ", favorited" : "")")
-                        .accessibilityHint("Tap to add \(descriptor.name) to your design")
-                        .accessibilityAddTraits(.isButton)
-                    }
-                }
-                .padding(16)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .glassBackground(cornerRadius: 24)
-            .shadow(radius: 10)
+            .padding(24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(24)
+    }
+
+    private var filteredModels: [CollaborativeSessionController.ModelDescriptor] {
+        filtered(controller.availableModels)
+    }
+
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 20) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Catalog")
+                        .font(.largeTitle.bold())
+                        .lineLimit(1)
+
+                    Text("\(filteredModels.count) items available")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 0)
+
+                searchField
+            }
+
+            HStack(spacing: 12) {
+                sourceFilter
+                categoryFilter
+                sortFilter
+
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+                .imageScale(.small)
+
+            TextField("Search models", text: $searchText)
+                .textFieldStyle(.plain)
+                .frame(width: 220)
+                .accessibilityLabel("Search models")
+                .accessibilityHint("Type to filter models by name")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            Capsule(style: .continuous)
+                .fill(.thinMaterial)
+        )
+    }
+
+    private var sourceFilter: some View {
+        Menu {
+            ForEach(CollaborativeSessionController.ModelSource.allCases, id: \.self) { source in
+                if source != .unknown {
+                    Button {
+                        selectedSource = source
+                    } label: {
+                        if selectedSource == source {
+                            Label(source.label, systemImage: "checkmark")
+                        } else {
+                            Text(source.label)
+                        }
+                    }
+                }
+            }
+        } label: {
+            filterCapsule(title: "Source", value: selectedSource.label)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Model source filter")
+        .accessibilityHint("Filter models by presets, scans, or imports")
+    }
+
+    private var categoryFilter: some View {
+        Menu {
+            ForEach(CollaborativeSessionController.ModelCategory.allCases, id: \.self) { category in
+                if category != .unknown {
+                    Button {
+                        selectedCategory = category
+                    } label: {
+                        if selectedCategory == category {
+                            Label(category.label, systemImage: "checkmark")
+                        } else {
+                            Text(category.label)
+                        }
+                    }
+                }
+            }
+        } label: {
+            filterCapsule(title: "Category", value: selectedCategory.label)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Category")
+        .accessibilityHint("Filter models by furniture category")
+    }
+
+    private var sortFilter: some View {
+        Menu {
+            ForEach(Sorting.allCases) { mode in
+                Button {
+                    sortMode = mode
+                } label: {
+                    if sortMode == mode {
+                        Label(mode.rawValue, systemImage: "checkmark")
+                    } else {
+                        Text(mode.rawValue)
+                    }
+                }
+            }
+        } label: {
+            filterCapsule(title: "Sort", value: sortMode.rawValue)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Sort order")
+        .accessibilityHint("Sort models alphabetically, by date, or show favorites only")
+    }
+
+    private func filterCapsule(title: String, value: String) -> some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.subheadline.weight(.medium))
+                .lineLimit(1)
+
+            Image(systemName: "chevron.down")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            Capsule(style: .continuous)
+                .fill(.thinMaterial)
+        )
+    }
+
+    private func gridColumns(for availableWidth: CGFloat) -> [GridItem] {
+        let minColumnWidth: CGFloat = availableWidth > 1200 ? 220 : 200
+        return [GridItem(.adaptive(minimum: minColumnWidth, maximum: 280), spacing: 14)]
     }
     
     private func filtered(

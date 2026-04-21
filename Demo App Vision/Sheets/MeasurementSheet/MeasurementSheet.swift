@@ -16,5 +16,6 @@ struct MeasurementSheet: View {
                 )
             }
         )
+        .frame(width: 600, height: 700)
     }
 }

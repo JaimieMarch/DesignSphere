@@ -18,8 +18,8 @@ struct DemoApp: App {
         WindowGroup("StarterView") {
             ContrastAwareRoot(controller: controller)
                 .environmentObject(appSettings)
-                .frame(width: 1280, height: 720)
         }
+        .defaultSize(width: 1280, height: 720)
         .windowResizability(.contentSize)
 
 #if os(visionOS)
@@ -36,7 +36,7 @@ struct DemoApp: App {
                 if controller.expandedEditModelInstanceIDVar != nil {
                     Attachment(id: "model-edit-panel") {
                         EditModelView(controller: controller)
-                            .frame(width: 380)
+                            .frame(width: 380, height: 620)
                     }
                 }
             }

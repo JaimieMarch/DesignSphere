@@ -270,6 +270,7 @@ public final class ModelManager: ObservableObject {
                 surfaceID: placement.source.surfaceID,
                 classification: placement.classification,
                 score: placement.score,
+                supportRegionID: placement.supportRegionID,
                 supportPosition: placement.supportWorldPosition,
                 supportNormal: placement.supportWorldNormal
             )

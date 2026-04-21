@@ -77,6 +77,7 @@ public struct SnapStateComponent: Component {
     public var surfaceID: UUID
     public var classification: String?
     public var score: Float
+    public var supportRegionID: String?
     public var supportPosition: SIMD3<Float>?
     public var supportNormal: SIMD3<Float>?
 
@@ -85,6 +86,7 @@ public struct SnapStateComponent: Component {
         surfaceID: UUID,
         classification: String?,
         score: Float,
+        supportRegionID: String? = nil,
         supportPosition: SIMD3<Float>? = nil,
         supportNormal: SIMD3<Float>? = nil
     ) {
@@ -92,6 +94,7 @@ public struct SnapStateComponent: Component {
         self.surfaceID = surfaceID
         self.classification = classification
         self.score = score
+        self.supportRegionID = supportRegionID
         self.supportPosition = supportPosition
         self.supportNormal = supportNormal
     }

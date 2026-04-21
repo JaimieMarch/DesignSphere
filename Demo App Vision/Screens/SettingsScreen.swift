@@ -3,6 +3,7 @@
 import SwiftUI
 import Foundation
 import UniformTypeIdentifiers
+import XRShareCollaboration
 
 private enum LocalDataTarget: String, CaseIterable, Identifiable {
     case savedProjects
@@ -314,107 +315,143 @@ struct SettingsScreen: View {
     @State private var backupErrorMessage: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            Text("Settings")
-                .font(.largeTitle.bold())
+        ScrollView {
+            VStack(alignment: .leading, spacing: 28) {
+                Text("Settings")
+                    .font(.largeTitle.bold())
 
-            SettingsCard(title: "Accessibility") {
-                Toggle(isOn: $appSettings.highContrastTextEnabled) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("High Contrast Text")
+                SettingsCard(title: "Accessibility") {
+                    Toggle(isOn: $appSettings.highContrastTextEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("High Contrast Text")
+                                .font(.headline)
+                            Text("Increases text contrast and legibility across the app.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .toggleStyle(.switch)
+                    .accessibilityLabel("High contrast text")
+                    .accessibilityHint("Increases text contrast and legibility across the app")
+                }
+
+                SettingsCard(title: "Privacy") {
+                    Toggle(isOn: $appSettings.rememberFavoritesEnabled) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Remember Favorites")
+                                .font(.headline)
+                            Text("Stores your favorites locally on this device.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .toggleStyle(.switch)
+                    .accessibilityLabel("Remember favorites")
+                    .accessibilityHint("Stores your favorites locally on this device")
+
+                    Text("Analytics and telemetry are currently not enabled in this app.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+
+                    Button {
+                        showLocalDataManagement = true
+                    } label: {
+                        HStack {
+                            Text("Manage Local Data")
+                                .font(.headline)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 4)
+                    .accessibilityLabel("Manage local data")
+                    .accessibilityHint("Opens options to wipe saved projects, imports, anchors, or favorites")
+                }
+
+                SettingsCard(title: "Labs") {
+                    if AppFeatureFlags.measurementToolsEnabled {
+                        Toggle(isOn: $appSettings.labsMeasurementToolsEnabled) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Measurement Tools")
+                                    .font(.headline)
+                                Text("Adds a ruler button to the toolbar for measuring distances and model dimensions.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .toggleStyle(.switch)
+                        .accessibilityLabel("Measurement tools")
+                        .accessibilityHint("Enables the measurement tools button in the bottom toolbar")
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Collision Mode")
                             .font(.headline)
-                        Text("Increases text contrast and legibility across the app.")
+                        Text("Controls how furniture overlap is handled during placement and movement.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        Picker("Collision Mode", selection: $appSettings.collisionMode) {
+                            ForEach(FurnitureCollisionMode.allCases) { mode in
+                                Text(mode.label).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityLabel("Collision mode")
+                        .accessibilityHint("Choose how furniture collisions are handled")
+                    }
+                }
+
+                SettingsCard(title: "Backups") {
+                    Button("Create Backup") {
+                        backupErrorMessage = nil
+                        showBackupExportOptions = true
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityLabel("Create backup")
+                    .accessibilityHint("Export a backup of your projects and settings")
+
+                    Button("Import Backup") {
+                        backupErrorMessage = nil
+                        showBackupImporter = true
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Import backup")
+                    .accessibilityHint("Restore projects and settings from a backup file")
+
+                    if let backupResultMessage {
+                        Text(backupResultMessage)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
-                }
-                .toggleStyle(.switch)
-                .accessibilityLabel("High contrast text")
-                .accessibilityHint("Increases text contrast and legibility across the app")
-            }
 
-            SettingsCard(title: "Privacy") {
-                Toggle(isOn: $appSettings.rememberFavoritesEnabled) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Remember Favorites")
-                            .font(.headline)
-                        Text("Stores your favorites locally on this device.")
+                    if let backupErrorMessage {
+                        Text(backupErrorMessage)
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.red)
                     }
                 }
-                .toggleStyle(.switch)
-                .accessibilityLabel("Remember favorites")
-                .accessibilityHint("Stores your favorites locally on this device")
 
-                Text("Analytics and telemetry are currently not enabled in this app.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Button {
-                    showLocalDataManagement = true
-                } label: {
-                    HStack {
-                        Text("Manage Local Data")
-                            .font(.headline)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.secondary)
+                SettingsCard(title: "Tutorial") {
+                    Button("Open Tutorial Center") {
+                        appSettings.requestTutorialReplay()
                     }
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 4)
-                .accessibilityLabel("Manage local data")
-                .accessibilityHint("Opens options to wipe saved projects, imports, anchors, or favorites")
-            }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityLabel("Open tutorial center")
+                    .accessibilityHint("Choose an interactive walkthrough or video tutorials")
 
-            SettingsCard(title: "Backups") {
-                Button("Create Backup") {
-                    backupErrorMessage = nil
-                    showBackupExportOptions = true
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityLabel("Create backup")
-                .accessibilityHint("Export a backup of your projects and settings")
-
-                Button("Import Backup") {
-                    backupErrorMessage = nil
-                    showBackupImporter = true
-                }
-                .buttonStyle(.bordered)
-                .accessibilityLabel("Import backup")
-                .accessibilityHint("Restore projects and settings from a backup file")
-
-                if let backupResultMessage {
-                    Text(backupResultMessage)
+                    Text("Choose Interactive Walkthrough or Video Tutorials, then exit anytime.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-
-                if let backupErrorMessage {
-                    Text(backupErrorMessage)
-                        .font(.subheadline)
-                        .foregroundStyle(.red)
-                }
             }
-
-            SettingsCard(title: "Tutorial") {
-                Button("Open Tutorial Center") {
-                    appSettings.requestTutorialReplay()
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityLabel("Open tutorial center")
-                .accessibilityHint("Choose an interactive walkthrough or video tutorials")
-
-                Text("Choose Interactive Walkthrough or Video Tutorials, then exit anytime.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(32)
         }
-        .padding(32)
+        .scrollIndicators(.hidden)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .glassBackground(cornerRadius: 24)
         .padding(24)
