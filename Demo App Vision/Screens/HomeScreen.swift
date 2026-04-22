@@ -71,30 +71,26 @@ struct HomeScreen: View {
     }
 
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 20) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Catalog")
-                        .font(.largeTitle.bold())
-                        .lineLimit(1)
+        HStack(alignment: .top, spacing: 20) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Catalog")
+                    .font(.largeTitle.bold())
+                    .lineLimit(1)
 
-                    Text("\(filteredModels.count) items available")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 0)
-
-                searchField
+                Text("\(filteredModels.count) items available")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
+
+            Spacer(minLength: 0)
 
             HStack(spacing: 12) {
                 sourceFilter
                 categoryFilter
                 sortFilter
-
-                Spacer(minLength: 0)
+                searchField
             }
+            .frame(maxWidth: 860, alignment: .trailing)
         }
     }
 
@@ -106,7 +102,7 @@ struct HomeScreen: View {
 
             TextField("Search models", text: $searchText)
                 .textFieldStyle(.plain)
-                .frame(width: 220)
+                .frame(width: 180)
                 .accessibilityLabel("Search models")
                 .accessibilityHint("Type to filter models by name")
         }
@@ -201,6 +197,7 @@ struct HomeScreen: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+        .frame(minWidth: 132, alignment: .leading)
         .background(
             Capsule(style: .continuous)
                 .fill(.thinMaterial)

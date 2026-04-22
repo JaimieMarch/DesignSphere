@@ -16,49 +16,33 @@ struct ToolbarOrnament: View {
             .toolbar {
                 ToolbarItemGroup(placement: .bottomOrnament) {
                     HStack(spacing: 8) {
-                        Button {
-                            controller.undo()
-                        } label: {
-                            Image(systemName: "arrow.uturn.backward")
-                                .frame(width: 28, height: 28)
-                        }
-                        .buttonStyle(.borderless)
-                        .buttonBorderShape(.circle)
+                        ornamentButton(
+                            systemImage: "arrow.uturn.backward",
+                            action: { controller.undo() }
+                        )
                         .disabled(!controller.canUndo)
                         .accessibilityLabel("Undo")
                         .accessibilityHint("Undo the last scene edit")
 
-                        Button {
-                            controller.redo()
-                        } label: {
-                            Image(systemName: "arrow.uturn.forward")
-                                .frame(width: 28, height: 28)
-                        }
-                        .buttonStyle(.borderless)
-                        .buttonBorderShape(.circle)
+                        ornamentButton(
+                            systemImage: "arrow.uturn.forward",
+                            action: { controller.redo() }
+                        )
                         .disabled(!controller.canRedo)
                         .accessibilityLabel("Redo")
                         .accessibilityHint("Redo the last undone scene edit")
 
-                        Button {
-                            showFocusModeSheet = true
-                        } label: {
-                            Image(systemName: "eye")
-                                .frame(width: 28, height: 28)
-                        }
-                        .buttonStyle(.borderless)
-                        .buttonBorderShape(.circle)
+                        ornamentButton(
+                            systemImage: "eye",
+                            action: { showFocusModeSheet = true }
+                        )
                         .accessibilityLabel("Focus mode")
                         .accessibilityHint("Opens focus mode options to hide or show real-world items")
 
-                        Button {
-                            showImportSheet = true
-                        } label: {
-                            Image(systemName: "square.and.arrow.down")
-                                .frame(width: 28, height: 28)
-                        }
-                        .buttonStyle(.borderless)
-                        .buttonBorderShape(.circle)
+                        ornamentButton(
+                            systemImage: "square.and.arrow.down",
+                            action: { showImportSheet = true }
+                        )
                         .accessibilityLabel("Import model")
                         .accessibilityHint("Import a custom 3D model from your device")
 
@@ -96,19 +80,24 @@ struct ToolbarOrnament: View {
                         .accessibilityHint("Switch between off, warn, and prevent collision behavior")
 
                         if AppFeatureFlags.measurementToolsEnabled && appSettings.labsMeasurementToolsEnabled {
-                            Button {
-                                showMeasurementOptions = true
-                            } label: {
-                                Image(systemName: "ruler")
-                                    .frame(width: 28, height: 28)
-                            }
-                            .buttonStyle(.borderless)
-                            .buttonBorderShape(.circle)
+                            ornamentButton(
+                                systemImage: "ruler",
+                                action: { showMeasurementOptions = true }
+                            )
                             .accessibilityLabel("Measurement tools")
                             .accessibilityHint("Open measurement and ruler tools")
                         }
                     }
                 }
             }
+    }
+
+    private func ornamentButton(systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .frame(width: 30, height: 30)
+        }
+        .buttonStyle(.borderless)
+        .buttonBorderShape(.circle)
     }
 }

@@ -102,6 +102,7 @@ struct FocusModeView: View {
                 }
                 .scrollIndicators(.hidden)
             }
+            .padding(14)
             .navigationTitle("Focus Mode")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -129,34 +130,29 @@ struct FocusModeView: View {
 
     private var backgroundLayer: some View {
         ZStack {
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .fill(.thinMaterial)
+
             LinearGradient(
                 colors: [
-                    Color(red: 0.07, green: 0.09, blue: 0.12),
-                    Color(red: 0.12, green: 0.14, blue: 0.17),
-                    Color(red: 0.15, green: 0.18, blue: 0.20)
+                    focusModeManager.activeTheme.swatch.opacity(0.14),
+                    Color.white.opacity(0.06)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+            .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
 
             Circle()
-                .fill(focusModeManager.activeTheme.swatch.opacity(0.18))
-                .frame(width: 260, height: 260)
-                .blur(radius: 60)
-                .offset(x: 180, y: -220)
-
-            Circle()
-                .fill(Color.white.opacity(0.08))
-                .frame(width: 340, height: 340)
-                .blur(radius: 70)
-                .offset(x: -210, y: 190)
+                .fill(focusModeManager.activeTheme.swatch.opacity(0.12))
+                .frame(width: 240, height: 240)
+                .blur(radius: 55)
+                .offset(x: 170, y: -210)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 32, style: .continuous)
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
-        .padding(14)
     }
 
     private var headerCard: some View {

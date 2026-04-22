@@ -317,8 +317,14 @@ struct SettingsScreen: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
-                Text("Settings")
-                    .font(.largeTitle.bold())
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Settings")
+                        .font(.largeTitle.bold())
+
+                    Text("Preferences, backups, and experimental tools.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
 
                 SettingsCard(title: "Accessibility") {
                     Toggle(isOn: $appSettings.highContrastTextEnabled) {

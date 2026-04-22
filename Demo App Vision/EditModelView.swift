@@ -90,7 +90,7 @@ struct EditModelView: View {
                                 Text("Remove Furniture")
                                     .frame(maxWidth: .infinity, minHeight: 50)
                                     .background(Color.red.opacity(0.15))
-                                    .cornerRadius(10)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                             }
                             .accessibilityLabel("Remove furniture")
                             .accessibilityHint("Permanently removes this item from your design")
@@ -117,7 +117,7 @@ struct EditModelView: View {
 
                                         ColorPicker("Custom color", selection: $customColor, supportsOpacity: false)
                                             .labelsHidden()
-                                            .frame(width: 70, height: 70)
+                                            .frame(width: 66, height: 66)
                                             .background(.ultraThinMaterial)
                                             .clipShape(Circle())
                                             .onChange(of: customColor) {
@@ -129,7 +129,7 @@ struct EditModelView: View {
                                             }
                                             .overlay(
                                                 Circle().stroke(
-                                                    selectedColor == customColor ? .white : .gray.opacity(0.3),
+                                                    selectedColor == customColor ? .white : .gray.opacity(0.4),
                                                     lineWidth: selectedColor == customColor ? 3 : 1
                                                 )
                                             )
@@ -433,9 +433,10 @@ struct EditModelView: View {
                     .fontWeight(.medium)
             }
             .frame(maxWidth: .infinity, minHeight: 50)
-            .background(Color.gray.opacity(0.18))
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
+        .buttonStyle(.plain)
         .accessibilityLabel("\(title) material")
         .accessibilityHint("Apply \(title.lowercased()) texture to the model")
     }

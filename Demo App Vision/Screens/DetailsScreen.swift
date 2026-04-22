@@ -17,153 +17,165 @@ struct DetailsScreen: View {
     @State private var pendingSaveRoomName: String = ""
 
     var body: some View {
-        VStack(spacing: 14) {
-            // Header with room name
-            HStack {
-                Text("Project Details").font(.largeTitle.bold())
-                Spacer()
-                
-                HStack(spacing: 12) {
-                    Button(action: { saveProject() }) {
-                        Label("Save", systemImage: "square.and.arrow.down")
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(roomName.isEmpty)
-                    .accessibilityLabel("Save project")
-                    .accessibilityHint("Save the current scene as a project")
+        GeometryReader { proxy in
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top, spacing: 20) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Projects")
+                                .font(.largeTitle.bold())
+                                .lineLimit(1)
 
-                    Button(action: { showLoadSheet = true }) {
-                        Label("Load", systemImage: "square.and.arrow.up")
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityLabel("Load project")
-                    .accessibilityHint("Open a previously saved project")
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            
-            // Room Name Section
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Room Name")
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                
-                TextField("Enter room name", text: $roomName)
-                    .textFieldStyle(.plain)
-                    .font(.title2)
-                    .padding(16)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(.thinMaterial)
-                    )
-                    .accessibilityLabel("Room name")
-                    .accessibilityHint("Enter a name for your room project")
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 8)
-            
-            VStack(spacing: 0) {
-                HStack {
-                    Text("Placed Models")
-                        .font(.headline)
-                    Spacer()
-                    if !controller.placedModelDescriptors.isEmpty {
-                        Text("\(controller.placedModelDescriptors.count)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .background(
-                                Capsule()
-                                    .fill(.quaternary)
-                            )
-                    }
-                }
-                .padding(16)
-
-                Divider()
-
-                if projectManager.isStreamingProject {
-                    VStack(spacing: 8) {
-                        ProgressView(value: projectManager.streamingProgress)
-                        Text("Restoring models \(Int(projectManager.streamingProgress * 100))%")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                }
-
-                // Scrollable Content Area
-                ScrollView {
-                    if controller.placedModelDescriptors.isEmpty {
-                        // Empty state
-                        VStack(spacing: 16) {
-                            Image(systemName: "cube.transparent")
-                                .font(.largeTitle)
-                                .imageScale(.large)
-                                .foregroundStyle(.tertiary)
-
-                            Text("No models in scene")
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
-
-                            Text("Add models from the catalog to get started")
+                            Text(projectSummary)
                                 .font(.subheadline)
-                                .foregroundStyle(.tertiary)
-                                .multilineTextAlignment(.center)
+                                .foregroundStyle(.secondary)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 80)
-                    } else {
-                        // Models grid
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 12) {
-                            ForEach(controller.placedModelDescriptors) { descriptor in
-                                CatalogCell(
-                                    name: descriptor.name,
-                                    isFavorite: false,
-                                    onFavoriteToggle: {},
-                                    modelType: descriptor.type,
-                                    showRemove: true,
-                                    onRemove: {
-                                        controller.removeModelById(withInstanceID: descriptor.id)
-                                    }
-                                )
+
+                        Spacer(minLength: 0)
+
+                        HStack(spacing: 12) {
+                            Button(action: { saveProject() }) {
+                                Label("Save", systemImage: "square.and.arrow.down")
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
                             }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(roomName.isEmpty)
+                            .accessibilityLabel("Save project")
+                            .accessibilityHint("Save the current scene as a project")
+
+                            Button(action: { showLoadSheet = true }) {
+                                Label("Load", systemImage: "square.and.arrow.up")
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                            }
+                            .buttonStyle(.bordered)
+                            .accessibilityLabel("Load project")
+                            .accessibilityHint("Open a previously saved project")
                         }
-                        .padding(16)
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Project Name")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+
+                        TextField("Enter project name", text: $roomName)
+                            .textFieldStyle(.plain)
+                            .font(.title3)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(.thinMaterial)
+                            )
+                            .accessibilityLabel("Room name")
+                            .accessibilityHint("Enter a name for your room project")
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
 
-                if !controller.placedModelDescriptors.isEmpty {
+                VStack(spacing: 0) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Placed Models")
+                                .font(.headline)
+                            Text("Manage the models currently in your scene.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if !controller.placedModelDescriptors.isEmpty {
+                            Text("\(controller.placedModelDescriptors.count)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(.quaternary)
+                                )
+                        }
+                    }
+                    .padding(16)
+
                     Divider()
 
-                    Button(action: {
-                        Task { await controller.removeAllModels() }
-                    }) {
-                        HStack {
-                            Image(systemName: "trash.fill")
-                            Text("Clear All Models")
+                    if projectManager.isStreamingProject {
+                        VStack(spacing: 8) {
+                            ProgressView(value: projectManager.streamingProgress)
+                            Text("Restoring models \(Int(projectManager.streamingProgress * 100))%")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                    .padding(16)
-                    .accessibilityLabel("Clear all models")
-                    .accessibilityHint("Remove all placed models from the scene")
+
+                    ScrollView {
+                        if controller.placedModelDescriptors.isEmpty {
+                            VStack(spacing: 16) {
+                                Image(systemName: "cube.transparent")
+                                    .font(.largeTitle)
+                                    .imageScale(.large)
+                                    .foregroundStyle(.tertiary)
+
+                                Text("No models in scene")
+                                    .font(.title3)
+                                    .foregroundStyle(.secondary)
+
+                                Text("Add models from the catalog to get started")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.tertiary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 80)
+                        } else {
+                            LazyVGrid(columns: gridColumns(for: proxy.size.width), spacing: 14) {
+                                ForEach(controller.placedModelDescriptors) { descriptor in
+                                    CatalogCell(
+                                        name: descriptor.name,
+                                        isFavorite: false,
+                                        onFavoriteToggle: {},
+                                        modelType: descriptor.type,
+                                        showRemove: true,
+                                        onRemove: {
+                                            controller.removeModelById(withInstanceID: descriptor.id)
+                                        }
+                                    )
+                                }
+                            }
+                            .padding(16)
+                        }
+                    }
+
+                    if !controller.placedModelDescriptors.isEmpty {
+                        Divider()
+
+                        Button(action: {
+                            Task { await controller.removeAllModels() }
+                        }) {
+                            HStack {
+                                Image(systemName: "trash.fill")
+                                Text("Clear All Models")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                        .padding(16)
+                        .accessibilityLabel("Clear all models")
+                        .accessibilityHint("Remove all placed models from the scene")
+                    }
                 }
+                .glassBackground(cornerRadius: 24)
+                .shadow(radius: 10)
             }
-            .glassBackground(cornerRadius: 24)
-            .shadow(radius: 10)
+            .padding(24)
         }
-        .padding(24)
         .sheet(isPresented: $showLoadSheet) {
             LoadProjectSheet(
                 projectManager: projectManager,
@@ -190,6 +202,18 @@ struct DetailsScreen: View {
         } message: {
             Text("A project named '\(pendingSaveRoomName)' already exists. Do you want to overwrite it?")
         }
+    }
+
+    private var projectSummary: String {
+        if controller.placedModelDescriptors.isEmpty {
+            return "No models placed yet"
+        }
+        return "\(controller.placedModelDescriptors.count) model\(controller.placedModelDescriptors.count == 1 ? "" : "s") in the current scene"
+    }
+
+    private func gridColumns(for availableWidth: CGFloat) -> [GridItem] {
+        let minColumnWidth: CGFloat = availableWidth > 1200 ? 220 : 200
+        return [GridItem(.adaptive(minimum: minColumnWidth, maximum: 280), spacing: 14)]
     }
 
     private func saveProject() {
