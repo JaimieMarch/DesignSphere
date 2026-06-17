@@ -189,9 +189,6 @@ class ManipulationManager {
         contentSubscriptions.append(contentsOf: [sceneUpdateToken, didUpdateToken, willBeginToken, willEndToken, handOffToken])
         didInstallSubscriptions = true
 
-        #if DEBUG
-        print("visionOS: ManipulationEvents subscriptions configured.")
-        #endif
     }
     
     

@@ -120,8 +120,6 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var collisionWarningCount: Int = 0
     @Published public private(set) var canUndo: Bool = false
     @Published public private(set) var canRedo: Bool = false
-    @Published public var selectedModelID: String? = nil
-    @Published public var selectedModelInstanceID: UUID? = nil
     @Published public private(set) var expandedEditModelID: UUID? = nil
     private var activeEditModelInstanceID: UUID? = nil
     private var activeEditTransactionNeedsForceRecord: Bool = false
@@ -157,7 +155,7 @@ public final class CollaborativeSessionController: ObservableObject {
     private let historyManager = SceneHistoryManager()
     public let modelManager: ModelManager
     #if os(visionOS)
-    private weak var editMenuAttachmentEntity: Entity?
+    private var editMenuAttachmentEntity: Entity?
     public let immersiveSession: ARKitSession
     public let focusModeManager: FocusModeManager
     public let measurementManager: MeasurementManager
@@ -175,6 +173,7 @@ public final class CollaborativeSessionController: ObservableObject {
     private var roomPlaneIDsByRoomID: [UUID: Set<UUID>] = [:]
     private var currentProjectWorldAnchorID: UUID?
     private var currentRoomAnchorID: UUID?
+    private var hasScheduledSceneStateRefresh = false
     #endif
     private var cancellables: Set<AnyCancellable> = []
 
@@ -487,12 +486,13 @@ public final class CollaborativeSessionController: ObservableObject {
         commitSelectedModelEditTransaction()
         modelManager.selectModel(instanceID: instanceID)
         expandedEditModelID = instanceID
+        updateEditMenuAttachmentPosition()
     }
 
     public func collapseEditMenu() {
         commitSelectedModelEditTransaction()
         expandedEditModelID = nil
-        editMenuAttachmentEntity?.removeFromParent()
+        editMenuAttachmentEntity?.isEnabled = false
     }
 
     /// Handle a spatial tap in the immersive scene.
@@ -512,6 +512,7 @@ public final class CollaborativeSessionController: ObservableObject {
            let modelEntity = entity.ancestorOrSelf(with: InstanceIDComponent.self) {
             commitSelectedModelEditTransaction()
             expandedEditModelID = nil
+            editMenuAttachmentEntity?.isEnabled = false
             modelManager.selectModel(entity: modelEntity)
         }
         #endif
@@ -530,6 +531,7 @@ public final class CollaborativeSessionController: ObservableObject {
     public func deselectModel() {
         commitSelectedModelEditTransaction()
         expandedEditModelID = nil
+        editMenuAttachmentEntity?.isEnabled = false
         modelManager.deselectModel()
     }
 
@@ -551,7 +553,7 @@ public final class CollaborativeSessionController: ObservableObject {
               let snapshot = snapshot(for: model) else { return }
         if expandedEditModelID == snapshot.instanceID {
             expandedEditModelID = nil
-            editMenuAttachmentEntity?.removeFromParent()
+            editMenuAttachmentEntity?.isEnabled = false
         }
         if activeEditModelInstanceID == snapshot.instanceID {
             activeEditModelInstanceID = nil
@@ -693,7 +695,7 @@ public final class CollaborativeSessionController: ObservableObject {
         historyManager.discardTransaction(for: instanceID)
         if expandedEditModelID == instanceID {
             expandedEditModelID = nil
-            editMenuAttachmentEntity?.removeFromParent()
+            editMenuAttachmentEntity?.isEnabled = false
         }
         if activeEditModelInstanceID == instanceID {
             activeEditModelInstanceID = nil
@@ -701,56 +703,7 @@ public final class CollaborativeSessionController: ObservableObject {
         }
         modelManager.removeModel(model, broadcast: false)
     }
-    
-    
-//
-//    /// Host shareplay session
-//    public func startSharePlayHosting(named name: String) {
-//        sessionName = name
-//        
-//        Task {
-//            await preloadIfNeeded()
-//            await arViewModel.startSharePlaySession(name: name)
-//        }
-//    }
 
-//    
-//    /// Join existing shareplay session
-//    public func joinSharePlaySession() {
-//        Task {
-//            await preloadIfNeeded()
-//           // await arViewModel.joinSharePlaySession()
-//        }
-//    }
-    
-    
-
-//    /// Host shareplay session
-//    public func startSharePlayHosting(named name: String) {
-//        sessionName = name
-//        
-//        Task {
-//            await preloadIfNeeded()
-//            //await arViewModel.startSharePlaySession(name: name)
-//        }
-//    }
-//
-//    
-//    /// Join existing shareplay session
-//    public func joinSharePlaySession() {
-//        Task {
-//            await preloadIfNeeded()
-//            //await arViewModel.joinSharePlaySession()
-//        }
-//    }
-//
-//    
-//    /// Leave the current sharepaly session
-//    public func leaveSharePlaySession() {
-//        //arViewModel.leaveSharePlaySession()
-//    }
-
-    
     /// Clears everything in the session
     public func resetScene() {
         Task { await removeAllModels() }
@@ -828,7 +781,7 @@ public final class CollaborativeSessionController: ObservableObject {
             self.activeEditModelInstanceID = nil
             self.activeEditTransactionNeedsForceRecord = false
             self.expandedEditModelID = nil
-            self.editMenuAttachmentEntity?.removeFromParent()
+            self.editMenuAttachmentEntity?.isEnabled = false
             self.measurementManager.reset()
             self.historyManager.clear()
             self.modelManager.reset(broadcast: true)
@@ -863,7 +816,7 @@ public final class CollaborativeSessionController: ObservableObject {
         activeEditModelInstanceID = nil
         activeEditTransactionNeedsForceRecord = false
         expandedEditModelID = nil
-        editMenuAttachmentEntity?.removeFromParent()
+        editMenuAttachmentEntity?.isEnabled = false
         historyManager.clear()
     }
 
@@ -1044,26 +997,6 @@ public final class CollaborativeSessionController: ObservableObject {
         }
     }
 
-    public func syncEditMenuAttachment(_ attachment: Entity?) {
-        if editMenuAttachmentEntity !== attachment {
-            editMenuAttachmentEntity?.removeFromParent()
-            editMenuAttachmentEntity = attachment
-        }
-
-        guard let attachment else { return }
-
-        if #available(visionOS 2.0, *),
-           attachment.components[BillboardComponent.self] == nil {
-            var billboard = BillboardComponent()
-            billboard.blendFactor = 1.0
-            attachment.components.set(billboard)
-        }
-
-        attachment.scale = SIMD3<Float>(repeating: 0.001)
-        updateEditMenuAttachmentPosition()
-    }
-
-    
     /// Makes sure that models/thumbnails are available without stalling first render.
     public func preloadIfNeeded(strategy: PreloadStrategy = .minimal) async {
         await arViewModel.loadModels()
@@ -1126,20 +1059,22 @@ public final class CollaborativeSessionController: ObservableObject {
             content.add(arViewModel.sharedAnchorEntity)
         }
 
-        
         for model in modelManager.placedModels {
             guard let entity = model.modelEntity else { continue }
             if entity.parent !== arViewModel.sharedAnchorEntity {
                 arViewModel.sharedAnchorEntity.addChild(entity)
             }
         }
-        
+
         // Remove any entities from the content that are no longer part of the session
         content.entities.removeAll { entity in
             if entity === arViewModel.sharedAnchorEntity {
                 return false
             }
-            
+            if entity === editMenuAttachmentEntity {
+                return false
+            }
+
             let managed = modelManager.placedModels.contains { model in
                 guard let candidate = model.modelEntity else { return false }
                 if let instance = entity.components[InstanceIDComponent.self]?.id,
@@ -1169,10 +1104,8 @@ public final class CollaborativeSessionController: ObservableObject {
         }
         updateEditMenuAttachmentPosition()
         selectionIndicatorManager.updateIndicatorPosition()
-        measurementManager.setManipulationManager(arViewModel.manipulationManager)
-        measurementManager.syncScene(with: modelManager.placedModels)
-        collisionWarningCount = countCurrentCollisions()
         modelManager.updatePlacedModels(arViewModel: arViewModel)
+        scheduleSceneStateRefresh()
     }
     #endif
 
@@ -1181,6 +1114,43 @@ public final class CollaborativeSessionController: ObservableObject {
     public var sharedAnchorEntity: AnchorEntity {
         arViewModel.sharedAnchorEntity
     }
+
+    #if os(visionOS)
+    @available(visionOS 26.0, *)
+    public func ensureEditMenuAttachment(
+        in content: RealityViewContent,
+        rootViewProvider: () -> AnyView
+    ) {
+        let attachment: Entity
+        if let editMenuAttachmentEntity {
+            attachment = editMenuAttachmentEntity
+        } else {
+            let entity = Entity()
+            entity.name = "ModelEditPanelAttachment"
+            entity.components.set(ViewAttachmentComponent(rootView: rootViewProvider()))
+            entity.scale = SIMD3<Float>(repeating: 0.0012)
+            entity.isEnabled = false
+            editMenuAttachmentEntity = entity
+            attachment = entity
+        }
+
+        if attachment.components[BillboardComponent.self] == nil {
+            var billboard = BillboardComponent()
+            billboard.blendFactor = 1.0
+            attachment.components.set(billboard)
+        }
+
+        if !content.entities.contains(attachment) {
+            if attachment.parent != nil,
+               attachment.parent !== arViewModel.sharedAnchorEntity {
+                attachment.removeFromParent()
+            }
+            content.add(attachment)
+        }
+
+        updateEditMenuAttachmentPosition()
+    }
+    #endif
 
     public var worldTrackingDeviceTransform: simd_float4x4? {
         #if os(visionOS)
@@ -1523,27 +1493,24 @@ public final class CollaborativeSessionController: ObservableObject {
     }
 
     private func updateEditMenuAttachmentPosition() {
-        guard let attachment = editMenuAttachmentEntity else { return }
+        guard let attachmentEntity = editMenuAttachmentEntity else {
+            return
+        }
+
         guard let expandedEditModelID,
               let model = modelManager.modelDict[expandedEditModelID],
               let modelEntity = model.modelEntity,
               modelEntity.parent != nil else {
-            attachment.removeFromParent()
+            attachmentEntity.isEnabled = false
             return
-        }
-
-        if attachment.parent !== arViewModel.sharedAnchorEntity {
-            arViewModel.sharedAnchorEntity.addChild(attachment)
         }
 
         let bounds = modelEntity.visualBounds(relativeTo: arViewModel.sharedAnchorEntity)
         let size = bounds.extents
         let maxDimension = max(size.x, max(size.y, size.z))
         let verticalOffset = min(max(maxDimension * 0.24, 0.14), 0.26)
-        let lateralOffset = min(max(size.x * 0.78, 0.28), 0.48)
-        let forwardOffset: Float = min(max(maxDimension * 0.10, 0.06), 0.12)
+        let viewerFacingOffset = min(max(maxDimension * 0.75, 0.42), 0.72)
 
-        var sideSign: Float = 1
         var viewerLocalPosition: SIMD3<Float>? = nil
         if let deviceTransform = worldTrackingProvider?
             .queryDeviceAnchor(atTimestamp: CACurrentMediaTime())?
@@ -1557,34 +1524,57 @@ public final class CollaborativeSessionController: ObservableObject {
                 position: viewerWorldPosition,
                 from: nil
             )
-            if let viewerLocalPosition {
-                sideSign = viewerLocalPosition.x >= bounds.center.x ? -1 : 1
-            }
         }
 
-        let panelCenter = SIMD3<Float>(bounds.center.x, bounds.center.y, bounds.center.z)
-        let viewerOffset: SIMD3<Float>
         if let viewerLocalPosition {
+            let panelCenter = SIMD3<Float>(bounds.center.x, bounds.center.y, bounds.center.z)
             let rawDirection = viewerLocalPosition - panelCenter
             let horizontalDirection = SIMD3<Float>(rawDirection.x, 0, rawDirection.z)
+            let viewerDirection: SIMD3<Float>
             if simd_length_squared(horizontalDirection) > 0.0001 {
-                viewerOffset = simd_normalize(horizontalDirection) * forwardOffset
+                viewerDirection = simd_normalize(horizontalDirection)
             } else {
-                viewerOffset = SIMD3<Float>(0, 0, forwardOffset)
+                viewerDirection = SIMD3<Float>(0, 0, 1)
             }
-        } else {
-            viewerOffset = SIMD3<Float>(0, 0, forwardOffset)
-        }
 
-        attachment.setPosition(
-            SIMD3<Float>(
-                bounds.center.x + (lateralOffset * sideSign) + viewerOffset.x,
-                bounds.max.y + verticalOffset,
-                bounds.center.z + viewerOffset.z
-            ),
-            relativeTo: arViewModel.sharedAnchorEntity
-        )
-        attachment.isEnabled = true
+            attachmentEntity.setPosition(
+                SIMD3<Float>(
+                    bounds.center.x + (viewerDirection.x * viewerFacingOffset),
+                    bounds.max.y + verticalOffset,
+                    bounds.center.z + (viewerDirection.z * viewerFacingOffset)
+                ),
+                relativeTo: arViewModel.sharedAnchorEntity
+            )
+        } else {
+            // Simulator / no world-tracking fallback: models spawn in front of the origin,
+            // so +Z places the panel on the viewer-facing side instead of above/inside the model.
+            attachmentEntity.setPosition(
+                SIMD3<Float>(
+                    bounds.center.x,
+                    bounds.max.y + verticalOffset + 0.04,
+                    bounds.center.z + viewerFacingOffset
+                ),
+                relativeTo: arViewModel.sharedAnchorEntity
+            )
+        }
+        attachmentEntity.isEnabled = true
+    }
+
+    private func scheduleSceneStateRefresh() {
+        guard hasScheduledSceneStateRefresh == false else { return }
+        hasScheduledSceneStateRefresh = true
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.hasScheduledSceneStateRefresh = false
+            self.measurementManager.setManipulationManager(self.arViewModel.manipulationManager)
+            self.measurementManager.syncScene(with: self.modelManager.placedModels)
+
+            let nextCollisionCount = self.collisionMode == .off ? 0 : self.countCurrentCollisions()
+            if self.collisionWarningCount != nextCollisionCount {
+                self.collisionWarningCount = nextCollisionCount
+            }
+        }
     }
 
     private func resolveCollisionIfNeeded(
@@ -1873,15 +1863,6 @@ public final class CollaborativeSessionController: ObservableObject {
             }
             .receive(on: DispatchQueue.main)
             .assign(to: &$placedModelDescriptors)
-
-        modelManager.$selectedModelID
-                        .map { $0?.id }
-                        .receive(on: DispatchQueue.main)
-                        .assign(to: &$selectedModelID)
-
-        modelManager.$selectedModelInstanceID
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$selectedModelInstanceID)
 
         historyManager.$canUndo
             .receive(on: DispatchQueue.main)

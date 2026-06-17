@@ -126,9 +126,6 @@ public final class ModelManager: ObservableObject {
         
         
         Task { @MainActor in
-            #if DEBUG
-            print("Attempting to load model: \(modelType.rawValue).usdz")
-            #endif
             let model = await Model.load(modelType: modelType, arViewModel: arViewModel)
 
             // Use the entity that was already loaded inside Model.load.
@@ -140,10 +137,6 @@ public final class ModelManager: ObservableObject {
             
             }
             configureInteractivity(for: entity, arViewModel: arViewModel)
-
-            #if DEBUG
-            print( "Loaded entity hierarchy for \(modelType.rawValue):")
-            #endif
 
             // Normalize model size
             normalizeModelSizeForVisionOS(entity, modelType: modelType)
@@ -199,10 +192,6 @@ public final class ModelManager: ObservableObject {
                 }
                 model.position = entity.position(relativeTo: anchor)
 
-                #if DEBUG
-                print("Placed \(modelType.rawValue) at position: base=\(basePosition) pivot=\(translatedPosition), isAnchored=\(anchor.isAnchored), scene? \(entity.scene != nil)")
-                #endif
-
                 if let placementPostProcessor = arViewModel?.spawnedModelPlacementPostProcessor {
                     let acceptedPlacement = await placementPostProcessor(entity, modelType, model.id)
                     guard acceptedPlacement else {
@@ -212,10 +201,6 @@ public final class ModelManager: ObservableObject {
                         return
                     }
                 }
-
-                #if DEBUG
-                print("Parented model \(modelType.rawValue) to sharedAnchorEntity at local position \(entity.position(relativeTo: anchor))")
-                #endif
             } else {
                 #if DEBUG
                 print("Warning: sharedAnchorEntity not available, model \(modelType.rawValue) not parented")
@@ -225,13 +210,6 @@ public final class ModelManager: ObservableObject {
             self.modelDict[model.id] = model
             self.placedModels.append(model)
             self.onModelDidAdd?(model)
-
-            #if DEBUG
-            print("Loaded model \(modelType.rawValue) (InstanceID: \(instanceID)).")
-            #endif
-            #if DEBUG
-            print("This is the count of the models in model manager \(self.placedModels.count)")
-            #endif
 
 //            if let arViewModel = arViewModel, let coordinator = arViewModel.sharePlayCoordinator {
 //                let uuid = UUID(uuidString: instanceID) ?? UUID()
@@ -256,10 +234,6 @@ public final class ModelManager: ObservableObject {
 //                 print("ARViewModel or SharePlayCoordinator not available for \(modelType.rawValue)")
 //                }
 
-
-            #if DEBUG
-            print("\(modelType.rawValue) chosen – model loaded and selected")
-            #endif
         }
     }
 
@@ -292,9 +266,6 @@ public final class ModelManager: ObservableObject {
         // Skip normalization for models that we are in control of
         if modelType.preserveRealWorldScale {
             Model.updatePlacementMetadata(for: entity, modelType: modelType)
-            #if DEBUG
-            print("VisionOS: Model \(modelType.rawValue) preserving real-world scale (no normalization)")
-            #endif
             return
         }
         
@@ -305,15 +276,8 @@ public final class ModelManager: ObservableObject {
         if let result = Model.calculateNormalization(for: entity, targetSize: targetSize) {
             entity.scale = SIMD3<Float>(repeating: result.scale)
             Model.updatePlacementMetadata(for: entity, modelType: modelType)
-            #if DEBUG
-            print("VisionOS normalization for \(modelType.rawValue): intrinsic max \(result.intrinsicMaxDimension)m, target \(targetSize)m (scale: \(result.scale))")
-            #endif
             return
                 }
-        
-        #if DEBUG
-        print("VisionOS normalization for \(modelType.rawValue) falling back to render bounds")
-        #endif
 
         let bounds = entity.visualBounds(relativeTo: entity)
         let extents = bounds.extents
@@ -471,16 +435,10 @@ public final class ModelManager: ObservableObject {
                  if model.id == selectedModelInstanceID {
                     if entity.components[SelectionComponent.self] == nil {
                         entity.components.set(SelectionComponent())
-                        #if DEBUG
-                        print("Selected \(model.modelType.rawValue)")
-                        #endif
                     }
                 } else {
                     if entity.components[SelectionComponent.self] != nil {
                         entity.components.remove(SelectionComponent.self)
-                        #if DEBUG
-                        print("Deselected \(model.modelType.rawValue)")
-                        #endif
                 }
             }
                 
@@ -501,15 +459,14 @@ public final class ModelManager: ObservableObject {
     
     @available(visionOS 26.0, *)
     @MainActor func selectModel(entity: Entity) {
-        let name = entity.name.isEmpty ? "unnamed entity" : entity.name
-
         // Look up model by its instance UUID from the entity's InstanceIDComponent
         guard let instanceIDString = entity.components[InstanceIDComponent.self]?.id,
               let instanceID = UUID(uuidString: instanceIDString),
               let model = self.modelDict[instanceID] else {
-            #if DEBUG
-            print("Selected non-model entity: \(name)")
-            #endif
+            return
+        }
+
+        if selectedModelInstanceID == model.id, selectedModelID == model.modelType {
             return
         }
 
@@ -525,13 +482,13 @@ public final class ModelManager: ObservableObject {
         //     }
         // }
 
-        #if DEBUG
-        print("Select: Selected \(name) (instance: \(model.id))")
-        #endif
     }
 
     @MainActor func selectModel(instanceID: UUID) {
         guard let model = self.modelDict[instanceID] else { return }
+        if selectedModelInstanceID == model.id, selectedModelID == model.modelType {
+            return
+        }
         self.selectedModelID = model.modelType
         self.selectedModelInstanceID = model.id
     }

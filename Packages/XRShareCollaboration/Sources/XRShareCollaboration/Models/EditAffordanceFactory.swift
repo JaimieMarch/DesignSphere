@@ -6,8 +6,8 @@ import UIKit
 @available(visionOS 26.0, *)
 @MainActor
 enum EditAffordanceFactory {
-    private static let rootWidth: Float = 0.152
-    private static let rootHeight: Float = 0.062
+    private static let rootWidth: Float = 0.132
+    private static let rootHeight: Float = 0.052
     private static let rootDepth: Float = 0.012
 
     static func syncEditAffordances(
@@ -65,7 +65,7 @@ enum EditAffordanceFactory {
     private static func createAffordance(for instanceID: UUID) -> Entity {
         let background = createBackgroundMaterial()
         let affordance = ModelEntity(
-            mesh: .generatePlane(width: rootWidth, height: rootHeight, cornerRadius: 0.022),
+            mesh: .generatePlane(width: rootWidth, height: rootHeight, cornerRadius: 0.018),
             materials: [background]
         )
         affordance.name = affordanceName(for: instanceID)
@@ -93,41 +93,27 @@ enum EditAffordanceFactory {
 
     private static func createBackgroundMaterial() -> UnlitMaterial {
         var material = UnlitMaterial()
-        material.color = .init(tint: UIColor(red: 0.12, green: 0.15, blue: 0.18, alpha: 0.82))
-        material.blending = .transparent(opacity: 0.82)
+        material.color = .init(tint: UIColor(white: 0.98, alpha: 0.94))
+        material.blending = .transparent(opacity: 0.94)
         return material
     }
 
     private static func createTitleEntity() -> ModelEntity {
         let textMesh = MeshResource.generateText(
             "Edit",
-            extrusionDepth: 0.003,
-            font: .systemFont(ofSize: 0.05, weight: .semibold),
+            extrusionDepth: 0.0012,
+            font: .systemFont(ofSize: 0.034, weight: .semibold),
             containerFrame: CGRect(x: 0, y: 0, width: 1, height: 1),
             alignment: .center,
             lineBreakMode: .byClipping
         )
 
         var material = UnlitMaterial()
-        material.color = .init(tint: UIColor(white: 0.98, alpha: 0.98))
+        material.color = .init(tint: UIColor(red: 0.17, green: 0.20, blue: 0.24, alpha: 0.98))
 
         let title = ModelEntity(mesh: textMesh, materials: [material])
-        title.position = SIMD3<Float>(-0.032, -0.011, 0.007)
-        title.scale = SIMD3<Float>(repeating: 0.0145)
-
-        let icon = ModelEntity(
-            mesh: .generateBox(size: [0.010, 0.020, 0.005], cornerRadius: 0.003),
-            materials: [material]
-        )
-        icon.position = SIMD3<Float>(0.044, 0, 0.004)
-        title.addChild(icon)
-
-        let detail = ModelEntity(
-            mesh: .generateBox(size: [0.0032, 0.012, 0.006], cornerRadius: 0.002),
-            materials: [material]
-        )
-        detail.position = SIMD3<Float>(0.054, 0.002, 0.004)
-        title.addChild(detail)
+        title.name = "EditAffordanceTitle"
+        title.position = SIMD3<Float>(-0.034, -0.012, 0.007)
         return title
     }
 }

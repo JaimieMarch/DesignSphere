@@ -11,7 +11,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		87B974482D09106D00168B98 /* DemoAppVision.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DemoAppVision.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		87B974482D09106D00168B98 /* DemoAppVision.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = DemoAppVision.app; path = DesignSphere.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -262,7 +262,8 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Demo App Vision/\"";
 				DEVELOPMENT_TEAM = HC2XYK55Y8;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "DesignSphere-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = DesignSphere;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHandsTrackingUsageDescription = "We use hand tracking so you can interact with models using gestures";
@@ -300,7 +301,8 @@
 				DEVELOPMENT_ASSET_PATHS = "\"Demo App Vision/\"";
 				DEVELOPMENT_TEAM = HC2XYK55Y8;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "DesignSphere-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = DesignSphere;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHandsTrackingUsageDescription = "We use hand tracking so you can interact with models using gestures";

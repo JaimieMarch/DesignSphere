@@ -272,6 +272,11 @@ struct EditModelView: View {
             controller.commitSelectedModelEditTransaction()
             updateSelectedEntity()
         }
+        .onChange(of: controller.expandedEditModelInstanceIDVar) {
+            if controller.expandedEditModelInstanceIDVar != nil {
+                updateSelectedEntity()
+            }
+        }
         .onDisappear {
             controller.commitSelectedModelEditTransaction()
         }

@@ -98,9 +98,6 @@ public final class Model: ObservableObject, Identifiable {
         // Try to get from cache first for instant loading
         if let cachedEntity = await ModelCache.shared.getCachedEntity(for: modelType) {
             self.modelEntity = cachedEntity
-            #if DEBUG
-            print("Model \(modelType.rawValue) loaded from cache (instant)")
-            #endif
             
         } else {
             var loadError: Error?
@@ -147,12 +144,7 @@ public final class Model: ObservableObject, Identifiable {
             
             // Name the entity meaningfully for better identification
             entity.name = "Model_\(modelType.rawValue)"
-            
-            #if DEBUG
-            print("Model \(modelType.rawValue) loaded successfully")
-            #endif
-            
-            
+
             // Normalize model size based on bounds after roatation
             normalizeModelSize(entity: entity)
             
@@ -208,9 +200,6 @@ public final class Model: ObservableObject, Identifiable {
         // Skip normalization for models that are already at real-world scale
         if modelType.preserveRealWorldScale {
             Self.updatePlacementMetadata(for: entity, modelType: modelType)
-            #if DEBUG
-            print("Model \(modelType.rawValue) is not normalized.")
-            #endif
             return
         }
 
@@ -219,18 +208,9 @@ public final class Model: ObservableObject, Identifiable {
         if let result = Self.calculateNormalization(for: entity, targetSize: targetSize) {
             entity.scale = SIMD3<Float>(repeating: result.scale)
             Self.updatePlacementMetadata(for: entity, modelType: modelType)
-            
-            #if DEBUG
-            print("Model \(modelType.rawValue) normalized using intrinsic bounds: intrinsic max \(result.intrinsicMaxDimension)m,  target \(targetSize)m (scale: \(result.scale))")
-            #endif
             return
         }
 
-        #if DEBUG
-        print("Model \(modelType.rawValue), intrinsic normalization failed, falling back to render bounds")
-        #endif
-
-        
         let fallbackBounds = entity.visualBounds(relativeTo: entity)
         let fallbackExtents = fallbackBounds.extents
         let fallbackMaxDimension = max(fallbackExtents.x, fallbackExtents.y, fallbackExtents.z)
@@ -285,9 +265,6 @@ public final class Model: ObservableObject, Identifiable {
             placementOffset: placementOffset
         )
 
-        #if DEBUG
-        print("Model \(modelType.rawValue) metadata updated: center= \(center), extents=\(extents), placementOffset=  \(placementOffset)")
-        #endif
     }
 
     

@@ -26,19 +26,16 @@ struct DemoApp: App {
         ImmersiveSpace(id: "CollaborativeSpace") {
             let entityTap = SpatialTapGesture().targetedToAnyEntity()
             let backgroundTap = SpatialTapGesture()
-            RealityView { content, attachments in
+            RealityView { (content: inout RealityViewContent) in
                 controller.makeRealityContent(content, session: controller.immersiveSession)
-                controller.syncEditMenuAttachment(attachments.entity(for: "model-edit-panel"))
-            } update: { content, attachments in
-                controller.updateRealityContent(content)
-                controller.syncEditMenuAttachment(attachments.entity(for: "model-edit-panel"))
-            } attachments: {
-                if controller.expandedEditModelInstanceIDVar != nil {
-                    Attachment(id: "model-edit-panel") {
-                        EditModelView(controller: controller)
-                            .frame(width: 380, height: 620)
-                    }
+                controller.ensureEditMenuAttachment(in: content) {
+                    AnyView(EditModelView(controller: controller).frame(width: 380, height: 620))
                 }
+            } update: { (content: inout RealityViewContent) in
+                controller.ensureEditMenuAttachment(in: content) {
+                    AnyView(EditModelView(controller: controller).frame(width: 380, height: 620))
+                }
+                controller.updateRealityContent(content)
             }
             .gesture(
                 entityTap.exclusively(before: backgroundTap)
@@ -55,6 +52,7 @@ struct DemoApp: App {
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
 #endif
     }
+
 }
 
 /// Wrapper view that reads system contrast (unavailable at App level)

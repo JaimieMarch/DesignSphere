@@ -453,9 +453,6 @@ class ProjectManager: ObservableObject {
                 return project
             }.sorted { $0.dateModified > $1.dateModified }
 
-            #if DEBUG
-            print("Loaded \(savedProjects.count) saved projects")
-            #endif
         } catch {
             #if DEBUG
             print("Error loading project list: \(error)")
