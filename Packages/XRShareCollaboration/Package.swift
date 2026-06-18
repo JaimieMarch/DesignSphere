@@ -17,6 +17,11 @@ let package = Package(
         .target(
             name: "XRShareCollaboration",
             path: "Sources/XRShareCollaboration"
+        ),
+        .testTarget(
+            name: "XRShareCollaborationTests",
+            dependencies: ["XRShareCollaboration"],
+            path: "Tests/XRShareCollaborationTests"
         )
     ]
 )
