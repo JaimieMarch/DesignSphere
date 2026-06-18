@@ -22,7 +22,9 @@ struct HomeScreen: View {
     @State private var sortMode: Sorting = .alphabetical
     @State private var selectedCategory: CollaborativeSessionController.ModelCategory = .all
     @State private var searchText: String = ""
-    
+
+    private let searchEngine = ModelSearchEngine()
+
     var body: some View {
         GeometryReader { proxy in
             VStack(alignment: .leading, spacing: 18) {
@@ -222,20 +224,29 @@ struct HomeScreen: View {
             result = result.filter { $0.category == selectedCategory }
         }
 
-        if !searchText.isEmpty {
-            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        // When searching, the engine both filters and orders by intent relevance,
+        // so we preserve that ranking instead of re-sorting alphabetically.
+        let isSearching = !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if isSearching {
+            result = searchEngine.search(searchText, in: result)
         }
-        
+
         switch sortMode {
         case .alphabetical:
-            result.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+            if !isSearching {
+                result.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+            }
         case .dateAdded:
-            result.sort { lhs, rhs in
-                (lhs.dateAdded ?? .distantPast) > (rhs.dateAdded ?? .distantPast)
+            if !isSearching {
+                result.sort { lhs, rhs in
+                    (lhs.dateAdded ?? .distantPast) > (rhs.dateAdded ?? .distantPast)
+                }
             }
         case .favorites:
             result = result.filter { favoriteModels.contains($0.name) }
-            result.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+            if !isSearching {
+                result.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+            }
         }
         return result
     }
