@@ -75,12 +75,19 @@ CATEGORY_RULES: list[tuple[str, tuple[str, ...]]] = [
                "bottle", "bowl", "plate", "cup", "jug", "bucket", "ladder")),
 ]
 
+# Anything not matched by a specific category falls back to decor (the catalog
+# keeps every prop rather than dropping it), so the placement hints below carry
+# most of the nuance for that long tail.
+
 # Wall / ceiling / table hints override the category's default floor placement.
 WALL_HINTS = ("panel", "panelling", "clock", "mirror", "painting", "frame",
-              "picture", "tv", "television", "monitor", "sign", "flag")
+              "picture", "tv", "television", "monitor", "sign", "flag",
+              "door", "deer", "antler", "vent")
 CEILING_HINTS = ("chandelier", "pendant", "ceiling")
 TABLETOP_HINTS = ("vase", "bottle", "bowl", "plate", "cup", "jug", "trophy",
-                  "candle", "lamp", "clock_small", "ornament", "book")
+                  "candle", "lamp", "clock_small", "ornament", "book",
+                  "mug", "goblet", "glass", "cocktail", "amphora", "canned",
+                  "food", "pottery", "keyboard", "mouse")
 
 
 @dataclass
@@ -99,7 +106,9 @@ def categorize(name: str) -> str:
     for category, keywords in CATEGORY_RULES:
         if any(k in lowered for k in keywords):
             return category
-    return "unknown"
+    # Unmatched props (instruments, tableware, doors, footwear, …) are kept as
+    # decor rather than dropped, so the catalog never silently loses an asset.
+    return "decor"
 
 
 def placement_for(name: str, category: str) -> Placement:
