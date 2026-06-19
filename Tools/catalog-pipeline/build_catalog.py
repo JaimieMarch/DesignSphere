@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""Build the DesignSphere remote model catalog from a folder of source assets.
+
+For each model folder under --source (a directory containing `<name>.glb`, or
+falling back to `.obj` / `.fbx`), this:
+
+  1. converts the mesh to USDZ via Apple's `usdzconvert` (USDPython),
+  2. renders a thumbnail PNG with `qlmanage` (macOS QuickLook),
+  3. assigns a catalog category and placement metadata from the model's name,
+  4. records a sha256 + byte size for cache invalidation,
+
+then emits a ready-to-upload tree:
+
+    <out>/
+      models/<id>.usdz
+      thumbnails/<id>.png
+      catalog.json
+
+`catalog.json` is the manifest the app fetches from R2: it carries everything
+the app needs (display name, category, file/thumbnail paths, integrity hashes,
+and the placement metadata that is currently hard-coded in ModelType.swift).
+
+Use --dry-run to scan + categorize without converting (no usdzconvert needed),
+which is the fast way to review the category mapping before a full build.
+
+Examples
+--------
+    # Review what would be built and how each model is categorized:
+    python3 build_catalog.py --source ~/Downloads --dry-run
+
+    # Full build into ~/Downloads/_catalog_build:
+    python3 build_catalog.py --source ~/Downloads
+
+Then upload (see README): rclone copy <out> r2:designsphere-catalog
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass, asdict
+from datetime import datetime, timezone
+from pathlib import Path
+
+# Manifest schema version. Bump when the JSON shape changes so older app builds
+# can refuse a manifest they don't understand.
+MANIFEST_VERSION = 1
+
+# Source mesh formats in order of preference. glb is self-contained (geometry +
+# materials + embedded textures) so it converts to USDZ with the best fidelity.
+SOURCE_EXTENSIONS = (".glb", ".gltf", ".obj", ".fbx")
+
+# Category keywords, checked in this order; first hit wins. Keys are
+# ModelCategory.rawValue values used by the app and the search engine.
+CATEGORY_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("seating", ("chair", "stool", "sofa", "couch", "bench", "seat", "armchair",
+                 "ottoman", "settee", "throne", "pew", "recliner")),
+    ("beds", ("bed", "mattress", "crib", "bunk", "cradle")),
+    ("tables", ("table", "desk", "nightstand", "sidetable", "console", "workbench")),
+    ("storage", ("rack", "shelf", "shelving", "bookcase", "bookshelf", "cabinet",
+                 "closet", "wardrobe", "dresser", "drawer", "cupboard", "sideboard",
+                 "locker", "crate", "basket", "bin", "chest", "trunk")),
+    ("lighting", ("lamp", "light", "chandelier", "lantern", "sconce", "candle",
+                  "torch", "pendant")),
+    ("media", ("tv", "television", "monitor", "screen", "radio", "speaker", "console_game")),
+    ("decor", ("panelling", "panel", "clock", "mirror", "painting", "frame", "picture",
+               "vase", "plant", "pot", "planter", "trophy", "fountain", "statue",
+               "sculpture", "ornament", "rug", "curtain", "gate", "fence", "boot",
+               "towel", "toilet_roll", "holder", "rail", "sign", "flag", "book",
+               "bottle", "bowl", "plate", "cup", "jug", "bucket", "ladder")),
+]
+
+# Wall / ceiling / table hints override the category's default floor placement.
+WALL_HINTS = ("panel", "panelling", "clock", "mirror", "painting", "frame",
+              "picture", "tv", "television", "monitor", "sign", "flag")
+CEILING_HINTS = ("chandelier", "pendant", "ceiling")
+TABLETOP_HINTS = ("vase", "bottle", "bowl", "plate", "cup", "jug", "trophy",
+                  "candle", "lamp", "clock_small", "ornament", "book")
+
+
+@dataclass
+class Placement:
+    classification: str  # floor | wall | ceiling | table | any
+    plane: str           # horizontal | vertical | any
+    canStack: bool
+    needsPhysics: bool
+    # Poly Haven assets are modelled at real-world scale, so the app should not
+    # renormalize them. Defaults to True for this source set.
+    preserveRealWorldScale: bool
+
+
+def categorize(name: str) -> str:
+    lowered = name.lower()
+    for category, keywords in CATEGORY_RULES:
+        if any(k in lowered for k in keywords):
+            return category
+    return "unknown"
+
+
+def placement_for(name: str, category: str) -> Placement:
+    lowered = name.lower()
+    stackable = category in ("seating", "tables", "storage")
+
+    if any(h in lowered for h in CEILING_HINTS):
+        return Placement("ceiling", "horizontal", False, False, True)
+    if any(h in lowered for h in WALL_HINTS):
+        return Placement("wall", "vertical", False, False, True)
+    if category == "decor" and any(h in lowered for h in TABLETOP_HINTS):
+        return Placement("table", "horizontal", False, False, True)
+    if category == "lighting":  # lamps and the like sit on a surface
+        return Placement("table", "horizontal", False, False, True)
+    if category == "unknown":   # conservative: prefer the floor
+        return Placement("floor", "horizontal", False, False, True)
+    return Placement("floor", "horizontal", stackable, False, True)
+
+
+def display_name(model_id: str) -> str:
+    return " ".join(part.capitalize() for part in model_id.replace("-", "_").split("_"))
+
+
+def find_source_mesh(folder: Path) -> Path | None:
+    """Pick the best source mesh in a model folder, preferring `<folder>.glb`."""
+    for ext in SOURCE_EXTENSIONS:
+        named = folder / f"{folder.name}{ext}"
+        if named.exists():
+            return named
+    for ext in SOURCE_EXTENSIONS:  # fall back to any mesh of that type
+        matches = sorted(folder.glob(f"*{ext}"))
+        if matches:
+            return matches[0]
+    return None
+
+
+def discover_models(source: Path) -> list[tuple[str, Path]]:
+    """Return (id, source_mesh) for every model folder under `source`."""
+    models: list[tuple[str, Path]] = []
+    for child in sorted(p for p in source.iterdir() if p.is_dir()):
+        if child.name.startswith(".") or child.name.startswith("_"):
+            continue
+        if child.name == "DesignSphere":  # the stray repo clone in Downloads
+            continue
+        mesh = find_source_mesh(child)
+        if mesh is not None:
+            models.append((child.name.lower(), mesh))
+    return models
+
+
+def sha256_of(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def convert_to_usdz(converter: str, mesh: Path, out_usdz: Path) -> None:
+    out_usdz.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run([converter, str(mesh), str(out_usdz)], check=True,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+
+
+def render_thumbnail(usdz: Path, out_png: Path, size: int = 1024) -> bool:
+    """Render a QuickLook thumbnail. Returns False if qlmanage produced nothing."""
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    tmp_dir = out_png.parent / ".ql_tmp"
+    tmp_dir.mkdir(exist_ok=True)
+    subprocess.run(["qlmanage", "-t", "-s", str(size), "-o", str(tmp_dir), str(usdz)],
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    produced = tmp_dir / f"{usdz.name}.png"
+    ok = produced.exists()
+    if ok:
+        shutil.move(str(produced), str(out_png))
+    shutil.rmtree(tmp_dir, ignore_errors=True)
+    return ok
+
+
+def build(args: argparse.Namespace) -> int:
+    source = Path(args.source).expanduser().resolve()
+    out = Path(args.out).expanduser().resolve()
+    if not source.is_dir():
+        print(f"error: source is not a directory: {source}", file=sys.stderr)
+        return 2
+
+    models = discover_models(source)
+    if args.limit:
+        models = models[: args.limit]
+    if not models:
+        print(f"No model folders found under {source}", file=sys.stderr)
+        return 1
+
+    print(f"Discovered {len(models)} model(s) under {source}")
+    if not args.dry_run:
+        (out / "models").mkdir(parents=True, exist_ok=True)
+        (out / "thumbnails").mkdir(parents=True, exist_ok=True)
+
+    entries: list[dict] = []
+    category_counts: dict[str, int] = {}
+    failures: list[str] = []
+
+    for model_id, mesh in models:
+        category = categorize(model_id)
+        placement = placement_for(model_id, category)
+        category_counts[category] = category_counts.get(category, 0) + 1
+
+        if args.dry_run:
+            print(f"  {model_id:<32} {category:<9} {mesh.suffix:<5} -> "
+                  f"{placement.classification}/{placement.plane}")
+            continue
+
+        usdz_path = out / "models" / f"{model_id}.usdz"
+        thumb_path = out / "thumbnails" / f"{model_id}.png"
+        try:
+            if args.force or not usdz_path.exists():
+                convert_to_usdz(args.converter, mesh, usdz_path)
+        except subprocess.CalledProcessError:
+            print(f"  ✗ convert failed: {model_id}", file=sys.stderr)
+            failures.append(model_id)
+            continue
+        except FileNotFoundError:
+            print(f"error: converter '{args.converter}' not found on PATH.\n"
+                  f"Install Apple USDPython (see README) or pass --converter.",
+                  file=sys.stderr)
+            return 2
+
+        has_thumb = render_thumbnail(usdz_path, thumb_path)
+
+        entry = {
+            "id": model_id,
+            "displayName": display_name(model_id),
+            "category": category,
+            "file": {
+                "url": f"models/{model_id}.usdz",
+                "bytes": usdz_path.stat().st_size,
+                "sha256": sha256_of(usdz_path),
+            },
+            "placement": asdict(placement),
+        }
+        if has_thumb:
+            entry["thumbnail"] = {"url": f"thumbnails/{model_id}.png"}
+        entries.append(entry)
+        print(f"  ✓ {model_id:<32} {category}")
+
+    if not args.dry_run:
+        manifest = {
+            "version": MANIFEST_VERSION,
+            "generatedAt": datetime.now(timezone.utc).isoformat(),
+            "models": entries,
+        }
+        (out / "catalog.json").write_text(json.dumps(manifest, indent=2) + "\n")
+        print(f"\nWrote {len(entries)} models to {out / 'catalog.json'}")
+        if failures:
+            print(f"{len(failures)} conversion failure(s): {', '.join(failures)}")
+
+    print("\nCategory distribution:")
+    for category, count in sorted(category_counts.items(), key=lambda kv: -kv[1]):
+        print(f"  {category:<9} {count}")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--source", default="~/Downloads",
+                        help="Folder containing per-model subfolders (default: ~/Downloads)")
+    parser.add_argument("--out", default="~/Downloads/_catalog_build",
+                        help="Output tree for usdz/thumbnails/catalog.json")
+    parser.add_argument("--converter", default=os.environ.get("USDZCONVERT", "usdzconvert"),
+                        help="usdzconvert executable (or set $USDZCONVERT)")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Scan and categorize only; no conversion (no usdzconvert needed)")
+    parser.add_argument("--force", action="store_true",
+                        help="Re-convert models whose usdz already exists")
+    parser.add_argument("--limit", type=int, default=0,
+                        help="Process at most N models (for quick test runs)")
+    return build(parser.parse_args())
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

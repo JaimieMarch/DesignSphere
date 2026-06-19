@@ -5,6 +5,10 @@ CODEBASE_SUMMARY.md
 scripts/
 /build
 
+# Catalog pipeline build output (usdz / thumbnails / large assets — belongs in R2)
+_catalog_build/
+catalog-build/
+
 # macOS noise
 .DS_Store
 
