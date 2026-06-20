@@ -158,7 +158,7 @@ def discover_models(source: Path, textured_only: bool = False) -> list[tuple[str
     """Return (id, source_mesh) for every model folder under `source`.
     With `textured_only`, keep only folders whose source is a .blend (the
     textured Poly Haven set), skipping the untextured glb/obj/fbx folders."""
-    models: list[tuple[str, Path]] = []
+    by_id: dict[str, Path] = {}
     for child in sorted(p for p in source.iterdir() if p.is_dir()):
         if child.name.startswith(".") or child.name.startswith("_"):
             continue
@@ -169,8 +169,13 @@ def discover_models(source: Path, textured_only: bool = False) -> list[tuple[str
             continue
         if textured_only and mesh.suffix.lower() != ".blend":
             continue
-        models.append((model_id_from_folder(child.name), mesh))
-    return models
+        model_id = model_id_from_folder(child.name)
+        # On an id collision (e.g. dining_chair_02 vs dining_chair_02_4k), keep
+        # the textured .blend source so the textured model always wins.
+        existing = by_id.get(model_id)
+        if existing is None or (mesh.suffix.lower() == ".blend" and existing.suffix.lower() != ".blend"):
+            by_id[model_id] = mesh
+    return sorted(by_id.items())
 
 
 def sha256_of(path: Path) -> str:
