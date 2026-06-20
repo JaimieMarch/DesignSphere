@@ -40,6 +40,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -53,7 +54,9 @@ MANIFEST_VERSION = 1
 
 # Source mesh formats in order of preference. glb is self-contained (geometry +
 # materials + embedded textures) so it converts to USDZ with the best fidelity.
-SOURCE_EXTENSIONS = (".glb", ".gltf", ".obj", ".fbx")
+# `.blend` is last: only folders that ship _only_ a .blend (the textured Poly
+# Haven set) fall through to the Blender exporter.
+SOURCE_EXTENSIONS = (".glb", ".gltf", ".obj", ".fbx", ".blend")
 
 # Category keywords, checked in this order; first hit wins. Keys are
 # ModelCategory.rawValue values used by the app and the search engine.
@@ -128,6 +131,12 @@ def placement_for(name: str, category: str) -> Placement:
     return Placement("floor", "horizontal", stackable, False, True)
 
 
+def model_id_from_folder(name: str) -> str:
+    """Folder name -> catalog id, dropping a trailing resolution suffix so
+    `modern_arm_chair_01_4k` becomes `modern_arm_chair_01`."""
+    return re.sub(r"_\d+k$", "", name.lower())
+
+
 def display_name(model_id: str) -> str:
     return " ".join(part.capitalize() for part in model_id.replace("-", "_").split("_"))
 
@@ -145,8 +154,10 @@ def find_source_mesh(folder: Path) -> Path | None:
     return None
 
 
-def discover_models(source: Path) -> list[tuple[str, Path]]:
-    """Return (id, source_mesh) for every model folder under `source`."""
+def discover_models(source: Path, textured_only: bool = False) -> list[tuple[str, Path]]:
+    """Return (id, source_mesh) for every model folder under `source`.
+    With `textured_only`, keep only folders whose source is a .blend (the
+    textured Poly Haven set), skipping the untextured glb/obj/fbx folders."""
     models: list[tuple[str, Path]] = []
     for child in sorted(p for p in source.iterdir() if p.is_dir()):
         if child.name.startswith(".") or child.name.startswith("_"):
@@ -154,8 +165,11 @@ def discover_models(source: Path) -> list[tuple[str, Path]]:
         if child.name == "DesignSphere":  # the stray repo clone in Downloads
             continue
         mesh = find_source_mesh(child)
-        if mesh is not None:
-            models.append((child.name.lower(), mesh))
+        if mesh is None:
+            continue
+        if textured_only and mesh.suffix.lower() != ".blend":
+            continue
+        models.append((model_id_from_folder(child.name), mesh))
     return models
 
 
@@ -167,9 +181,23 @@ def sha256_of(path: Path) -> str:
     return digest.hexdigest()
 
 
-def convert_to_usdz(converter: str, mesh: Path, out_usdz: Path) -> None:
+def convert_to_usdz(args: argparse.Namespace, mesh: Path, out_usdz: Path) -> None:
     out_usdz.parent.mkdir(parents=True, exist_ok=True)
 
+    if mesh.suffix.lower() == ".blend":
+        # Blender headless: opens the .blend (materials/textures intact),
+        # transcodes any .exr maps, and exports a downscaled, ARKit-oriented usdz.
+        script = Path(__file__).resolve().parent / "export_usdz.py"
+        env = dict(os.environ, USDZ_DOWNSCALE=str(args.downscale))
+        out_usdz.unlink(missing_ok=True)
+        subprocess.run([args.blender, "--background", str(mesh),
+                        "--python", str(script), "--", str(out_usdz)],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
+        if not out_usdz.exists():
+            raise subprocess.CalledProcessError(1, "blender")
+        return
+
+    converter = args.converter
     if converter == "native":
         # Use the system Apple USD tools (no usdzconvert install needed): the
         # glTF file-format plugin lets usdcat read .glb/.obj, then usdzip wraps
@@ -221,7 +249,7 @@ def build(args: argparse.Namespace) -> int:
         print(f"error: source is not a directory: {source}", file=sys.stderr)
         return 2
 
-    models = discover_models(source)
+    models = discover_models(source, textured_only=args.textured_only)
     if args.limit:
         models = models[: args.limit]
     if not models:
@@ -251,7 +279,7 @@ def build(args: argparse.Namespace) -> int:
         thumb_path = out / "thumbnails" / f"{model_id}.png"
         try:
             if args.force or not usdz_path.exists():
-                convert_to_usdz(args.converter, mesh, usdz_path)
+                convert_to_usdz(args, mesh, usdz_path)
         except subprocess.CalledProcessError:
             print(f"  ✗ convert failed: {model_id}", file=sys.stderr)
             failures.append(model_id)
@@ -312,6 +340,13 @@ def main() -> int:
                         help="Re-convert models whose usdz already exists")
     parser.add_argument("--skip-thumbnails", action="store_true",
                         help="Skip QuickLook thumbnail rendering (it can be slow/hang on usdz)")
+    parser.add_argument("--blender",
+                        default=os.path.expanduser("~/Applications/Blender.app/Contents/MacOS/Blender"),
+                        help="Blender executable, used to convert .blend sources")
+    parser.add_argument("--downscale", default="1024",
+                        help="Max texture dimension for .blend conversion (default 1024)")
+    parser.add_argument("--textured-only", action="store_true",
+                        help="Only process folders whose source is a .blend (the textured set)")
     parser.add_argument("--limit", type=int, default=0,
                         help="Process at most N models (for quick test runs)")
     return build(parser.parse_args())

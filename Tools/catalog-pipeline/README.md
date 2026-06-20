@@ -29,7 +29,15 @@ the generated `catalog.json`. Build output is gitignored.
    thumbnails on-device from the usdz, so hosting pre-rendered ones isn't
    required.
 
-2. **rclone** (upload to R2):
+2. **Blender** (only for `.blend` sources, e.g. the textured Poly Haven set) —
+   install Blender 4.2+ to `~/Applications` (or pass `--blender <path>`). Those
+   folders ship only a `.blend` + loose texture maps, so the pipeline runs
+   Blender headless via `export_usdz.py`: it transcodes `.exr` maps to png
+   (usdz/ARKit reject exr/hdr), drops the world/environment, downscales textures
+   (`--downscale`, default 1024), and exports a Y-up ARKit usdz. Use
+   `--textured-only` to build just the `.blend` folders.
+
+3. **rclone** (upload to R2):
 
    ```sh
    brew install rclone
@@ -45,8 +53,10 @@ python3 build_catalog.py --source ~/Downloads --dry-run
 
 # 2. Full build:
 python3 build_catalog.py --source ~/Downloads
-#   --limit 5   process a handful first
-#   --force     re-convert models whose usdz already exists
+#   --textured-only   only the .blend (textured) folders, via Blender
+#   --downscale 2048  larger textures (default 1024)
+#   --limit 5         process a handful first
+#   --force           re-convert models whose usdz already exists
 
 # 3. Upload to R2 (bucket public-read):
 rclone copy ~/Downloads/_catalog_build r2:designsphere-catalog --progress
