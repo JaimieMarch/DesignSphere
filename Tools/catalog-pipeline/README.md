@@ -59,7 +59,7 @@ python3 build_catalog.py --source ~/Downloads
 #   --force           re-convert models whose usdz already exists
 
 # 3. Upload to R2 (bucket public-read):
-rclone copy ~/Downloads/_catalog_build r2:designsphere-catalog --progress
+rclone copy ~/Downloads/_catalog_build r2:designsphere-catalog --progress --exclude ".DS_Store"
 ```
 
 ## Manifest shape (`catalog.json`)
