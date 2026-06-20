@@ -4,7 +4,7 @@ Builds the DesignSphere **remote model catalog** from a folder of source assets
 (per-model folders containing `.glb` / `.obj` / `.fbx`) and produces a tree ready
 to upload to Cloudflare R2:
 
-```
+```text
 _catalog_build/
   models/<id>.usdz
   thumbnails/<id>.png
@@ -16,15 +16,21 @@ the generated `catalog.json`. Build output is gitignored.
 
 ## One-time setup
 
-1. **usdzconvert** (glb/obj/fbx → usdz) — Apple's USDPython tools:
-   download from <https://developer.apple.com/augmented-reality/tools/>, unzip,
-   then either add its `USD/` scripts dir to `PATH` or point the pipeline at it:
-   ```sh
-   export USDZCONVERT=/path/to/USD/usdzconvert
-   ```
-   `qlmanage` (thumbnails) ships with macOS — nothing to install.
+1. **Conversion** — by default the pipeline uses your system's Apple USD tools
+   (`usdcat` + `usdzip`, found at `/usr/bin`), which read `.glb`/`.obj` via the
+   bundled glTF plugin. **No install needed** if `usdcat` is on your PATH. To
+   confirm: `usdcat --help`. (Optional alternative: Apple's `usdzconvert` from
+   <https://developer.apple.com/augmented-reality/tools/>, selected with
+   `--converter /path/to/usdzconvert`.)
+
+   Thumbnails are **optional**: `qlmanage` (macOS QuickLook) can render them, but
+   it is slow and prone to hanging on usdz in automation, so the pipeline guards
+   it with a timeout and supports `--skip-thumbnails`. The app renders model
+   thumbnails on-device from the usdz, so hosting pre-rendered ones isn't
+   required.
 
 2. **rclone** (upload to R2):
+
    ```sh
    brew install rclone
    rclone config        # new remote, type "s3", provider "Cloudflare",

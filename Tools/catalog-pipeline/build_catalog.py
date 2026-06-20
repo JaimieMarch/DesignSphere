@@ -169,17 +169,43 @@ def sha256_of(path: Path) -> str:
 
 def convert_to_usdz(converter: str, mesh: Path, out_usdz: Path) -> None:
     out_usdz.parent.mkdir(parents=True, exist_ok=True)
+
+    if converter == "native":
+        # Use the system Apple USD tools (no usdzconvert install needed): the
+        # glTF file-format plugin lets usdcat read .glb/.obj, then usdzip wraps
+        # the crate layer into a usdz archive. usdcat may print plugin warnings
+        # and a nonzero status even on success, so we verify by output instead.
+        tmp_usdc = out_usdz.with_suffix(".usdc")
+        tmp_usdc.unlink(missing_ok=True)
+        subprocess.run(["usdcat", str(mesh), "-o", str(tmp_usdc)],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if not tmp_usdc.exists() or tmp_usdc.stat().st_size == 0:
+            raise subprocess.CalledProcessError(1, "usdcat")
+        out_usdz.unlink(missing_ok=True)
+        subprocess.run(["usdzip", str(out_usdz), str(tmp_usdc)], check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        tmp_usdc.unlink(missing_ok=True)
+        if not out_usdz.exists():
+            raise subprocess.CalledProcessError(1, "usdzip")
+        return
+
     subprocess.run([converter, str(mesh), str(out_usdz)], check=True,
                    stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 
-def render_thumbnail(usdz: Path, out_png: Path, size: int = 1024) -> bool:
-    """Render a QuickLook thumbnail. Returns False if qlmanage produced nothing."""
+def render_thumbnail(usdz: Path, out_png: Path, size: int = 1024, timeout: int = 25) -> bool:
+    """Render a QuickLook thumbnail. Returns False if qlmanage produced nothing
+    or hung past `timeout` (it can stall on usdz in automation)."""
     out_png.parent.mkdir(parents=True, exist_ok=True)
     tmp_dir = out_png.parent / ".ql_tmp"
     tmp_dir.mkdir(exist_ok=True)
-    subprocess.run(["qlmanage", "-t", "-s", str(size), "-o", str(tmp_dir), str(usdz)],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        subprocess.run(["qlmanage", "-t", "-s", str(size), "-o", str(tmp_dir), str(usdz)],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        subprocess.run(["pkill", "-f", "qlmanage"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return False
     produced = tmp_dir / f"{usdz.name}.png"
     ok = produced.exists()
     if ok:
@@ -236,7 +262,7 @@ def build(args: argparse.Namespace) -> int:
                   file=sys.stderr)
             return 2
 
-        has_thumb = render_thumbnail(usdz_path, thumb_path)
+        has_thumb = False if args.skip_thumbnails else render_thumbnail(usdz_path, thumb_path)
 
         entry = {
             "id": model_id,
@@ -278,12 +304,14 @@ def main() -> int:
                         help="Folder containing per-model subfolders (default: ~/Downloads)")
     parser.add_argument("--out", default="~/Downloads/_catalog_build",
                         help="Output tree for usdz/thumbnails/catalog.json")
-    parser.add_argument("--converter", default=os.environ.get("USDZCONVERT", "usdzconvert"),
-                        help="usdzconvert executable (or set $USDZCONVERT)")
+    parser.add_argument("--converter", default=os.environ.get("USDZCONVERT", "native"),
+                        help="'native' = system usdcat+usdzip (default); or a usdzconvert path")
     parser.add_argument("--dry-run", action="store_true",
                         help="Scan and categorize only; no conversion (no usdzconvert needed)")
     parser.add_argument("--force", action="store_true",
                         help="Re-convert models whose usdz already exists")
+    parser.add_argument("--skip-thumbnails", action="store_true",
+                        help="Skip QuickLook thumbnail rendering (it can be slow/hang on usdz)")
     parser.add_argument("--limit", type=int, default=0,
                         help="Process at most N models (for quick test runs)")
     return build(parser.parse_args())
