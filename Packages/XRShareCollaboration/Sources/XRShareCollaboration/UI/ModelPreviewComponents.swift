@@ -61,10 +61,16 @@ public struct UnifiedModelPreview: View {
                 
             } else {
                 
-                // If not cached, load asynchronously via ThumbnailCache
+                // If not cached, load asynchronously via ThumbnailCache. Remote
+                // models fetch their pre-rendered thumbnail; bundled models use
+                // the packaged PNG.
                 Task {
-                    
-                    let loadedThumbnail = await ThumbnailCache.shared.getCachedThumbnail(for: modelType.rawValue, size: size)
+                    let loadedThumbnail: Image?
+                    if modelType.isRemote {
+                        loadedThumbnail = await ThumbnailCache.shared.getRemoteThumbnail(for: modelType)
+                    } else {
+                        loadedThumbnail = await ThumbnailCache.shared.getCachedThumbnail(for: modelType.rawValue, size: size)
+                    }
                     await MainActor.run {
                         thumbnail = loadedThumbnail
                     }

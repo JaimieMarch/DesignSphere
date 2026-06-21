@@ -35,6 +35,8 @@ public struct ModelType: Hashable, Identifiable, Sendable {
     /// URL (verified against `remoteSHA256`) instead of resolved from the bundle.
     public var remoteURL: URL? = nil
     public var remoteSHA256: String? = nil
+    /// Pre-rendered thumbnail hosted alongside the model.
+    public var remoteThumbnailURL: URL? = nil
     /// When non-nil, overrides the hard-coded `preserveRealWorldScale` table —
     /// remote models carry this in their manifest.
     public var preserveScaleOverride: Bool? = nil
@@ -61,7 +63,8 @@ public struct ModelType: Hashable, Identifiable, Sendable {
                 needsPhysics: Bool,
                 preserveRealWorldScale: Bool,
                 url: URL,
-                sha256: String?) {
+                sha256: String?,
+                thumbnailURL: URL? = nil) {
         self.rawValue = remoteID
         self.classification = classification
         self.plane = plane
@@ -70,6 +73,7 @@ public struct ModelType: Hashable, Identifiable, Sendable {
         self.preserveScaleOverride = preserveRealWorldScale
         self.remoteURL = url
         self.remoteSHA256 = sha256
+        self.remoteThumbnailURL = thumbnailURL
     }
 
     /// Models that are already at real-world scale and shouldn't be normalized

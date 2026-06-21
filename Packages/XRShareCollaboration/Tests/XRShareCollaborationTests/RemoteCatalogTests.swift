@@ -61,6 +61,7 @@ final class RemoteCatalogTests: XCTestCase {
 
         let first = try XCTUnwrap(types.first { $0.isRemote })
         XCTAssertNotNil(first.remoteURL)
+        XCTAssertNotNil(first.remoteThumbnailURL, "manifest should map a thumbnail URL")
         XCTAssertNotNil(RemoteCatalogService.shared.manifestCategory(forID: first.id))
 
         let url = try await ModelFileStore.shared.localURL(for: first)

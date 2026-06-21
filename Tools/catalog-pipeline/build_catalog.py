@@ -41,7 +41,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, asdict
@@ -226,25 +225,19 @@ def convert_to_usdz(args: argparse.Namespace, mesh: Path, out_usdz: Path) -> Non
                    stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
 
 
-def render_thumbnail(usdz: Path, out_png: Path, size: int = 1024, timeout: int = 25) -> bool:
-    """Render a QuickLook thumbnail. Returns False if qlmanage produced nothing
-    or hung past `timeout` (it can stall on usdz in automation)."""
+def render_thumbnail(usdz: Path, out_png: Path, size: int = 512, timeout: int = 90) -> bool:
+    """Render a transparent-background thumbnail with Apple's `usdrecord` (Hydra
+    GPU renderer): it auto-frames the model, shows materials, and writes the png
+    directly. Returns False on failure/timeout."""
     out_png.parent.mkdir(parents=True, exist_ok=True)
-    tmp_dir = out_png.parent / ".ql_tmp"
-    tmp_dir.mkdir(exist_ok=True)
     try:
-        subprocess.run(["qlmanage", "-t", "-s", str(size), "-o", str(tmp_dir), str(usdz)],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        subprocess.run(["pkill", "-f", "qlmanage"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        subprocess.run(
+            ["usdrecord", "--imageWidth", str(size), "--complexity", "high", str(usdz), str(out_png)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError):
         return False
-    produced = tmp_dir / f"{usdz.name}.png"
-    ok = produced.exists()
-    if ok:
-        shutil.move(str(produced), str(out_png))
-    shutil.rmtree(tmp_dir, ignore_errors=True)
-    return ok
+    return out_png.exists()
 
 
 def build(args: argparse.Namespace) -> int:

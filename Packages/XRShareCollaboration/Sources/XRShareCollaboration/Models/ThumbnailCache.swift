@@ -10,7 +10,7 @@
 import SwiftUI
 import Foundation
 
-#if os(iOS)
+#if canImport(UIKit)
 import UIKit
 #endif
 
@@ -82,6 +82,66 @@ class ThumbnailCache {
         }
 
         return await generateThumbnail(for: resource, size: size)
+    }
+
+    /// Returns a pre-rendered thumbnail hosted alongside a remote model:
+    /// memory cache → disk cache → download. nil if unavailable.
+    func getRemoteThumbnail(for modelType: ModelType) async -> Image? {
+        let key = modelType.rawValue
+        if let cached = cache[key] { return cached }
+        guard let url = modelType.remoteThumbnailURL else { return nil }
+
+        let diskURL = remoteThumbnailDiskURL(for: modelType.id)
+        if let image = imageFromFile(diskURL) {
+            cache[key] = image
+            return image
+        }
+
+        if let inFlight = loadingTasks[key] {
+            return await inFlight.value
+        }
+        let task = Task<Image, Never> {
+            await Self.downloadThumbnail(from: url, savingTo: diskURL) ?? Image(systemName: "cube")
+        }
+        loadingTasks[key] = task
+        let image = await task.value
+        loadingTasks[key] = nil
+        cache[key] = image
+        return image
+    }
+
+    private static func downloadThumbnail(from url: URL, savingTo diskURL: URL) async -> Image? {
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                return nil
+            }
+            try? data.write(to: diskURL, options: .atomic)
+            return imageFromData(data)
+        } catch {
+            return nil
+        }
+    }
+
+    private func remoteThumbnailDiskURL(for id: String) -> URL {
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        let dir = base.appendingPathComponent("RemoteThumbnails", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent(id + ".png")
+    }
+
+    private func imageFromFile(_ url: URL) -> Image? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return Self.imageFromData(data)
+    }
+
+    private static func imageFromData(_ data: Data) -> Image? {
+        #if canImport(UIKit)
+        guard let uiImage = UIImage(data: data) else { return nil }
+        return Image(uiImage: uiImage)
+        #else
+        return nil
+        #endif
     }
 
 
