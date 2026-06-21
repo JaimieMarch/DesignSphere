@@ -99,6 +99,9 @@ final class RemoteCatalogTests: XCTestCase {
 
     @MainActor
     func testLiveCatalogLoadsAndDownloadsModel() async throws {
+        guard ProcessInfo.processInfo.environment["RUN_LIVE_CATALOG_TESTS"] == "1" else {
+            throw XCTSkip("Set RUN_LIVE_CATALOG_TESTS=1 to run the R2 integration test")
+        }
         let base = URL(string: "https://pub-efd589f26cb24d3db0c409b9416b4ecd.r2.dev")!
         RemoteCatalogService.shared.configure(baseURL: base, enabled: true)
 

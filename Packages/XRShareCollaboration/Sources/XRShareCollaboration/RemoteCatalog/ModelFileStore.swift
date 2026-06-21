@@ -19,11 +19,25 @@ public actor ModelFileStore {
 
     /// Soft cap on the on-disk model cache; least-recently-used usdz files are
     /// evicted past this. `Caches/` is also OS-purgeable, so this is best-effort.
-    private let cacheBudgetBytes = 1_500_000_000  // ~1.5 GB
+    private let cacheBudgetBytes: Int
+    private let cacheDirectoryOverride: URL?
+    private let sessionConfiguration: URLSessionConfiguration
 
-    private init() {}
+    init(
+        cacheDirectory: URL? = nil,
+        cacheBudgetBytes: Int = 1_500_000_000,
+        sessionConfiguration: URLSessionConfiguration = .default
+    ) {
+        self.cacheDirectoryOverride = cacheDirectory
+        self.cacheBudgetBytes = cacheBudgetBytes
+        self.sessionConfiguration = sessionConfiguration
+    }
 
     private var cacheDirectory: URL {
+        if let cacheDirectoryOverride {
+            try? FileManager.default.createDirectory(at: cacheDirectoryOverride, withIntermediateDirectories: true)
+            return cacheDirectoryOverride
+        }
         let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         let dir = base.appendingPathComponent("RemoteModels", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -63,8 +77,15 @@ public actor ModelFileStore {
 
         let expectedSHA = modelType.remoteSHA256
         let id = modelType.id
+        let configuration = sessionConfiguration
         let task = Task<URL, Error> {
-            try await Self.download(remoteURL, to: destination, expectedSHA: expectedSHA, id: id)
+            try await Self.download(
+                remoteURL,
+                to: destination,
+                expectedSHA: expectedSHA,
+                id: id,
+                sessionConfiguration: configuration
+            )
         }
         inFlight[key] = task
         defer { inFlight[key] = nil }
@@ -103,9 +124,15 @@ public actor ModelFileStore {
         try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path)
     }
 
-    private static func download(_ url: URL, to destination: URL, expectedSHA: String?, id: String) async throws -> URL {
+    private static func download(
+        _ url: URL,
+        to destination: URL,
+        expectedSHA: String?,
+        id: String,
+        sessionConfiguration: URLSessionConfiguration
+    ) async throws -> URL {
         await RemoteDownloadProgress.shared.begin(id)
-        let downloader = ProgressiveDownloader { fraction in
+        let downloader = ProgressiveDownloader(configuration: sessionConfiguration) { fraction in
             Task { @MainActor in RemoteDownloadProgress.shared.update(id, fraction) }
         }
         do {
@@ -133,9 +160,14 @@ private final class ProgressiveDownloader: NSObject, URLSessionDownloadDelegate,
     private var continuation: CheckedContinuation<URL, Error>?
     private let onProgress: @Sendable (Double) -> Void
     private var lastReported: Double = -1
-    private lazy var session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+    private let configuration: URLSessionConfiguration
+    private lazy var session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
 
-    init(onProgress: @escaping @Sendable (Double) -> Void) {
+    init(
+        configuration: URLSessionConfiguration,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) {
+        self.configuration = configuration
         self.onProgress = onProgress
         super.init()
     }

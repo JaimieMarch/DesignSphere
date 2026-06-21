@@ -8,16 +8,33 @@
 
 /* Begin PBXBuildFile section */
 		C29E0D732F123456789ABCDE /* XRShareCollaboration in Frameworks */ = {isa = PBXBuildFile; productRef = C29E0D702F123456789ABCDE /* XRShareCollaboration */; };
+		A1000000000000000000000C /* XRShareCollaboration in Frameworks */ = {isa = PBXBuildFile; productRef = C29E0D702F123456789ABCDE /* XRShareCollaboration */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A1000000000000000000000A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0D64C6542CE003FE00D34085 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 87B974472D09106D00168B98;
+			remoteInfo = "Demo App Vision";
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		87B974482D09106D00168B98 /* DemoAppVision.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = DemoAppVision.app; path = DesignSphere.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000002 /* Demo App VisionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Demo App VisionTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		87B974492D09106D00168B98 /* Demo App Vision */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Demo App Vision";
+			sourceTree = "<group>";
+		};
+		A10000000000000000000001 /* Demo App VisionTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Demo App VisionTests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -29,6 +46,14 @@
 				C29E0D732F123456789ABCDE /* XRShareCollaboration in Frameworks */,
 			);
 		};
+		A10000000000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000C /* XRShareCollaboration in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -36,6 +61,7 @@
 			isa = PBXGroup;
 			children = (
 				87B974492D09106D00168B98 /* Demo App Vision */,
+				A10000000000000000000001 /* Demo App VisionTests */,
 				0D64C65D2CE003FE00D34085 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -44,6 +70,7 @@
 			isa = PBXGroup;
 			children = (
 				87B974482D09106D00168B98 /* DemoAppVision.app */,
+				A10000000000000000000002 /* Demo App VisionTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -72,6 +99,30 @@
 			productReference = 87B974482D09106D00168B98 /* DemoAppVision.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A10000000000000000000003 /* Demo App VisionTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000009 /* Build configuration list for PBXNativeTarget "Demo App VisionTests" */;
+			buildPhases = (
+				A10000000000000000000004 /* Sources */,
+				A10000000000000000000005 /* Frameworks */,
+				A10000000000000000000006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1000000000000000000000B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000001 /* Demo App VisionTests */,
+			);
+			name = "Demo App VisionTests";
+			packageProductDependencies = (
+				C29E0D702F123456789ABCDE /* XRShareCollaboration */,
+			);
+			productName = "Demo App VisionTests";
+			productReference = A10000000000000000000002 /* Demo App VisionTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -84,6 +135,10 @@
 				TargetAttributes = {
 					87B974472D09106D00168B98 = {
 						CreatedOnToolsVersion = 16.1;
+					};
+					A10000000000000000000003 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = 87B974472D09106D00168B98;
 					};
 				};
 			};
@@ -105,6 +160,7 @@
 			projectRoot = "";
 			targets = (
 				87B974472D09106D00168B98 /* Demo App Vision */,
+				A10000000000000000000003 /* Demo App VisionTests */,
 			);
 		};
 /* End PBXProject section */
@@ -115,6 +171,13 @@
 			files = (
 			);
 		};
+		A10000000000000000000006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -123,7 +186,22 @@
 			files = (
 			);
 		};
+		A10000000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A1000000000000000000000B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 87B974472D09106D00168B98 /* Demo App Vision */;
+			targetProxy = A1000000000000000000000A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0D64C6682CE003FF00D34085 /* Debug configuration for PBXProject "Demo App" */ = {
@@ -327,6 +405,52 @@
 			};
 			name = Release;
 		};
+		A10000000000000000000007 /* Debug configuration for PBXNativeTarget "Demo App VisionTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = HC2XYK55Y8;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.designsphere.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DesignSphere.app/DesignSphere";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		A10000000000000000000008 /* Release configuration for PBXNativeTarget "Demo App VisionTests" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = HC2XYK55Y8;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.designsphere.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DesignSphere.app/DesignSphere";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -344,6 +468,15 @@
 				87B974582D09106E00168B98 /* Debug configuration for PBXNativeTarget "Demo App Vision" */,
 				87B974592D09106E00168B98 /* Release configuration for PBXNativeTarget "Demo App Vision" */,
 			);
+			defaultConfigurationName = Debug;
+		};
+		A10000000000000000000009 /* Build configuration list for PBXNativeTarget "Demo App VisionTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000007 /* Debug configuration for PBXNativeTarget "Demo App VisionTests" */,
+				A10000000000000000000008 /* Release configuration for PBXNativeTarget "Demo App VisionTests" */,
+			);
+			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */

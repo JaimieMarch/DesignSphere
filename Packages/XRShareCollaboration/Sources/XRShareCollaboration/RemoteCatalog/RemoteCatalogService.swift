@@ -14,13 +14,19 @@ import RealityKit
 public final class RemoteCatalogService {
     public static let shared = RemoteCatalogService()
 
+    private let session: URLSession
+    private let cacheURLOverride: URL?
+
     public private(set) var baseURL: URL?
     public private(set) var isEnabled: Bool = false
 
     /// manifest id -> category rawValue (e.g. "seating"), for the catalog UI.
     private var categoryByID: [String: String] = [:]
 
-    private init() {}
+    init(session: URLSession = .shared, cacheURL: URL? = nil) {
+        self.session = session
+        self.cacheURLOverride = cacheURL
+    }
 
     /// Configure from the app at launch (base URL of the public bucket).
     public func configure(baseURL: URL?, enabled: Bool) {
@@ -96,7 +102,7 @@ public final class RemoteCatalogService {
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.timeoutInterval = 20
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 return nil
             }
@@ -109,6 +115,9 @@ public final class RemoteCatalogService {
     // MARK: - Disk cache (offline fallback)
 
     private var cacheURL: URL? {
+        if let cacheURLOverride {
+            return cacheURLOverride
+        }
         guard let dir = try? FileManager.default.url(
             for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
         ) else { return nil }

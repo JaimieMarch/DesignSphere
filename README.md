@@ -144,18 +144,40 @@ served from the on-device cache.
 
 ## Testing
 
-The reusable engine in the `XRShareCollaboration` Swift package is covered by an
-XCTest suite (catalog search, remote-catalog manifest/loader, model metadata,
-and measurement). Run it on a visionOS simulator:
+The project has three test layers:
+
+- `XRShareCollaboration` package unit tests for catalog/search, remote download
+  and caching, compression, placement/collision policy, model normalization,
+  history, focus mode, components, and measurement state.
+- `Demo App VisionTests` for project-file compatibility, settings persistence,
+  backup contracts, materials/categories, and tutorial metadata.
+- Python unit tests for catalog discovery, classification, conversion commands,
+  thumbnail handling, hashing, and manifest generation.
+
+Run the complete deterministic suite from the repository root:
+
+```sh
+Tools/run-tests.sh
+```
+
+To select a specific simulator, override the destination:
+
+```sh
+DESIGNSPHERE_TEST_DESTINATION='platform=visionOS Simulator,id=<simulator-uuid>' \
+  Tools/run-tests.sh
+```
+
+The package tests can also be run independently:
 
 ```sh
 cd Packages/XRShareCollaboration
 xcodebuild test -scheme XRShareCollaboration \
-  -destination 'platform=visionOS Simulator,name=Apple Vision Pro,OS=26.0'
+  -destination 'platform=visionOS Simulator,name=Apple Vision Pro,OS=latest'
 ```
 
-One test is a live integration check that loads the catalog from R2 and
-downloads a model; it requires network access.
+The live R2 integration test is skipped by default so local and CI runs remain
+hermetic. Opt into it with `RUN_LIVE_CATALOG_TESTS=1 Tools/run-tests.sh`; it
+loads the hosted catalog and downloads a model, so it requires network access.
 
 ## Known Limitations
 

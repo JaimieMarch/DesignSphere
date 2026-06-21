@@ -28,7 +28,6 @@ struct Session: Identifiable, Hashable {
     var id: String { sessionID }
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(sessionID)
         hasher.combine(participantID)
     }
     
@@ -36,4 +35,3 @@ struct Session: Identifiable, Hashable {
         lhs.participantID == rhs.participantID
     }
 }
-
