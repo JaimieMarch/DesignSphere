@@ -493,9 +493,6 @@ public final class CollaborativeSessionController: ObservableObject {
         commitSelectedModelEditTransaction()
         modelManager.selectModel(instanceID: instanceID)
         expandedEditModelID = instanceID
-        #if DEBUG
-        print("[EditMenu] requestEditModel: expandedEditModelID set, attachment exists=\(editMenuAttachmentEntity != nil)")
-        #endif
         updateEditMenuAttachmentPosition()
     }
 
@@ -514,14 +511,8 @@ public final class CollaborativeSessionController: ObservableObject {
     /// Handle a spatial tap in the immersive scene.
     public func handleSpatialTap(on entity: Entity) {
         #if os(visionOS)
-        #if DEBUG
-        print("[EditMenu] tap on entity '\(entity.name)'")
-        #endif
         if let affordanceEntity = entity.ancestorOrSelf(with: EditAffordanceComponent.self),
            let affordance = affordanceEntity.components[EditAffordanceComponent.self] {
-            #if DEBUG
-            print("[EditMenu] → hit Edit affordance, opening panel")
-            #endif
             requestEditModel(instanceID: affordance.instanceID)
             return
         }
@@ -532,16 +523,9 @@ public final class CollaborativeSessionController: ObservableObject {
 
         if #available(visionOS 26.0, *),
            let modelEntity = entity.ancestorOrSelf(with: InstanceIDComponent.self) {
-            #if DEBUG
-            print("[EditMenu] → hit a placed model, selecting it (tap the 'Edit' chip above it to open the panel)")
-            #endif
             commitSelectedModelEditTransaction()
             hideEditMenu()
             modelManager.selectModel(entity: modelEntity)
-        } else {
-            #if DEBUG
-            print("[EditMenu] → tap hit neither affordance nor model")
-            #endif
         }
         #endif
     }
@@ -1579,14 +1563,16 @@ public final class CollaborativeSessionController: ObservableObject {
                 bounds.center.z + (viewerDirection.z * viewerFacingOffset)
             )
         } else {
-            // Simulator / no world-tracking fallback: there's no head anchor and
-            // models spawn head-relative (up high), so anchoring above the model
-            // pushes the panel out of the fixed forward view. Anchor it at the
-            // model's centre height, just in front (+Z), so it stays on-screen.
+            // Simulator / no head tracking: keep the panel at the model's own
+            // depth and height and offset it to the side, so it stays at eye
+            // level in the fixed forward view. Pushing it toward the viewer (as
+            // for a tracked head) clips at the near plane for close head-relative
+            // spawns; placing it above pushes it out of frame.
+            let sideOffset = bounds.extents.x * 0.5 + 0.32
             targetPosition = SIMD3<Float>(
-                bounds.center.x,
+                bounds.center.x + sideOffset,
                 bounds.center.y,
-                bounds.center.z + viewerFacingOffset
+                bounds.center.z
             )
         }
 
@@ -1598,9 +1584,6 @@ public final class CollaborativeSessionController: ObservableObject {
         let nextPosition: SIMD3<Float>
         if shouldSnap {
             nextPosition = targetPosition
-            #if DEBUG
-            print("[EditMenu] panel enabled + positioned at \(targetPosition) (viewerTracked=\(viewerLocalPosition != nil))")
-            #endif
         } else {
             let current = attachmentEntity.position(relativeTo: arViewModel.sharedAnchorEntity)
             let smoothing: Float = 0.2
