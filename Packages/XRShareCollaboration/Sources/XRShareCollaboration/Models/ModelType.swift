@@ -37,6 +37,9 @@ public struct ModelType: Hashable, Identifiable, Sendable {
     public var remoteSHA256: String? = nil
     /// Pre-rendered thumbnail hosted alongside the model.
     public var remoteThumbnailURL: URL? = nil
+    /// False for geometry-only models that ship without materials — the app
+    /// gives these a neutral grey so they don't show the magenta placeholder.
+    public var hasBakedMaterials: Bool = true
     /// When non-nil, overrides the hard-coded `preserveRealWorldScale` table —
     /// remote models carry this in their manifest.
     public var preserveScaleOverride: Bool? = nil
@@ -64,7 +67,8 @@ public struct ModelType: Hashable, Identifiable, Sendable {
                 preserveRealWorldScale: Bool,
                 url: URL,
                 sha256: String?,
-                thumbnailURL: URL? = nil) {
+                thumbnailURL: URL? = nil,
+                hasBakedMaterials: Bool = true) {
         self.rawValue = remoteID
         self.classification = classification
         self.plane = plane
@@ -74,6 +78,7 @@ public struct ModelType: Hashable, Identifiable, Sendable {
         self.remoteURL = url
         self.remoteSHA256 = sha256
         self.remoteThumbnailURL = thumbnailURL
+        self.hasBakedMaterials = hasBakedMaterials
     }
 
     /// Models that are already at real-world scale and shouldn't be normalized

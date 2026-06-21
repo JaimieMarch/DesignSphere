@@ -17,6 +17,10 @@ public struct CatalogManifest: Codable, Sendable {
         public let id: String
         public let displayName: String
         public let category: String
+        /// False for geometry-only (untextured) models; the app applies a
+        /// neutral grey instead of the missing-material placeholder. Defaults
+        /// to true when absent (older manifests).
+        public let textured: Bool?
         public let file: Asset
         public let thumbnail: Asset?
         public let placement: Placement

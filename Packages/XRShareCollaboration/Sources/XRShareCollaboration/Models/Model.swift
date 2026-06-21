@@ -12,6 +12,9 @@ import Foundation
 import Combine
 import ARKit
 import simd
+#if canImport(UIKit)
+import UIKit
+#endif
 
 
 /// Represents a 3D anatomical model with loading and placement capabilities
@@ -161,6 +164,12 @@ public final class Model: ObservableObject, Identifiable {
             // Name the entity meaningfully for better identification
             entity.name = "Model_\(modelType.rawValue)"
 
+            // Geometry-only models ship without materials and would otherwise
+            // render as RealityKit's magenta placeholder — give them a grey.
+            if !modelType.hasBakedMaterials {
+                Self.applyNeutralMaterial(to: entity)
+            }
+
             // Normalize model size based on bounds after roatation
             normalizeModelSize(entity: entity)
             
@@ -208,6 +217,29 @@ public final class Model: ObservableObject, Identifiable {
     func applyInteractivityRecursively() {
         guard let entity = modelEntity else { return }
         Model.applyComponents(to: entity)
+    }
+
+    /// Replaces materials throughout the hierarchy with a neutral grey, used for
+    /// geometry-only models that ship without their own materials.
+    static func applyNeutralMaterial(to entity: Entity) {
+        var material = PhysicallyBasedMaterial()
+        #if canImport(UIKit)
+        material.baseColor = .init(tint: UIColor(white: 0.62, alpha: 1.0))
+        #endif
+        material.roughness = 0.75
+        material.metallic = 0.0
+        setMaterial(material, on: entity)
+    }
+
+    private static func setMaterial(_ material: RealityKit.Material, on entity: Entity) {
+        if var modelComponent = entity.components[ModelComponent.self] {
+            let count = max(modelComponent.materials.count, 1)
+            modelComponent.materials = Array(repeating: material, count: count)
+            entity.components.set(modelComponent)
+        }
+        for child in entity.children {
+            setMaterial(material, on: child)
+        }
     }
     
     

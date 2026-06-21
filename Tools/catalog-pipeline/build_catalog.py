@@ -288,12 +288,20 @@ def build(args: argparse.Namespace) -> int:
                   file=sys.stderr)
             return 2
 
-        has_thumb = False if args.skip_thumbnails else render_thumbnail(usdz_path, thumb_path)
+        if not args.skip_thumbnails:
+            render_thumbnail(usdz_path, thumb_path)
+        has_thumb = thumb_path.exists()  # reference an existing thumbnail even when skipped
+
+        # .blend sources carry real PBR materials; the glb/obj set is geometry
+        # only, so the app applies a neutral grey instead of RealityKit's
+        # missing-material placeholder.
+        textured = mesh.suffix.lower() == ".blend"
 
         entry = {
             "id": model_id,
             "displayName": display_name(model_id),
             "category": category,
+            "textured": textured,
             "file": {
                 "url": f"models/{model_id}.usdz",
                 "bytes": usdz_path.stat().st_size,

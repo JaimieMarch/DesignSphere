@@ -493,6 +493,9 @@ public final class CollaborativeSessionController: ObservableObject {
         commitSelectedModelEditTransaction()
         modelManager.selectModel(instanceID: instanceID)
         expandedEditModelID = instanceID
+        #if DEBUG
+        print("[EditMenu] requestEditModel: expandedEditModelID set, attachment exists=\(editMenuAttachmentEntity != nil)")
+        #endif
         updateEditMenuAttachmentPosition()
     }
 
@@ -511,8 +514,14 @@ public final class CollaborativeSessionController: ObservableObject {
     /// Handle a spatial tap in the immersive scene.
     public func handleSpatialTap(on entity: Entity) {
         #if os(visionOS)
+        #if DEBUG
+        print("[EditMenu] tap on entity '\(entity.name)'")
+        #endif
         if let affordanceEntity = entity.ancestorOrSelf(with: EditAffordanceComponent.self),
            let affordance = affordanceEntity.components[EditAffordanceComponent.self] {
+            #if DEBUG
+            print("[EditMenu] → hit Edit affordance, opening panel")
+            #endif
             requestEditModel(instanceID: affordance.instanceID)
             return
         }
@@ -523,9 +532,16 @@ public final class CollaborativeSessionController: ObservableObject {
 
         if #available(visionOS 26.0, *),
            let modelEntity = entity.ancestorOrSelf(with: InstanceIDComponent.self) {
+            #if DEBUG
+            print("[EditMenu] → hit a placed model, selecting it (tap the 'Edit' chip above it to open the panel)")
+            #endif
             commitSelectedModelEditTransaction()
             hideEditMenu()
             modelManager.selectModel(entity: modelEntity)
+        } else {
+            #if DEBUG
+            print("[EditMenu] → tap hit neither affordance nor model")
+            #endif
         }
         #endif
     }
@@ -1145,38 +1161,27 @@ public final class CollaborativeSessionController: ObservableObject {
     }
 
     #if os(visionOS)
-    @available(visionOS 26.0, *)
-    public func ensureEditMenuAttachment(
-        in content: RealityViewContent,
-        rootViewProvider: () -> AnyView
-    ) {
-        let attachment: Entity
-        if let editMenuAttachmentEntity {
-            attachment = editMenuAttachmentEntity
-        } else {
-            let entity = Entity()
-            entity.name = "ModelEditPanelAttachment"
-            entity.components.set(ViewAttachmentComponent(rootView: rootViewProvider()))
-            entity.scale = SIMD3<Float>(repeating: 0.0012)
-            entity.isEnabled = false
-            editMenuAttachmentEntity = entity
-            attachment = entity
+    /// Adopts the SwiftUI edit-panel attachment supplied by the RealityView
+    /// `attachments:` builder: parents it under the shared anchor, billboards it,
+    /// and positions it. RealityView attachments render reliably in the
+    /// simulator, unlike ViewAttachmentComponent.
+    public func syncEditMenuAttachment(_ attachment: Entity?) {
+        if editMenuAttachmentEntity !== attachment {
+            editMenuAttachmentEntity?.removeFromParent()
+            editMenuAttachmentEntity = attachment
+            editMenuPanelModelID = nil   // new entity → snap into place
         }
+        guard let attachment else { return }
 
+        if attachment.parent !== arViewModel.sharedAnchorEntity {
+            arViewModel.sharedAnchorEntity.addChild(attachment)
+        }
         if attachment.components[BillboardComponent.self] == nil {
             var billboard = BillboardComponent()
             billboard.blendFactor = 1.0
             attachment.components.set(billboard)
         }
-
-        if !content.entities.contains(attachment) {
-            if attachment.parent != nil,
-               attachment.parent !== arViewModel.sharedAnchorEntity {
-                attachment.removeFromParent()
-            }
-            content.add(attachment)
-        }
-
+        attachment.scale = SIMD3<Float>(repeating: 0.0012)
         updateEditMenuAttachmentPosition()
     }
     #endif
@@ -1574,11 +1579,13 @@ public final class CollaborativeSessionController: ObservableObject {
                 bounds.center.z + (viewerDirection.z * viewerFacingOffset)
             )
         } else {
-            // Simulator / no world-tracking fallback: models spawn in front of the origin,
-            // so +Z places the panel on the viewer-facing side instead of above/inside the model.
+            // Simulator / no world-tracking fallback: there's no head anchor and
+            // models spawn head-relative (up high), so anchoring above the model
+            // pushes the panel out of the fixed forward view. Anchor it at the
+            // model's centre height, just in front (+Z), so it stays on-screen.
             targetPosition = SIMD3<Float>(
                 bounds.center.x,
-                bounds.max.y + verticalOffset + 0.04,
+                bounds.center.y,
                 bounds.center.z + viewerFacingOffset
             )
         }
@@ -1591,6 +1598,9 @@ public final class CollaborativeSessionController: ObservableObject {
         let nextPosition: SIMD3<Float>
         if shouldSnap {
             nextPosition = targetPosition
+            #if DEBUG
+            print("[EditMenu] panel enabled + positioned at \(targetPosition) (viewerTracked=\(viewerLocalPosition != nil))")
+            #endif
         } else {
             let current = attachmentEntity.position(relativeTo: arViewModel.sharedAnchorEntity)
             let smoothing: Float = 0.2
