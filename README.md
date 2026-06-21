@@ -13,7 +13,8 @@ Designed for students, interior designers, real estate stagers, and businesses a
 ### Core Functionality
 
 - **Intuitive Interface**: Clean, floating translucent menus that adhere to Apple's design language, with gesture-based controls that stay out of the way while remaining easily accessible
-- **Model Library**: Browse a comprehensive catalog of furniture and décor with favoriting, previews, and 3D model thumbnails
+- **Remote Model Catalog**: A cloud-hosted catalog of 180+ furniture and décor models (Cloudflare R2) that the app browses instantly and downloads on demand — with hosted thumbnails, a per-model download progress indicator, on-device caching with LRU eviction, and offline fallback to the last-loaded catalog
+- **Intent-Aware Search**: Catalog search that understands the *idea* behind a query — searching "sofa" surfaces every seating item, "lighting" finds lamps and chandeliers — via a curated category/synonym vocabulary (see `ModelSearchEngine`)
 - **Advanced Model Editing**: Comprehensive editing tools allowing users to adjust size, position, rotation, style, texture, and color of each item
 - **Spatial Recognition**: Built-in spatial APIs anchor objects with incredible accuracy, matching scale and perspective to your room's exact dimensions
 - **Project Management**: Save and organize multiple room layouts, create different versions to compare design options, and return to previous projects anytime
@@ -58,29 +59,37 @@ Designed for students, interior designers, real estate stagers, and businesses a
 - **SwiftUI** for the user interface with native visionOS design patterns
 - **World Anchors** for persistent spatial tracking, allowing projects to be anchored to real-world locations
 - **JSON-based project serialization** for lightweight, human-readable project files
+- **Remote catalog over Cloudflare R2**: a JSON manifest (`catalog.json`) plus per-model `usdz` and thumbnails are served from object storage; the app fetches the manifest at launch and downloads models lazily on placement (`RemoteCatalogService`, `ModelFileStore`), verifying each download's SHA-256 and caching under `Caches/` with an LRU budget
+- **Swift Package (`XRShareCollaboration`)** holds the reusable engine: catalog, search, measurement, manipulation, and model management — covered by an XCTest suite
 
-## Included Model Library
+The remote-catalog system (asset pipeline → R2 → in-app loader) is documented in [docs/remote-catalog.md](docs/remote-catalog.md).
 
-The app comes with a starter library of 9 basic USDZ models:
+## Model Catalog
 
-- 65" TV
-- Chair
-- Chandelier
-- Closet
-- Coffee Table
-- Couch
-- Dinner Table
-- Stool
-- Vase
+The catalog is **hosted, not bundled**: 180+ furniture and décor models live in a
+Cloudflare R2 bucket and stream into the app on demand. Browsing is instant
+(thumbnails + metadata only); a model's `usdz` downloads the first time you place
+it, then is cached on device.
 
-Users can expand this library by importing custom USDZ files through the Import feature. This library will constantly be expanded upon, and improved in quality.
+Assets are produced by the catalog pipeline in
+[Tools/catalog-pipeline/](Tools/catalog-pipeline/), which converts source meshes
+to ARKit-compatible `usdz` (native `usdcat`/`usdzip` for glb, headless Blender
+for textured `.blend`), renders thumbnails with `usdrecord`, infers a category +
+placement metadata, and emits `catalog.json` ready to upload via `rclone`. See
+the pipeline README for the full workflow.
+
+Models without their own materials are flagged in the manifest and rendered with
+a neutral grey so they never show RealityKit's missing-material placeholder.
 
 ## Supported File Formats
 
-- **USDZ (Universal Scene Description)**: Primary format for 3D models
+- **USDZ (Universal Scene Description)**: Primary runtime format for 3D models
   - Supports high-quality textures and materials
   - Optimized for Apple platforms
   - Compatible with Reality Composer and other 3D tools
+- **Source formats (catalog pipeline)**: `glb`/`obj`/`fbx` and Blender `.blend`
+  are accepted by [Tools/catalog-pipeline/](Tools/catalog-pipeline/) and
+  converted to ARKit-compatible `usdz` for the catalog
 
 ## Requirements
 
@@ -129,9 +138,29 @@ Currently, sam_new is our active branch.
 2. Select a Vision Pro simulator or device
 3. Build and run (⌘R)
 
+The remote catalog requires a network connection on first launch to fetch the
+manifest; thereafter the last-loaded catalog and any downloaded models are
+served from the on-device cache.
+
+## Testing
+
+The reusable engine in the `XRShareCollaboration` Swift package is covered by an
+XCTest suite (catalog search, remote-catalog manifest/loader, model metadata,
+and measurement). Run it on a visionOS simulator:
+
+```sh
+cd Packages/XRShareCollaboration
+xcodebuild test -scheme XRShareCollaboration \
+  -destination 'platform=visionOS Simulator,name=Apple Vision Pro,OS=26.0'
+```
+
+One test is a live integration check that loads the catalog from R2 and
+downloads a model; it requires network access.
+
 ## Known Limitations
 
 - **World Anchor Persistence**: Projects anchored to physical locations work best when loaded in the same room where they were created
+- **Edit Panel in Simulator**: the floating edit panel renders via RealityView attachments and does **not** draw in the visionOS simulator (a simulator limitation, not the app); the open/position logic is verified, and it is expected to render on a physical device
 - **Model Import**: Currently only supports USDZ format; OBJ and FBX support planned for future releases
 - **SharePlay**: UI implemented but peer-to-peer networking functionality in development
 - **AI Assistant**: Voice interface present but AI integration pending
@@ -169,12 +198,14 @@ Our roadmap is driven by both user feedback and the evolution of spatial computi
 
 ### WISHLIST
 
-- move the catalogue to the cloud - keep local sandboxed storage for user uploads/spatial web
+- ~~move the catalogue to the cloud - keep local sandboxed storage for user uploads/spatial web~~ — **done**: catalog hosted on Cloudflare R2 with lazy download + on-device caching ([docs/remote-catalog.md](docs/remote-catalog.md))
+- ~~intent-aware catalog search~~ — **done** (`ModelSearchEngine`, see test suite)
+- verify the floating edit panel on a physical device (renders via RealityView attachments; does not draw in the simulator)
 - finalize all required functionality for acceptable release version
 - add removed screens back into workflow
-- go through todo list on github
+- complete the measurement tools (manager + UI largely built; verify/polish)
 - go through apple guidelines and conform
-- implement createML functionality and control parameters
+- AI design assistant: wire the assistant shell to real catalog-driven suggestions
 
 ### Contributing to Development
 
