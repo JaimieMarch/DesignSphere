@@ -15,6 +15,7 @@ public final class RemoteDownloadProgress: ObservableObject {
     public static let shared = RemoteDownloadProgress()
 
     @Published public private(set) var fractions: [String: Double] = [:]
+    @Published public private(set) var failedIDs: Set<String> = []
 
     private init() {}
 
@@ -23,7 +24,25 @@ public final class RemoteDownloadProgress: ObservableObject {
         fractions[id.lowercased()]
     }
 
-    func begin(_ id: String) { fractions[id.lowercased()] = 0 }
+    /// True if the model's last download attempt failed (until retried).
+    public func isFailed(_ id: String) -> Bool {
+        failedIDs.contains(id.lowercased())
+    }
+
+    public func clearFailure(_ id: String) {
+        failedIDs.remove(id.lowercased())
+    }
+
+    func begin(_ id: String) {
+        let key = id.lowercased()
+        failedIDs.remove(key)
+        fractions[key] = 0
+    }
     func update(_ id: String, _ fraction: Double) { fractions[id.lowercased()] = min(max(fraction, 0), 1) }
     func finish(_ id: String) { fractions.removeValue(forKey: id.lowercased()) }
+    func fail(_ id: String) {
+        let key = id.lowercased()
+        fractions.removeValue(forKey: key)
+        failedIDs.insert(key)
+    }
 }

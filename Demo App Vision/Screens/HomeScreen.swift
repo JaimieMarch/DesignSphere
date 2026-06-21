@@ -35,6 +35,11 @@ struct HomeScreen: View {
                     .padding(.top, 16)
 
                 ScrollView {
+                    if controller.remoteCatalogState == .unavailable {
+                        catalogUnavailableView
+                    } else if controller.remoteCatalogState == .loading && filteredModels.isEmpty {
+                        catalogLoadingView
+                    } else {
                     LazyVGrid(columns: gridColumns(for: proxy.size.width), spacing: 14) {
                         ForEach(filteredModels) { descriptor in
                             let isFavorite = favoriteModels.contains(descriptor.name)
@@ -49,7 +54,12 @@ struct HomeScreen: View {
                                     }
                                 },
                                 modelType: descriptor.type,
-                                downloadFraction: downloads.fraction(for: descriptor.id)
+                                downloadFraction: downloads.fraction(for: descriptor.id),
+                                downloadFailed: downloads.isFailed(descriptor.id),
+                                onRetry: {
+                                    downloads.clearFailure(descriptor.id)
+                                    controller.addModel(descriptor)
+                                }
                             )
                             .onTapGesture { controller.addModel(descriptor) }
                             .contextMenu {
@@ -61,6 +71,7 @@ struct HomeScreen: View {
                         }
                     }
                     .padding(16)
+                    }
                 }
                 .scrollIndicators(.hidden)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
@@ -74,6 +85,39 @@ struct HomeScreen: View {
 
     private var filteredModels: [CollaborativeSessionController.ModelDescriptor] {
         filtered(controller.availableModels)
+    }
+
+    private var catalogLoadingView: some View {
+        VStack(spacing: 14) {
+            ProgressView()
+            Text("Loading catalog…")
+                .font(.body)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 280)
+    }
+
+    private var catalogUnavailableView: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+            Text("Catalog unavailable")
+                .font(.title3.weight(.semibold))
+            Text("Couldn't load the model catalog. Check your connection and try again.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+            Button {
+                Task { await controller.loadRemoteCatalog() }
+            } label: {
+                Label("Retry", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, minHeight: 280)
+        .padding(24)
     }
 
     private var headerSection: some View {

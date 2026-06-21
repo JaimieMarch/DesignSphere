@@ -17,6 +17,9 @@ struct CatalogCell: View {
 
     // Download progress (0...1) for remote models; nil when not downloading.
     var downloadFraction: Double? = nil
+    // Set when the last download attempt failed; tapping retry re-attempts.
+    var downloadFailed: Bool = false
+    var onRetry: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 8) {
@@ -48,7 +51,7 @@ struct CatalogCell: View {
         .frame(height: 200)
         .glassBackground(cornerRadius: 20)
         .overlay {
-            // Download progress for remote models
+            // Download progress / failure for remote models
             if let downloadFraction {
                 ZStack {
                     RoundedRectangle(cornerRadius: 20).fill(.black.opacity(0.4))
@@ -63,6 +66,25 @@ struct CatalogCell: View {
                     }
                 }
                 .accessibilityLabel("Downloading \(name), \(Int(downloadFraction * 100)) percent")
+            } else if downloadFailed {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 20).fill(.black.opacity(0.45))
+                    VStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.title3)
+                            .foregroundStyle(.yellow)
+                        Text("Download failed")
+                            .font(.caption2)
+                            .foregroundStyle(.white)
+                        Button { onRetry?() } label: {
+                            Label("Retry", systemImage: "arrow.clockwise")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                    }
+                }
+                .accessibilityLabel("\(name) download failed")
+                .accessibilityHint("Double tap retry to try again")
             }
         }
         .overlay(alignment: .topTrailing) {

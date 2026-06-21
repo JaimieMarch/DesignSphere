@@ -111,6 +111,10 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var isConnected: Bool = false
     @Published public private(set) var participantCount: Int = 0
     @Published public private(set) var availableModels: [ModelDescriptor] = []
+
+    /// Loading state of the remote catalog manifest (for the catalog UI).
+    public enum RemoteCatalogState: Equatable, Sendable { case loading, ready, unavailable }
+    @Published public private(set) var remoteCatalogState: RemoteCatalogState = .ready
     @Published public private(set) var placedModelSummaries: [String] = []
     @Published public private(set) var placedModelDescriptors: [PlacedModelDescriptor] = []
     @Published public private(set) var loadingProgress: Float = 0.0
@@ -998,17 +1002,27 @@ public final class CollaborativeSessionController: ObservableObject {
     }
 
     /// Makes sure that models/thumbnails are available without stalling first render.
+    /// Loads (or reloads) the remote catalog manifest into the catalog list.
+    /// Drives `remoteCatalogState` so the UI can show loading / retry.
+    public func loadRemoteCatalog() async {
+        remoteCatalogState = .loading
+        let remoteTypes = await RemoteCatalogService.shared.loadCatalog()
+        guard !remoteTypes.isEmpty else {
+            remoteCatalogState = .unavailable
+            return
+        }
+        modelManager.modelTypes = remoteTypes
+        refreshAvailableModels()
+        remoteCatalogState = .ready
+    }
+
     public func preloadIfNeeded(strategy: PreloadStrategy = .minimal) async {
         // Remote catalog: the model list comes from the manifest and entities
         // download lazily on placement, so we skip the bundle's eager load.
         if RemoteCatalogService.shared.isEnabled {
-            let remoteTypes = await RemoteCatalogService.shared.loadCatalog()
-            if !remoteTypes.isEmpty {
-                modelManager.modelTypes = remoteTypes
-                refreshAvailableModels()
-                return
-            }
-            // Remote failed/empty — fall back to the bundled models below.
+            await loadRemoteCatalog()
+            if remoteCatalogState == .ready { return }
+            // Remote unavailable — fall back to the bundled models below.
         }
 
         await arViewModel.loadModels()

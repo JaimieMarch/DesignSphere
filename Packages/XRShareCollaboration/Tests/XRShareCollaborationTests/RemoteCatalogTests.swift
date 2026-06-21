@@ -49,6 +49,27 @@ final class RemoteCatalogTests: XCTestCase {
         XCTAssertTrue(type.preserveRealWorldScale)  // override beats the hard-coded table
     }
 
+    // MARK: - Download progress / failure state
+
+    @MainActor
+    func testDownloadFailureTrackingIsCaseInsensitive() {
+        let progress = RemoteDownloadProgress.shared
+        let id = "unit_test_model_\(UUID().uuidString)"
+
+        progress.begin(id)
+        XCTAssertEqual(progress.fraction(for: id), 0)
+        XCTAssertFalse(progress.isFailed(id))
+
+        progress.fail(id)
+        XCTAssertNil(progress.fraction(for: id), "failure clears in-progress state")
+        XCTAssertTrue(progress.isFailed(id.uppercased()), "lookup is case-insensitive")
+
+        // begin (a retry) clears the failure
+        progress.begin(id)
+        XCTAssertFalse(progress.isFailed(id))
+        progress.finish(id)
+    }
+
     // MARK: - Live integration (requires network + the R2 bucket)
 
     @MainActor

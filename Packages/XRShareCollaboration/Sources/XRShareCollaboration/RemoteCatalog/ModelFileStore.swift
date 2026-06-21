@@ -122,7 +122,7 @@ public actor ModelFileStore {
             await RemoteDownloadProgress.shared.finish(id)
             return destination
         } catch {
-            await RemoteDownloadProgress.shared.finish(id)
+            await RemoteDownloadProgress.shared.fail(id)
             throw error
         }
     }
