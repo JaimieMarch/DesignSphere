@@ -160,6 +160,9 @@ public final class CollaborativeSessionController: ObservableObject {
     public let modelManager: ModelManager
     #if os(visionOS)
     private var editMenuAttachmentEntity: Entity?
+    /// The model the edit panel is currently anchored to. Used to snap the
+    /// panel into place on open / model-switch and ease it the rest of the time.
+    private var editMenuPanelModelID: UUID?
     public let immersiveSession: ARKitSession
     public let focusModeManager: FocusModeManager
     public let measurementManager: MeasurementManager
@@ -495,8 +498,14 @@ public final class CollaborativeSessionController: ObservableObject {
 
     public func collapseEditMenu() {
         commitSelectedModelEditTransaction()
+        hideEditMenu()
+    }
+
+    /// Hides the floating edit panel and clears its anchored model.
+    private func hideEditMenu() {
         expandedEditModelID = nil
         editMenuAttachmentEntity?.isEnabled = false
+        editMenuPanelModelID = nil
     }
 
     /// Handle a spatial tap in the immersive scene.
@@ -515,8 +524,7 @@ public final class CollaborativeSessionController: ObservableObject {
         if #available(visionOS 26.0, *),
            let modelEntity = entity.ancestorOrSelf(with: InstanceIDComponent.self) {
             commitSelectedModelEditTransaction()
-            expandedEditModelID = nil
-            editMenuAttachmentEntity?.isEnabled = false
+            hideEditMenu()
             modelManager.selectModel(entity: modelEntity)
         }
         #endif
@@ -534,8 +542,7 @@ public final class CollaborativeSessionController: ObservableObject {
     /// Deselect the currently selected model
     public func deselectModel() {
         commitSelectedModelEditTransaction()
-        expandedEditModelID = nil
-        editMenuAttachmentEntity?.isEnabled = false
+        hideEditMenu()
         modelManager.deselectModel()
     }
 
@@ -556,8 +563,7 @@ public final class CollaborativeSessionController: ObservableObject {
               !historyManager.isRecordingSuspended,
               let snapshot = snapshot(for: model) else { return }
         if expandedEditModelID == snapshot.instanceID {
-            expandedEditModelID = nil
-            editMenuAttachmentEntity?.isEnabled = false
+            hideEditMenu()
         }
         if activeEditModelInstanceID == snapshot.instanceID {
             activeEditModelInstanceID = nil
@@ -698,8 +704,7 @@ public final class CollaborativeSessionController: ObservableObject {
         guard let model = modelManager.modelDict[instanceID] else { return }
         historyManager.discardTransaction(for: instanceID)
         if expandedEditModelID == instanceID {
-            expandedEditModelID = nil
-            editMenuAttachmentEntity?.isEnabled = false
+            hideEditMenu()
         }
         if activeEditModelInstanceID == instanceID {
             activeEditModelInstanceID = nil
@@ -784,8 +789,7 @@ public final class CollaborativeSessionController: ObservableObject {
 
             self.activeEditModelInstanceID = nil
             self.activeEditTransactionNeedsForceRecord = false
-            self.expandedEditModelID = nil
-            self.editMenuAttachmentEntity?.isEnabled = false
+            self.hideEditMenu()
             self.measurementManager.reset()
             self.historyManager.clear()
             self.modelManager.reset(broadcast: true)
@@ -819,8 +823,7 @@ public final class CollaborativeSessionController: ObservableObject {
     public func clearHistory() {
         activeEditModelInstanceID = nil
         activeEditTransactionNeedsForceRecord = false
-        expandedEditModelID = nil
-        editMenuAttachmentEntity?.isEnabled = false
+        hideEditMenu()
         historyManager.clear()
     }
 
@@ -1528,6 +1531,7 @@ public final class CollaborativeSessionController: ObservableObject {
               let modelEntity = model.modelEntity,
               modelEntity.parent != nil else {
             attachmentEntity.isEnabled = false
+            editMenuPanelModelID = nil
             return
         }
 
@@ -1552,6 +1556,7 @@ public final class CollaborativeSessionController: ObservableObject {
             )
         }
 
+        let targetPosition: SIMD3<Float>
         if let viewerLocalPosition {
             let panelCenter = SIMD3<Float>(bounds.center.x, bounds.center.y, bounds.center.z)
             let rawDirection = viewerLocalPosition - panelCenter
@@ -1563,26 +1568,35 @@ public final class CollaborativeSessionController: ObservableObject {
                 viewerDirection = SIMD3<Float>(0, 0, 1)
             }
 
-            attachmentEntity.setPosition(
-                SIMD3<Float>(
-                    bounds.center.x + (viewerDirection.x * viewerFacingOffset),
-                    bounds.max.y + verticalOffset,
-                    bounds.center.z + (viewerDirection.z * viewerFacingOffset)
-                ),
-                relativeTo: arViewModel.sharedAnchorEntity
+            targetPosition = SIMD3<Float>(
+                bounds.center.x + (viewerDirection.x * viewerFacingOffset),
+                bounds.max.y + verticalOffset,
+                bounds.center.z + (viewerDirection.z * viewerFacingOffset)
             )
         } else {
             // Simulator / no world-tracking fallback: models spawn in front of the origin,
             // so +Z places the panel on the viewer-facing side instead of above/inside the model.
-            attachmentEntity.setPosition(
-                SIMD3<Float>(
-                    bounds.center.x,
-                    bounds.max.y + verticalOffset + 0.04,
-                    bounds.center.z + viewerFacingOffset
-                ),
-                relativeTo: arViewModel.sharedAnchorEntity
+            targetPosition = SIMD3<Float>(
+                bounds.center.x,
+                bounds.max.y + verticalOffset + 0.04,
+                bounds.center.z + viewerFacingOffset
             )
         }
+
+        // Snap into place when the panel opens or switches models; otherwise ease
+        // toward the target so head/model micro-motion doesn't make it jitter or
+        // orbit the model every frame.
+        let shouldSnap = editMenuPanelModelID != expandedEditModelID
+        editMenuPanelModelID = expandedEditModelID
+        let nextPosition: SIMD3<Float>
+        if shouldSnap {
+            nextPosition = targetPosition
+        } else {
+            let current = attachmentEntity.position(relativeTo: arViewModel.sharedAnchorEntity)
+            let smoothing: Float = 0.2
+            nextPosition = current + (targetPosition - current) * smoothing
+        }
+        attachmentEntity.setPosition(nextPosition, relativeTo: arViewModel.sharedAnchorEntity)
         attachmentEntity.isEnabled = true
     }
 
