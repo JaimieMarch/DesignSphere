@@ -25,6 +25,8 @@ struct HomeScreen: View {
 
     private let searchEngine = ModelSearchEngine()
 
+    @ObservedObject private var downloads = RemoteDownloadProgress.shared
+
     var body: some View {
         GeometryReader { proxy in
             VStack(alignment: .leading, spacing: 18) {
@@ -46,7 +48,8 @@ struct HomeScreen: View {
                                         favoriteModels.insert(descriptor.name)
                                     }
                                 },
-                                modelType: descriptor.type
+                                modelType: descriptor.type,
+                                downloadFraction: downloads.fraction(for: descriptor.id)
                             )
                             .onTapGesture { controller.addModel(descriptor) }
                             .contextMenu {

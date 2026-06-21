@@ -15,6 +15,9 @@ struct CatalogCell: View {
     var showRemove: Bool = false
     var onRemove: (() -> Void)? = nil
 
+    // Download progress (0...1) for remote models; nil when not downloading.
+    var downloadFraction: Double? = nil
+
     var body: some View {
         VStack(spacing: 8) {
             // Display thumbnail using QLThumbnailGenerator cached preview
@@ -44,6 +47,24 @@ struct CatalogCell: View {
         .frame(maxWidth: .infinity)
         .frame(height: 200)
         .glassBackground(cornerRadius: 20)
+        .overlay {
+            // Download progress for remote models
+            if let downloadFraction {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 20).fill(.black.opacity(0.4))
+                    VStack(spacing: 6) {
+                        ProgressView(value: downloadFraction)
+                            .progressViewStyle(.linear)
+                            .tint(.white)
+                            .frame(width: 90)
+                        Text("\(Int(downloadFraction * 100))%")
+                            .font(.caption2)
+                            .foregroundStyle(.white)
+                    }
+                }
+                .accessibilityLabel("Downloading \(name), \(Int(downloadFraction * 100)) percent")
+            }
+        }
         .overlay(alignment: .topTrailing) {
             // Show remove button in remove mode, favorite star otherwise
             if showRemove, let onRemove = onRemove {
