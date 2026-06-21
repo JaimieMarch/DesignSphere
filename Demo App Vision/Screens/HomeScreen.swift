@@ -62,6 +62,7 @@ struct HomeScreen: View {
                     }
                     .padding(16)
                 }
+                .scrollIndicators(.hidden)
                 .clipShape(RoundedRectangle(cornerRadius: 24))
                 .glassBackground(cornerRadius: 24)
                 .shadow(radius: 10)
