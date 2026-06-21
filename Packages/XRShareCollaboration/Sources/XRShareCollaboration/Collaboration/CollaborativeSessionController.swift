@@ -999,6 +999,18 @@ public final class CollaborativeSessionController: ObservableObject {
 
     /// Makes sure that models/thumbnails are available without stalling first render.
     public func preloadIfNeeded(strategy: PreloadStrategy = .minimal) async {
+        // Remote catalog: the model list comes from the manifest and entities
+        // download lazily on placement, so we skip the bundle's eager load.
+        if RemoteCatalogService.shared.isEnabled {
+            let remoteTypes = await RemoteCatalogService.shared.loadCatalog()
+            if !remoteTypes.isEmpty {
+                modelManager.modelTypes = remoteTypes
+                refreshAvailableModels()
+                return
+            }
+            // Remote failed/empty — fall back to the bundled models below.
+        }
+
         await arViewModel.loadModels()
 
         switch strategy {
@@ -1905,6 +1917,9 @@ public final class CollaborativeSessionController: ObservableObject {
     }
 
     private func source(for modelType: ModelType) -> ModelSource {
+        if modelType.isRemote {
+            return .presets
+        }
         guard let modelURL = Bundle.xrShareLocateUSDZ(named: modelType.rawValue) else {
             return .unknown
         }
@@ -1929,6 +1944,13 @@ public final class CollaborativeSessionController: ObservableObject {
     }
 
     private func category(for modelType: ModelType) -> ModelCategory {
+        // Remote models carry their category in the manifest.
+        if modelType.isRemote,
+           let raw = RemoteCatalogService.shared.manifestCategory(forID: modelType.id),
+           let category = ModelCategory(rawValue: raw) {
+            return category
+        }
+
         let key = modelType.rawValue.lowercased()
 
         if key.contains("chair") || key.contains("sofa") || key.contains("couch") || key.contains("stool") {

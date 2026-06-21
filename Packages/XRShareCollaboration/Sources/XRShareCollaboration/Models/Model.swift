@@ -102,7 +102,23 @@ public final class Model: ObservableObject, Identifiable {
         } else {
             var loadError: Error?
 
-            if let modelURL = Bundle.xrShareLocateUSDZ(named: modelType.rawValue) {
+            // Remote models download (and cache) on first use; bundled models
+            // resolve straight from the app bundle.
+            var resolvedURL: URL?
+            if modelType.isRemote {
+                do {
+                    resolvedURL = try await ModelFileStore.shared.localURL(for: modelType)
+                } catch {
+                    loadError = error
+                    #if DEBUG
+                    print("Failed to download remote model \(modelType.rawValue): \(error)")
+                    #endif
+                }
+            } else {
+                resolvedURL = Bundle.xrShareLocateUSDZ(named: modelType.rawValue)
+            }
+
+            if let modelURL = resolvedURL {
                 do {
                     self.modelEntity = try await ModelEntity(contentsOf: modelURL)
                 } catch {

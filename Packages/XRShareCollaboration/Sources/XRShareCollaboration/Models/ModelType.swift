@@ -31,6 +31,16 @@ public struct ModelType: Hashable, Identifiable, Sendable {
     public var canStack: Bool = false
     public var needsPhysics: Bool = false
 
+    /// Remote catalog backing: when set, the usdz is downloaded/cached from this
+    /// URL (verified against `remoteSHA256`) instead of resolved from the bundle.
+    public var remoteURL: URL? = nil
+    public var remoteSHA256: String? = nil
+    /// When non-nil, overrides the hard-coded `preserveRealWorldScale` table —
+    /// remote models carry this in their manifest.
+    public var preserveScaleOverride: Bool? = nil
+
+    public var isRemote: Bool { remoteURL != nil }
+
     public init(rawValue: String,
                     classification: AnchoringComponent.Target.Classification = .any,
                     plane: AnchoringComponent.Target.Alignment = .horizontal,
@@ -40,12 +50,35 @@ public struct ModelType: Hashable, Identifiable, Sendable {
             self.classification = classification
             self.plane = plane
             self.needsPhysics = needsPhysics
+            self.canStack = canStack
         }
+
+    /// Builds a ModelType from a remote catalog manifest entry.
+    public init(remoteID: String,
+                classification: AnchoringComponent.Target.Classification,
+                plane: AnchoringComponent.Target.Alignment,
+                canStack: Bool,
+                needsPhysics: Bool,
+                preserveRealWorldScale: Bool,
+                url: URL,
+                sha256: String?) {
+        self.rawValue = remoteID
+        self.classification = classification
+        self.plane = plane
+        self.canStack = canStack
+        self.needsPhysics = needsPhysics
+        self.preserveScaleOverride = preserveRealWorldScale
+        self.remoteURL = url
+        self.remoteSHA256 = sha256
+    }
 
     /// Models that are already at real-world scale and shouldn't be normalized
     /// Set to true for models created in Reality Composer Pro with proper measurements
     /// Use the same defintion logic as the above to achieve this
     public var preserveRealWorldScale: Bool {
+        if let preserveScaleOverride {
+            return preserveScaleOverride
+        }
         switch rawValue.lowercased() {
         // Reality Composer Pro models made to scale (measured in inches/meters)
             // There is likely a better way to do this instead of using switch statements

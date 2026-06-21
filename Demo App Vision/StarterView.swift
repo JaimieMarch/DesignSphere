@@ -283,6 +283,11 @@ struct StarterView: View {
 
         loadingState.message = "Loading models..."
         loadingState.progress = 0.7
+        // Point the catalog at the remote manifest (R2) before preloading.
+        RemoteCatalogService.shared.configure(
+            baseURL: AppFeatureFlags.remoteCatalogBaseURL,
+            enabled: AppFeatureFlags.remoteCatalogEnabled
+        )
         // Preload models AFTER opening immersive space for faster perceived startup
         await controller.preloadIfNeeded(strategy: .minimal)
 
