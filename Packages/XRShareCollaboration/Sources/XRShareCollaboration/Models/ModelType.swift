@@ -20,9 +20,14 @@ public struct ModelType: Hashable, Identifiable, Sendable {
     // Instead of a random UUID, use the rawValue as the basis for the ID
     public var id: String { rawValue.lowercased() }
 
-    // Convert rawValue to a more humanreadable format
+    // Convert rawValue to a more humanreadable format: split camelCase and turn
+    // snake_case / kebab-case separators into spaces (e.g. modern_arm_chair_01 →
+    // "Modern Arm Chair 01").
     public var displayName: String {
-        let words = rawValue.replacingOccurrences(of: "([a-z])([A-Z0-9])", with: "$1 $2", options: .regularExpression)
+        let words = rawValue
+            .replacingOccurrences(of: "([a-z])([A-Z0-9])", with: "$1 $2", options: .regularExpression)
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
         return words.capitalized
     }
 

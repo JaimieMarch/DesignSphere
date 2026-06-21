@@ -28,7 +28,7 @@ public final class MeasurementManager: ObservableObject {
             }
         }
 
-        fileprivate func format(distanceMeters: Float) -> String {
+        func format(distanceMeters: Float) -> String {
             switch self {
             case .inches:
                 return String(format: "%.1f in", distanceMeters * 39.3701)
@@ -41,7 +41,7 @@ public final class MeasurementManager: ObservableObject {
             }
         }
 
-        fileprivate func formatDimensions(_ extents: SIMD3<Float>) -> String {
+        func formatDimensions(_ extents: SIMD3<Float>) -> String {
             [
                 format(distanceMeters: extents.x),
                 format(distanceMeters: extents.y),

@@ -35,6 +35,31 @@ final class RemoteCatalogTests: XCTestCase {
         XCTAssertTrue(entry.placement.preserveRealWorldScale)
     }
 
+    func testManifestDecodesWithoutOptionalFields() throws {
+        // Older manifests may omit `thumbnail` and `textured`.
+        let json = """
+        {
+          "version": 1,
+          "models": [
+            {
+              "id": "vase_01", "displayName": "Vase 01", "category": "decor",
+              "file": { "url": "models/vase_01.usdz", "bytes": 1, "sha256": null },
+              "placement": {
+                "classification": "table", "plane": "horizontal",
+                "canStack": false, "needsPhysics": false, "preserveRealWorldScale": true
+              }
+            }
+          ]
+        }
+        """
+        let manifest = try JSONDecoder().decode(CatalogManifest.self, from: Data(json.utf8))
+        let entry = manifest.models[0]
+        XCTAssertNil(entry.thumbnail)
+        XCTAssertNil(entry.textured)
+        XCTAssertNil(entry.file.sha256)
+        XCTAssertNil(manifest.generatedAt)
+    }
+
     func testRemoteModelTypeCarriesManifestMetadata() {
         let type = ModelType(
             remoteID: "armchair_01",
