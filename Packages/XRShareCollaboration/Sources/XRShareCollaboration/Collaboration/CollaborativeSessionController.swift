@@ -1482,19 +1482,15 @@ public final class CollaborativeSessionController: ObservableObject {
             )
         )
 
-        #if DEBUG
         let classification = placement.classification ?? "unclassified"
-        print("Snap[\(phase)] source=\(placement.source.label) classification=\(classification) score=\(String(format: "%.3f", placement.score))")
-        #endif
+        XRLog.verbose("Snap[\(phase)] source=\(placement.source.label) classification=\(classification) score=\(String(format: "%.3f", placement.score))")
     }
 
     private func clearSnapState(on entity: Entity, phase: String, reason: String) {
         guard entity.components[SnapStateComponent.self] != nil else { return }
         entity.components[SnapStateComponent.self] = nil
 
-        #if DEBUG
-        print("Snap[\(phase)] cleared: \(reason)")
-        #endif
+        XRLog.verbose("Snap[\(phase)] cleared: \(reason)")
     }
 
     private var currentRoomPlaneIDs: Set<UUID>? {

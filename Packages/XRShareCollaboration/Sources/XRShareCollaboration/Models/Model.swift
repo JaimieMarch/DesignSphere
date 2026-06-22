@@ -265,25 +265,17 @@ public final class Model: ObservableObject, Identifiable {
         
 
         guard fallbackMaxDimension > 0 else {
-            
-            #if DEBUG
-            print("Model \(modelType.rawValue), render bounds invalid, applying default scale")
-            #endif
+            XRLog.verbose("Model \(modelType.rawValue), render bounds invalid, applying default scale")
             entity.scale = SIMD3<Float>(repeating: targetSize)
             Self.updatePlacementMetadata(for: entity, modelType: modelType)
-            #if DEBUG
-            print("Applied default fallback scale: \(targetSize)")
-            #endif
+            XRLog.verbose("Applied default fallback scale: \(targetSize)")
             return
         }
 
-        
         let scaleFactor = targetSize / fallbackMaxDimension
         entity.scale = SIMD3<Float>(repeating: scaleFactor)
         Self.updatePlacementMetadata(for: entity, modelType: modelType)
-        #if DEBUG
-        print("Model \(modelType.rawValue) normalized via fallback: original max dimension \(fallbackMaxDimension)m,  target \(targetSize)m (scale: \(scaleFactor))")
-        #endif
+        XRLog.verbose("Model \(modelType.rawValue) normalized via fallback: original max dimension \(fallbackMaxDimension)m,  target \(targetSize)m (scale: \(scaleFactor))")
     }
     
     

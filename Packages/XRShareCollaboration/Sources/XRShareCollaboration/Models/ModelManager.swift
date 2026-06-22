@@ -186,9 +186,7 @@ public final class ModelManager: ObservableObject {
                     applySnapState(from: snappedPlacement, to: entity, phase: "spawn")
                 } else {
                     entity.components[SnapStateComponent.self] = nil
-                    #if DEBUG
-                    print("Snap[spawn] cleared: falling back to head-relative placement")
-                    #endif
+                    XRLog.verbose("Snap[spawn] cleared: falling back to head-relative placement")
                 }
                 model.position = entity.position(relativeTo: anchor)
 
