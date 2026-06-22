@@ -39,6 +39,8 @@ struct HomeScreen: View {
                         catalogUnavailableView
                     } else if controller.remoteCatalogState == .loading && filteredModels.isEmpty {
                         catalogLoadingView
+                    } else if filteredModels.isEmpty {
+                        catalogNoResultsView
                     } else {
                     LazyVGrid(columns: gridColumns(for: proxy.size.width), spacing: 14) {
                         ForEach(filteredModels) { descriptor in
@@ -95,6 +97,51 @@ struct HomeScreen: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, minHeight: 280)
+    }
+
+    private var hasActiveFilter: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || selectedSource != .all
+            || selectedCategory != .all
+    }
+
+    private func clearFilters() {
+        searchText = ""
+        selectedSource = .all
+        selectedCategory = .all
+        if sortMode == .favorites { sortMode = .alphabetical }
+    }
+
+    @ViewBuilder
+    private var catalogNoResultsView: some View {
+        let isFavorites = sortMode == .favorites && !hasActiveFilter
+        VStack(spacing: 14) {
+            Image(systemName: isFavorites ? "star" : "magnifyingglass")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
+            Text(isFavorites ? "No favorites yet" : "No models match")
+                .font(.title3.weight(.semibold))
+            Text(isFavorites
+                 ? "Tap the star on any model to add it to your favorites."
+                 : "Try a different search, or clear your filters to see the full catalog.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 360)
+            if isFavorites {
+                Button { sortMode = .alphabetical } label: {
+                    Label("Browse all", systemImage: "square.grid.2x2")
+                }
+                .buttonStyle(.borderedProminent)
+            } else {
+                Button { clearFilters() } label: {
+                    Label("Clear filters", systemImage: "xmark.circle")
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 280)
+        .padding(24)
     }
 
     private var catalogUnavailableView: some View {
