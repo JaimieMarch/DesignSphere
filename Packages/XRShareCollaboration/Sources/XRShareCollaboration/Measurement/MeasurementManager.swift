@@ -69,6 +69,9 @@ public final class MeasurementManager: ObservableObject {
     private var dimensionOverlays: [UUID: DimensionOverlay] = [:]
     private var distanceOverlay: DistanceOverlay?
     private var rulerRoot: Entity?
+    /// Most recent placed-model list (from syncScene), so unit/visibility changes
+    /// can refresh the overlays immediately rather than waiting for a scene tick.
+    private var cachedModels: [Model] = []
 
     public init() {}
 
@@ -93,15 +96,30 @@ public final class MeasurementManager: ObservableObject {
         guard self.unit != unit else { return }
         self.unit = unit
         statusText = "Measurement unit set to \(unit.displayName)"
+        refreshOverlays()   // re-render existing overlays in the new unit
     }
 
     public func setShowDimensions(_ showDimensions: Bool) {
         self.showDimensions = showDimensions
         if showDimensions {
             statusText = "Object dimensions visible"
+            syncDimensionOverlays(with: cachedModels)   // show immediately
         } else {
             clearDimensionOverlays()
             statusText = "Object dimensions hidden"
+        }
+    }
+
+    /// Re-render the currently visible overlays (used when the unit changes so
+    /// labels reformat without waiting for the next scene tick).
+    private func refreshOverlays() {
+        if showDimensions {
+            syncDimensionOverlays(with: cachedModels)
+        }
+        if let distanceOverlay,
+           let first = cachedModels.first(where: { $0.id == distanceOverlay.firstID }),
+           let second = cachedModels.first(where: { $0.id == distanceOverlay.secondID }) {
+            updateDistanceOverlay(firstModel: first, secondModel: second)
         }
     }
 
@@ -166,7 +184,7 @@ public final class MeasurementManager: ObservableObject {
         }
 
         let label = makeBillboardLabel(
-            text: "1.00 m",
+            text: unit.format(distanceMeters: 1.0),   // 1 m reference, shown in the selected unit
             fontSize: 0.05,
             textColor: UIColor(red: 0.10, green: 0.10, blue: 0.12, alpha: 1.0),
             backgroundColor: UIColor(red: 0.97, green: 0.91, blue: 0.78, alpha: 0.92)
@@ -243,6 +261,7 @@ public final class MeasurementManager: ObservableObject {
     }
 
     public func syncScene(with models: [Model]) {
+        cachedModels = models
         if showDimensions {
             syncDimensionOverlays(with: models)
         } else if !dimensionOverlays.isEmpty {
@@ -264,6 +283,7 @@ public final class MeasurementManager: ObservableObject {
         clearDistanceMeasurement()
         clearVirtualRuler()
         clearDimensionOverlays()
+        cachedModels = []
         selectionState = .inactive
         statusText = "Ready"
     }
