@@ -18,9 +18,19 @@ struct HomeScreen: View {
         var id: String { rawValue }
     }
 
+    /// Textured models ship with their own materials; "Customizable" ones are
+    /// blank geometry the user colors/textures in the editor.
+    private enum Finish: String, CaseIterable, Identifiable {
+        case all = "All"
+        case textured = "Textured"
+        case customizable = "Customizable"
+        var id: String { rawValue }
+    }
+
     @State private var selectedSource: CollaborativeSessionController.ModelSource = .all
     @State private var sortMode: Sorting = .alphabetical
     @State private var selectedCategory: CollaborativeSessionController.ModelCategory = .all
+    @State private var selectedFinish: Finish = .all
     @State private var searchText: String = ""
 
     private let searchEngine = ModelSearchEngine()
@@ -103,12 +113,14 @@ struct HomeScreen: View {
         !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || selectedSource != .all
             || selectedCategory != .all
+            || selectedFinish != .all
     }
 
     private func clearFilters() {
         searchText = ""
         selectedSource = .all
         selectedCategory = .all
+        selectedFinish = .all
         if sortMode == .favorites { sortMode = .alphabetical }
     }
 
@@ -184,10 +196,11 @@ struct HomeScreen: View {
             HStack(spacing: 12) {
                 sourceFilter
                 categoryFilter
+                finishFilter
                 sortFilter
                 searchField
             }
-            .frame(maxWidth: 860, alignment: .trailing)
+            .frame(maxWidth: 980, alignment: .trailing)
         }
     }
 
@@ -257,6 +270,27 @@ struct HomeScreen: View {
         .accessibilityHint("Filter models by furniture category")
     }
 
+    private var finishFilter: some View {
+        Menu {
+            ForEach(Finish.allCases) { finish in
+                Button {
+                    selectedFinish = finish
+                } label: {
+                    if selectedFinish == finish {
+                        Label(finish.rawValue, systemImage: "checkmark")
+                    } else {
+                        Text(finish.rawValue)
+                    }
+                }
+            }
+        } label: {
+            filterCapsule(title: "Finish", value: selectedFinish.rawValue)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Finish")
+        .accessibilityHint("Show textured models, or customizable (untextured) ones")
+    }
+
     private var sortFilter: some View {
         Menu {
             ForEach(Sorting.allCases) { mode in
@@ -317,6 +351,15 @@ struct HomeScreen: View {
 
         if selectedCategory != .all {
             result = result.filter { $0.category == selectedCategory }
+        }
+
+        switch selectedFinish {
+        case .all:
+            break
+        case .textured:
+            result = result.filter { $0.type.hasBakedMaterials }
+        case .customizable:
+            result = result.filter { !$0.type.hasBakedMaterials }
         }
 
         // When searching, the engine both filters and orders by intent relevance,

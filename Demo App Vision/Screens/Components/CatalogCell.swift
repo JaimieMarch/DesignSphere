@@ -87,6 +87,18 @@ struct CatalogCell: View {
                 .accessibilityHint("Double tap retry to try again")
             }
         }
+        .overlay(alignment: .topLeading) {
+            // Untextured models are blank canvases the user colors in the editor.
+            if modelType?.hasBakedMaterials == false {
+                Image(systemName: "paintbrush.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(7)
+                    .background(.ultraThinMaterial, in: Circle())
+                    .padding(8)
+                    .accessibilityLabel("Customizable — set color and material in the editor")
+            }
+        }
         .overlay(alignment: .topTrailing) {
             // Show remove button in remove mode, favorite star otherwise
             if showRemove, let onRemove = onRemove {
