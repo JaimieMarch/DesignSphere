@@ -214,7 +214,9 @@ struct StarterView: View {
         .sheet(isPresented: $sheetState.showImportSheet) {
             ImportModelSheet(isPresented: $sheetState.showImportSheet, controller: controller)
         }
-        .sheet(isPresented: $sheetState.showTutorial) {
+        .sheet(isPresented: $sheetState.showTutorial, onDismiss: {
+            appSettings.markOnboardingCompleted()
+        }) {
             TutorialHubSheet(isPresented: $sheetState.showTutorial)
         }
         .overlay {
@@ -299,6 +301,11 @@ struct StarterView: View {
         withAnimation {
             loadingState.isLoading = false
         }
+
+        // First run: surface the walkthrough so newcomers learn the key flows.
+        if !appSettings.hasCompletedOnboarding {
+            sheetState.showTutorial = true
+        }
     }
     
     private func ensureImmersiveSpaceOpened() async {
@@ -334,26 +341,35 @@ private struct TutorialHubSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Choose Tutorial Style") {
+                Section {
                     NavigationLink {
                         InteractiveWalkthroughView()
                     } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Interactive Walkthrough")
-                                .font(.headline)
-                            Text("Guided overlay-style steps that explain key UI areas.")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                        Label {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Interactive Walkthrough")
+                                    .font(.headline)
+                                Text("A quick tour of browsing, placing, customizing, and saving.")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } icon: {
+                            Image(systemName: "sparkles")
+                                .foregroundStyle(.tint)
                         }
                     }
 
-                    // Video tutorials temporarily removed — videos not yet bundled
+                    // Video tutorials will appear here once bundled.
+                } header: {
+                    Text("Learn the basics")
+                } footer: {
+                    Text("You can reopen this anytime from Settings › Tutorial.")
                 }
             }
-            .navigationTitle("Tutorial Center")
+            .navigationTitle("Welcome to DesignSphere")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Exit") { isPresented = false }
+                    Button("Done") { isPresented = false }
                 }
             }
         }
@@ -361,109 +377,111 @@ private struct TutorialHubSheet: View {
 }
 
 private struct InteractiveWalkthroughView: View {
-    @EnvironmentObject private var appSettings: AppSettings
     @Environment(\.dismiss) private var dismiss
     @State private var currentStepIndex = 0
 
     private struct Step: Identifiable {
         let id: Int
+        let icon: String
         let title: String
-        let target: String
         let description: String
     }
 
     private let steps: [Step] = [
         .init(
             id: 0,
-            title: "Navigation Rail",
-            target: "Left Navigation Ornament",
-            description: "Use Home, Details, and Settings tabs to move between major surfaces."
+            icon: "square.grid.2x2.fill",
+            title: "Browse the catalog",
+            description: "Explore 180+ furniture and décor models. Search understands intent — type “sofa” to surface every seating piece — and filter by category or by Textured vs Customizable finish."
         ),
         .init(
             id: 1,
-            title: "Action Toolbar",
-            target: "Bottom Toolbar Ornament",
-            description: "Open Focus Mode, Import, Measurement (if enabled), and Edit controls."
+            icon: "hand.tap.fill",
+            title: "Place a model",
+            description: "Tap any model to drop it into your space. It downloads the first time you use it, then appears true-to-scale in front of you."
         ),
         .init(
             id: 2,
-            title: "Model Catalog",
-            target: "Home Screen Grid",
-            description: "Browse models, apply source/category filters, and mark favorites."
+            icon: "paintbrush.fill",
+            title: "Customize it",
+            description: "Tap a placed model to select it, then tap the Edit chip above it to resize, reposition, recolor, and apply materials — ideal for the Customizable (untextured) pieces."
         ),
         .init(
             id: 3,
-            title: "Project Controls",
-            target: "Details Screen",
-            description: "Save, load, and manage room projects and anchors."
+            icon: "ruler.fill",
+            title: "Measure & arrange",
+            description: "Show object dimensions, measure the distance between items, or drop a virtual ruler — then arrange your room to exact scale."
+        ),
+        .init(
+            id: 4,
+            icon: "square.and.arrow.down.fill",
+            title: "Save your room",
+            description: "Save layouts as projects from the Details screen, and reload them whenever you return."
         ),
     ]
 
     private var step: Step { steps[currentStepIndex] }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text("Interactive Walkthrough")
-                .font(.largeTitle.bold())
-
-            Text("Step \(currentStepIndex + 1) of \(steps.count)")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(.thinMaterial)
-                .overlay(alignment: .topLeading) {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(step.title)
-                            .font(.title2.bold())
-                        Text("Highlight: \(step.target)")
-                            .font(.headline)
-                        Text(step.description)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(20)
-                }
-                .frame(height: 220)
-                .overlay(alignment: .bottomTrailing) {
-                    // Simulated spotlight marker for overlay-style onboarding.
+        VStack(spacing: 28) {
+            HStack(spacing: 8) {
+                ForEach(steps) { dot in
                     Circle()
-                        .strokeBorder(style: StrokeStyle(lineWidth: 3, dash: [6]))
-                        .foregroundStyle(.yellow)
-                        .frame(width: 70, height: 70)
-                        .padding(20)
+                        .fill(dot.id == currentStepIndex ? Color.accentColor : Color.secondary.opacity(0.3))
+                        .frame(width: 8, height: 8)
                 }
+            }
+            .padding(.top, 8)
+
+            Spacer()
+
+            Image(systemName: step.icon)
+                .font(.system(size: 72))
+                .foregroundStyle(.tint)
+                .frame(height: 96)
+                .id(step.id)
+                .transition(.opacity)
+
+            VStack(spacing: 12) {
+                Text(step.title)
+                    .font(.largeTitle.bold())
+                    .multilineTextAlignment(.center)
+                Text(step.description)
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 540)
+            }
+
+            Spacer()
 
             HStack {
                 Button("Back") {
-                    currentStepIndex = max(0, currentStepIndex - 1)
+                    withAnimation { currentStepIndex = max(0, currentStepIndex - 1) }
                 }
+                .opacity(currentStepIndex == 0 ? 0 : 1)
                 .disabled(currentStepIndex == 0)
 
                 Spacer()
 
                 if currentStepIndex < steps.count - 1 {
                     Button("Next") {
-                        currentStepIndex += 1
+                        withAnimation { currentStepIndex += 1 }
                     }
                     .buttonStyle(.borderedProminent)
                 } else {
-                    Button("Finish") {
-                        dismiss()
-                    }
-                    .buttonStyle(.borderedProminent)
+                    Button("Get Started") { dismiss() }
+                        .buttonStyle(.borderedProminent)
                 }
             }
         }
-        .padding(28)
-        .navigationTitle("Walkthrough")
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationTitle("Welcome")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Exit") { dismiss() }
+                Button("Skip") { dismiss() }
             }
-        }
-        .onAppear {
-            appSettings.markOnboardingIncompleteForReplay()
         }
     }
 }

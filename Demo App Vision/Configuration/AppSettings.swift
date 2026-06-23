@@ -39,6 +39,13 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    /// True once the user has seen (or dismissed) the first-run walkthrough.
+    @Published var hasCompletedOnboarding: Bool {
+        didSet {
+            UserDefaults.standard.set(hasCompletedOnboarding, forKey: Keys.onboardingCompleted)
+        }
+    }
+
     init() {
         let defaults = UserDefaults.standard
         highContrastTextEnabled = defaults.bool(forKey: Keys.highContrastText)
@@ -50,6 +57,11 @@ final class AppSettings: ObservableObject {
         labsMeasurementToolsEnabled = defaults.bool(forKey: Keys.labsMeasurementTools)
         let storedCollisionMode = defaults.string(forKey: Keys.collisionMode)
         collisionMode = storedCollisionMode.flatMap(FurnitureCollisionMode.init(rawValue:)) ?? .warn
+        hasCompletedOnboarding = defaults.bool(forKey: Keys.onboardingCompleted)
+    }
+
+    func markOnboardingCompleted() {
+        hasCompletedOnboarding = true
     }
 
     func clearStoredFavorites() {
@@ -67,6 +79,6 @@ final class AppSettings: ObservableObject {
     }
 
     func markOnboardingIncompleteForReplay() {
-        UserDefaults.standard.set(false, forKey: Keys.onboardingCompleted)
+        hasCompletedOnboarding = false
     }
 }
