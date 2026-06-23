@@ -109,6 +109,25 @@ struct HomeScreen: View {
         .frame(maxWidth: .infinity, minHeight: 280)
     }
 
+    private var catalogCountText: String {
+        let shown = filteredModels.count
+        let total = controller.availableModels.count
+        if shown == total {
+            return "\(total) models"
+        }
+        return "\(shown) of \(total) models"
+    }
+
+    /// Sources/categories actually present in the catalog, so filter menus don't
+    /// offer options that would always come up empty.
+    private var availableSources: Set<CollaborativeSessionController.ModelSource> {
+        Set(controller.availableModels.map { $0.source })
+    }
+
+    private var availableCategories: Set<CollaborativeSessionController.ModelCategory> {
+        Set(controller.availableModels.map { $0.category })
+    }
+
     private var hasActiveFilter: Bool {
         !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             || selectedSource != .all
@@ -186,7 +205,7 @@ struct HomeScreen: View {
                     .font(.largeTitle.bold())
                     .lineLimit(1)
 
-                Text("\(filteredModels.count) items available")
+                Text(catalogCountText)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -227,7 +246,7 @@ struct HomeScreen: View {
     private var sourceFilter: some View {
         Menu {
             ForEach(CollaborativeSessionController.ModelSource.allCases, id: \.self) { source in
-                if source != .unknown {
+                if source == .all || availableSources.contains(source) {
                     Button {
                         selectedSource = source
                     } label: {
@@ -250,7 +269,7 @@ struct HomeScreen: View {
     private var categoryFilter: some View {
         Menu {
             ForEach(CollaborativeSessionController.ModelCategory.allCases, id: \.self) { category in
-                if category != .unknown {
+                if category == .all || availableCategories.contains(category) {
                     Button {
                         selectedCategory = category
                     } label: {
