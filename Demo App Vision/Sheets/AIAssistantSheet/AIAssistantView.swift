@@ -113,7 +113,17 @@ struct AIAssistantView: View {
             .frame(maxWidth: .infinity, minHeight: 180)
         } else {
             VStack(alignment: .leading, spacing: 12) {
-                Text(headline).font(.headline)
+                HStack {
+                    Text(headline).font(.headline)
+                    Spacer()
+                    Button(action: placeAll) {
+                        Label("Place all", systemImage: "square.stack.3d.up.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(unplacedSuggestions.isEmpty)
+                    .accessibilityHint("Arranges all suggestions on the floor in front of you")
+                }
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 12)], spacing: 12) {
                         ForEach(suggestions) { descriptor in
@@ -187,6 +197,17 @@ struct AIAssistantView: View {
         guard !placedIDs.contains(descriptor.id) else { return }
         controller.addModel(descriptor)
         placedIDs.insert(descriptor.id)
+    }
+
+    private var unplacedSuggestions: [CollaborativeSessionController.ModelDescriptor] {
+        suggestions.filter { !placedIDs.contains($0.id) }
+    }
+
+    private func placeAll() {
+        let toPlace = unplacedSuggestions
+        guard !toPlace.isEmpty else { return }
+        controller.placeArrangedModels(toPlace)
+        placedIDs.formUnion(toPlace.map(\.id))
     }
 
     private func submitPrompt() {

@@ -727,6 +727,73 @@ public final class CollaborativeSessionController: ObservableObject {
         modelManager.loadModel(for: descriptor.type, arViewModel: arViewModel)
     }
 
+    #if os(visionOS)
+    /// Places a coordinated set of models arranged on the floor in front of the
+    /// viewer (spread in rows) instead of stacking them at one spot — used by
+    /// the Design Assistant's "Place all".
+    @available(visionOS 26.0, *)
+    public func placeArrangedModels(_ descriptors: [ModelDescriptor]) {
+        guard !descriptors.isEmpty else { return }
+        let positions = arrangedPositions(count: descriptors.count)
+        Task { @MainActor in
+            for (descriptor, position) in zip(descriptors, positions) {
+                _ = await loadModelAtPosition(
+                    modelType: descriptor.type,
+                    instanceID: UUID(),
+                    position: position,
+                    rotation: simd_quatf(angle: 0, axis: SIMD3<Float>(0, 1, 0)),
+                    scale: SIMD3<Float>(repeating: 1)
+                )
+            }
+        }
+    }
+
+    private func arrangedPositions(count: Int) -> [SIMD3<Float>] {
+        let frame = viewerPlacementFrame()
+        let spacing: Float = 0.85
+        let perRow = min(max(count, 1), 3)
+        var positions: [SIMD3<Float>] = []
+        for index in 0..<count {
+            let row = index / perRow
+            let column = index % perRow
+            let countInRow = min(perRow, count - row * perRow)
+            let centeredColumn = Float(column) - Float(countInRow - 1) / 2
+            let position = frame.base
+                + frame.right * (centeredColumn * spacing)
+                + frame.forward * (Float(row) * spacing)
+            positions.append(position)
+        }
+        return positions
+    }
+
+    /// A floor-level placement frame in shared-anchor space: a base point in
+    /// front of the viewer plus right/forward axes. Falls back to a fixed
+    /// in-front layout when there's no head tracking (e.g. the simulator).
+    private func viewerPlacementFrame() -> (base: SIMD3<Float>, right: SIMD3<Float>, forward: SIMD3<Float>) {
+        let anchor = arViewModel.sharedAnchorEntity
+        if let deviceTransform = worldTrackingProvider?
+            .queryDeviceAnchor(atTimestamp: CACurrentMediaTime())?
+            .originFromAnchorTransform {
+            let viewerWorld = SIMD3<Float>(
+                deviceTransform.columns.3.x, deviceTransform.columns.3.y, deviceTransform.columns.3.z
+            )
+            var forwardWorld = SIMD3<Float>(-deviceTransform.columns.2.x, 0, -deviceTransform.columns.2.z)
+            if simd_length_squared(forwardWorld) < 1e-5 { forwardWorld = SIMD3<Float>(0, 0, -1) }
+            forwardWorld = simd_normalize(forwardWorld)
+            let rightWorld = simd_normalize(simd_cross(forwardWorld, SIMD3<Float>(0, 1, 0)))
+
+            let viewerLocal = anchor.convert(position: viewerWorld, from: nil)
+            let forwardLocal = simd_normalize(anchor.convert(position: viewerWorld + forwardWorld, from: nil) - viewerLocal)
+            let rightLocal = simd_normalize(anchor.convert(position: viewerWorld + rightWorld, from: nil) - viewerLocal)
+            let base = SIMD3<Float>(viewerLocal.x, 0, viewerLocal.z) + forwardLocal * 1.6
+            return (SIMD3<Float>(base.x, 0, base.z),
+                    SIMD3<Float>(rightLocal.x, 0, rightLocal.z),
+                    SIMD3<Float>(forwardLocal.x, 0, forwardLocal.z))
+        }
+        return (SIMD3<Float>(0, 0, -1.8), SIMD3<Float>(1, 0, 0), SIMD3<Float>(0, 0, -1))
+    }
+    #endif
+
     /// Load a model at specific position, rotation, and scale
     public func loadModelAtPosition(
         modelType: ModelType,
