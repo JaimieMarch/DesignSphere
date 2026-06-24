@@ -146,6 +146,29 @@ public struct DesignAdvisor {
         return Array(ranked.prefix(limit))
     }
 
+    // MARK: - Category picks
+
+    /// Models drawn from the given category keys, preferring textured models —
+    /// used when a (natural-language) request names categories rather than a room.
+    public func models<Item: DesignCatalogItem>(
+        inCategories keys: [String],
+        from catalog: [Item],
+        maxPerCategory: Int = 2
+    ) -> [Item] {
+        var used = Set<String>()
+        var result: [Item] = []
+        for key in keys {
+            let candidates = catalog.filter { $0.categoryKey == key && !used.contains($0.advisorID) }
+            let textured = candidates.filter { $0.isTextured }
+            let tier = (textured.isEmpty ? candidates : textured).shuffled()
+            for pick in tier.prefix(maxPerCategory) {
+                used.insert(pick.advisorID)
+                result.append(pick)
+            }
+        }
+        return result
+    }
+
     // MARK: - Selection
 
     /// Prefer textured candidates; pick randomly within the preferred tier for

@@ -12,18 +12,46 @@ struct AIAssistantView: View {
     @State private var suggestions: [CollaborativeSessionController.ModelDescriptor] = []
     @State private var headline = ""
     @State private var placedIDs: Set<String> = []
+    @State private var prompt = ""
+    @State private var isThinking = false
 
     private var hasPlacedModels: Bool { !controller.placedModelDescriptors.isEmpty }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             header
+            if DesignAssistantLLM.isAvailable {
+                naturalLanguageField
+            }
             quickActions
             Divider().opacity(0.4)
             suggestionsArea
             Spacer(minLength: 0)
         }
         .padding(28)
+    }
+
+    // MARK: - Natural language (on-device LLM, when available)
+
+    private var naturalLanguageField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Describe what you want").font(.headline)
+            HStack(spacing: 10) {
+                TextField("e.g. a cozy minimalist reading nook", text: $prompt)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit(submitPrompt)
+                Button(action: submitPrompt) {
+                    if isThinking {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.up.circle.fill").font(.title2)
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(prompt.trimmingCharacters(in: .whitespaces).isEmpty || isThinking)
+                .accessibilityLabel("Ask the assistant")
+            }
+        }
     }
 
     // MARK: - Header
@@ -159,5 +187,30 @@ struct AIAssistantView: View {
         guard !placedIDs.contains(descriptor.id) else { return }
         controller.addModel(descriptor)
         placedIDs.insert(descriptor.id)
+    }
+
+    private func submitPrompt() {
+        let text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, !isThinking else { return }
+        isThinking = true
+        Task {
+            let interpretation = await DesignAssistantLLM.interpret(text)
+            applyInterpretation(interpretation, request: text)
+            isThinking = false
+        }
+    }
+
+    private func applyInterpretation(_ interpretation: DesignAssistantLLM.Interpretation?, request: String) {
+        placedIDs = []
+        if let room = interpretation?.room {
+            suggestions = advisor.roomSet(for: room, from: controller.availableModels)
+            headline = "Ideas for “\(request)”"
+        } else if let keys = interpretation?.categoryKeys, !keys.isEmpty {
+            suggestions = advisor.models(inCategories: keys, from: controller.availableModels)
+            headline = "Ideas for “\(request)”"
+        } else {
+            suggestions = []
+            headline = "I couldn't turn that into suggestions — try a room above."
+        }
     }
 }

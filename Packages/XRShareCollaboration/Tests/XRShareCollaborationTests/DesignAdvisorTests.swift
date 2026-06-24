@@ -86,6 +86,21 @@ final class DesignAdvisorTests: XCTestCase {
 
     // MARK: - Similar
 
+    // MARK: - Category picks
+
+    func testModelsInCategoriesReturnsOnlyRequestedCategories() {
+        let picks = advisor.models(inCategories: ["lighting", "decor"], from: catalog, maxPerCategory: 2)
+        XCTAssertFalse(picks.isEmpty)
+        XCTAssertTrue(picks.allSatisfy { ["lighting", "decor"].contains($0.categoryKey) })
+        XCTAssertEqual(Set(picks.map(\.advisorID)).count, picks.count, "no duplicates")
+        XCTAssertLessThanOrEqual(picks.filter { $0.categoryKey == "lighting" }.count, 2)
+    }
+
+    func testModelsInCategoriesIgnoresUnknownKeys() {
+        let picks = advisor.models(inCategories: ["spaceship"], from: catalog)
+        XCTAssertTrue(picks.isEmpty)
+    }
+
     func testSimilarReturnsSameCategoryOnly() {
         let target = catalog.first { $0.categoryKey == "lighting" }!
         let similar = advisor.similar(to: target, from: catalog)
