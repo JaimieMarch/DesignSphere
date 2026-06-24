@@ -15,6 +15,8 @@ Designed for students, interior designers, real estate stagers, and businesses a
 - **Intuitive Interface**: Clean, floating translucent menus that adhere to Apple's design language, with gesture-based controls that stay out of the way while remaining easily accessible
 - **Remote Model Catalog**: A cloud-hosted catalog of 180+ furniture and décor models (Cloudflare R2) that the app browses instantly and downloads on demand — with hosted thumbnails, a per-model download progress indicator, on-device caching with LRU eviction, and offline fallback to the last-loaded catalog
 - **Intent-Aware Search**: Catalog search that understands the *idea* behind a query — searching "sofa" surfaces every seating item, "lighting" finds lamps and chandeliers — via a curated category/synonym vocabulary (see `ModelSearchEngine`)
+- **Design Assistant**: An on-device assistant that furnishes a room in one tap (Living Room / Bedroom / Office / Dining), completes a space by suggesting the pieces it's missing, and arranges a whole set in front of you — all free, offline, and catalog-driven (see `DesignAdvisor`). On Apple-Intelligence hardware it also accepts natural-language requests via Apple's on-device **Foundation Models** (no API key, no cost)
+- **Designer Palettes**: Curated interior-design color palettes (`PaletteAdvisor`) in the editor for quickly finishing the untextured "Customizable" models
 - **Advanced Model Editing**: Comprehensive editing tools allowing users to adjust size, position, rotation, style, texture, and color of each item
 - **Spatial Recognition**: Built-in spatial APIs anchor objects with incredible accuracy, matching scale and perspective to your room's exact dimensions
 - **Project Management**: Save and organize multiple room layouts, create different versions to compare design options, and return to previous projects anytime
@@ -24,9 +26,8 @@ Designed for students, interior designers, real estate stagers, and businesses a
 
 - **Model Import**: Import custom USDZ files from your device to expand the furniture library
 - **Focus Modes**: Interface for toggling real-world item visibility and accessing neutral design spaces
-- **Measurement Tools**: UI for displaying room dimensions and object measurements with ruler functionality
-- **AI Design Assistant**: Voice-activated assistant interface for design suggestions and guidance
-- **SharePlay Collaboration**: Multi-user session interface with session codes for real-time collaboration
+- **Measurement Tools**: Object dimensions, distance between objects, and a virtual ruler (manager + UI complete; spatial overlays verified on device)
+- **SharePlay Collaboration**: Multi-user session interface with session codes for real-time collaboration (UI present; peer-to-peer networking in development)
 
 ### Planned Features
 
@@ -62,7 +63,7 @@ Designed for students, interior designers, real estate stagers, and businesses a
 - **Remote catalog over Cloudflare R2**: a JSON manifest (`catalog.json`) plus per-model `usdz` and thumbnails are served from object storage; the app fetches the manifest at launch and downloads models lazily on placement (`RemoteCatalogService`, `ModelFileStore`), verifying each download's SHA-256 and caching under `Caches/` with an LRU budget
 - **Swift Package (`XRShareCollaboration`)** holds the reusable engine: catalog, search, measurement, manipulation, and model management — covered by an XCTest suite
 
-The remote-catalog system (asset pipeline → R2 → in-app loader) is documented in [docs/remote-catalog.md](docs/remote-catalog.md).
+The remote-catalog system (asset pipeline → R2 → in-app loader) is documented in [docs/remote-catalog.md](docs/remote-catalog.md); the on-device Design Assistant (recommendations + optional Foundation Models layer) in [docs/design-assistant.md](docs/design-assistant.md).
 
 ## Model Catalog
 
@@ -185,7 +186,7 @@ loads the hosted catalog and downloads a model, so it requires network access.
 - **Edit Panel in Simulator**: the floating edit panel renders via RealityView attachments and does **not** draw in the visionOS simulator (a simulator limitation, not the app); the open/position logic is verified, and it is expected to render on a physical device
 - **Model Import**: Currently only supports USDZ format; OBJ and FBX support planned for future releases
 - **SharePlay**: UI implemented but peer-to-peer networking functionality in development
-- **AI Assistant**: Voice interface present but AI integration pending
+- **Design Assistant**: Recommendations are on-device and work everywhere; the natural-language box requires Apple-Intelligence hardware (visionOS 26) and so does not appear in the simulator
 - **Simulator Testing**: Full spatial tracking features require physical Vision Pro hardware; simulator provides limited AR capabilities
 
 ## Development Status
@@ -227,7 +228,7 @@ Our roadmap is driven by both user feedback and the evolution of spatial computi
 - add removed screens back into workflow
 - complete the measurement tools (manager + UI largely built; verify/polish)
 - go through apple guidelines and conform
-- AI design assistant: wire the assistant shell to real catalog-driven suggestions
+- ~~AI design assistant: wire the assistant shell to real catalog-driven suggestions~~ — **done**: on-device recommender + optional Foundation Models layer ([docs/design-assistant.md](docs/design-assistant.md))
 
 ### Contributing to Development
 
