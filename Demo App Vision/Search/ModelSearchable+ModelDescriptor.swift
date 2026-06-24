@@ -11,3 +11,9 @@ extension CollaborativeSessionController.ModelDescriptor: @retroactive ModelSear
     public var searchName: String { name }
     public var searchCategoryKey: String { category.rawValue }
 }
+
+extension CollaborativeSessionController.ModelDescriptor: @retroactive DesignCatalogItem {
+    public var advisorID: String { id }
+    public var categoryKey: String { category.rawValue }
+    public var isTextured: Bool { type.hasBakedMaterials }
+}

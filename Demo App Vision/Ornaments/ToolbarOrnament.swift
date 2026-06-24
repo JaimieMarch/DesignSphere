@@ -10,7 +10,8 @@ struct ToolbarOrnament: View {
     @Binding var showMeasurementOptions: Bool
     @Binding var showFocusModeSheet: Bool
     @Binding var showImportSheet: Bool
-    
+    @Binding var showAIAssistant: Bool
+
     var body: some View {
         Color.clear
             .toolbar {
@@ -45,6 +46,15 @@ struct ToolbarOrnament: View {
                         )
                         .accessibilityLabel("Import model")
                         .accessibilityHint("Import a custom 3D model from your device")
+
+                        if AppFeatureFlags.aiAssistantEnabled {
+                            ornamentButton(
+                                systemImage: "sparkles",
+                                action: { showAIAssistant = true }
+                            )
+                            .accessibilityLabel("Design assistant")
+                            .accessibilityHint("Get furniture suggestions and furnish a room")
+                        }
 
                         Menu {
                             ForEach(FurnitureCollisionMode.allCases) { mode in

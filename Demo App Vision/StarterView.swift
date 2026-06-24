@@ -33,6 +33,7 @@ struct SheetVisibilityState {
     var showFocusModeSheet = false
     var showImportSheet = false
     var showTutorial = false
+    var showAIAssistant = false
 }
 
 // enforce vision OS 26 or higher
@@ -156,7 +157,8 @@ struct StarterView: View {
                         controller: controller,
                         showMeasurementOptions: $sheetState.showMeasurementOptions,
                         showFocusModeSheet: $sheetState.showFocusModeSheet,
-                        showImportSheet: $sheetState.showImportSheet
+                        showImportSheet: $sheetState.showImportSheet,
+                        showAIAssistant: $sheetState.showAIAssistant
                     )
                 }
             }
@@ -213,6 +215,11 @@ struct StarterView: View {
         }
         .sheet(isPresented: $sheetState.showImportSheet) {
             ImportModelSheet(isPresented: $sheetState.showImportSheet, controller: controller)
+        }
+        .sheet(isPresented: $sheetState.showAIAssistant) {
+            if AppFeatureFlags.aiAssistantEnabled {
+                AIAssistantSheet(isPresented: $sheetState.showAIAssistant, controller: controller)
+            }
         }
         .sheet(isPresented: $sheetState.showTutorial, onDismiss: {
             appSettings.markOnboardingCompleted()

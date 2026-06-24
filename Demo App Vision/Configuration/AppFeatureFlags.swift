@@ -4,7 +4,7 @@ enum AppFeatureFlags {
     static let settingsScreenEnabled = true
     static let measurementToolsEnabled = true
     static let sharePlayEnabled = false
-    static let aiAssistantEnabled = false
+    static let aiAssistantEnabled = true
 
     /// When enabled, the catalog is served from the remote manifest (R2) and
     /// models download lazily on placement, replacing the bundled models.
