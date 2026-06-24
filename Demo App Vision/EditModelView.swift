@@ -105,6 +105,8 @@ struct EditModelView: View {
                             coordinateControl(title: "Z Position", value: $Z)
                                 .padding(.vertical, 8)
                         } else {
+                            paletteSection
+
                             VStack(spacing: 16) {
                                 Text("Colour")
                                     .font(.title3.weight(.semibold))
@@ -444,6 +446,53 @@ struct EditModelView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(title) material")
         .accessibilityHint("Apply \(title.lowercased()) texture to the model")
+    }
+
+    private var paletteSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Designer Palettes")
+                .font(.title3.weight(.semibold))
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 18) {
+                    ForEach(PaletteAdvisor.palettes) { palette in
+                        VStack(spacing: 6) {
+                            HStack(spacing: 4) {
+                                ForEach(palette.colors) { paletteColor in
+                                    Circle()
+                                        .fill(color(for: paletteColor))
+                                        .frame(width: 30, height: 30)
+                                        .overlay(Circle().stroke(.white.opacity(0.25), lineWidth: 1))
+                                        .onTapGesture { applyPaletteColor(paletteColor) }
+                                        .accessibilityLabel("\(paletteColor.name), \(palette.name)")
+                                        .accessibilityHint("Apply this color to the model")
+                                }
+                            }
+                            Text(palette.name)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
+        }
+        .padding()
+        .background(.thinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    }
+
+    private func color(for paletteColor: PaletteColor) -> Color {
+        Color(red: paletteColor.red, green: paletteColor.green, blue: paletteColor.blue)
+    }
+
+    private func applyPaletteColor(_ paletteColor: PaletteColor) {
+        let swiftUIColor = color(for: paletteColor)
+        selectedColor = swiftUIColor
+        var material = PhysicallyBasedMaterial()
+        material.baseColor = .init(tint: UIColor(swiftUIColor))
+        controller.applyMaterialToSelectedModel(material, materialType: "custom")
     }
 
     private func colorCircle(_ color: Color) -> some View {
