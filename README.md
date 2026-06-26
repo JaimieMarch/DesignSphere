@@ -22,12 +22,12 @@ Designed for students, interior designers, real estate stagers, and businesses a
 - **Project Management**: Save and organize multiple room layouts, create different versions to compare design options, and return to previous projects anytime
 - **Location-Aware Loading**: The app can recognize a space and automatically load the related design when you return
 
-### Additional Features (UI Implemented, Functionality In Development)
+### Additional Features (status as audited — see [docs/project-audit.md](docs/project-audit.md))
 
-- **Model Import**: Import custom USDZ files from your device to expand the furniture library
-- **Focus Modes**: Interface for toggling real-world item visibility and accessing neutral design spaces
-- **Measurement Tools**: Object dimensions, distance between objects, and a virtual ruler (manager + UI complete; spatial overlays verified on device)
-- **SharePlay Collaboration**: Multi-user session interface with session codes for real-time collaboration (UI present; peer-to-peer networking in development)
+- **Model Import** *(complete, USDZ)*: Import custom USDZ files from your device — validated, de-duplicated, persisted to `Documents/Imports/`, and surfaced in the catalog immediately. OBJ/FBX conversion is the only remaining gap.
+- **Measurement Tools** *(complete; in the default toolbar)*: Object dimensions, object-to-object distance, a virtual ruler, and unit conversion — fully wired via `MeasurementManager` and shown via the ruler button in the bottom toolbar. On-device verification of the overlays is the remaining check.
+- **Focus Mode** *(neutral design space done)*: A themed, resizable neutral room shell (4 themes + lighting + head-anchored recentering) that replaces the surrounding environment for distraction-free design. It does **not** selectively erase individual real-world items from passthrough.
+- **SharePlay Collaboration** *(disabled / removed from UI)*: Session UI exists as code but is **not wired in** — the feature flag is off, the toolbar button is removed, and peer-to-peer networking is not implemented.
 
 ### Planned Features
 
@@ -184,10 +184,14 @@ loads the hosted catalog and downloads a model, so it requires network access.
 
 - **World Anchor Persistence**: Projects anchored to physical locations work best when loaded in the same room where they were created
 - **Edit Panel in Simulator**: the floating edit panel renders via RealityView attachments and does **not** draw in the visionOS simulator (a simulator limitation, not the app); the open/position logic is verified, and it is expected to render on a physical device
+- **Measurement Tools**: Fully implemented and available from the bottom toolbar; the spatial overlays/ruler render via RealityKit and so are subject to the same simulator caveat as the edit panel (verify on device)
 - **Model Import**: Currently only supports USDZ format; OBJ and FBX support planned for future releases
-- **SharePlay**: UI implemented but peer-to-peer networking functionality in development
+- **Focus Mode**: Provides a neutral enclosing design space, not selective removal of individual real-world items from passthrough
+- **SharePlay**: Disabled — the feature flag is off, the toolbar button is removed, and peer-to-peer networking is not yet implemented (the session UI is present in the codebase but not wired in)
 - **Design Assistant**: Recommendations are on-device and work everywhere; the natural-language box requires Apple-Intelligence hardware (visionOS 26) and so does not appear in the simulator
 - **Simulator Testing**: Full spatial tracking features require physical Vision Pro hardware; simulator provides limited AR capabilities
+
+A full feature-by-feature audit (what's done, gated, or deferred) lives in [docs/project-audit.md](docs/project-audit.md).
 
 ## Development Status
 
@@ -225,8 +229,9 @@ Our roadmap is driven by both user feedback and the evolution of spatial computi
 - ~~intent-aware catalog search~~ — **done** (`ModelSearchEngine`, see test suite)
 - verify the floating edit panel on a physical device (renders via RealityView attachments; does not draw in the simulator)
 - finalize all required functionality for acceptable release version
-- add removed screens back into workflow
-- complete the measurement tools (manager + UI largely built; verify/polish)
+- resolve removed/orphaned UI: decide SharePlay's fate (delete vs. wire)
+- ~~complete the measurement tools~~ — **done**: dimensions, distance, ruler, units all wired (`MeasurementManager`) and graduated from Labs into the default toolbar; remaining work is on-device verification
+- audit `Info.plist` privacy/usage strings (ARKit world-sensing, hand tracking, persistence) before submission
 - go through apple guidelines and conform
 - ~~AI design assistant: wire the assistant shell to real catalog-driven suggestions~~ — **done**: on-device recommender + optional Foundation Models layer ([docs/design-assistant.md](docs/design-assistant.md))
 

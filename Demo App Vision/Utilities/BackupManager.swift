@@ -81,7 +81,6 @@ struct DesignSphereBackupPayload: Codable {
     struct PreferencesSnapshot: Codable {
         let highContrastTextEnabled: Bool
         let rememberFavoritesEnabled: Bool
-        let labsMeasurementToolsEnabled: Bool
         let collisionMode: String?
     }
 
@@ -139,7 +138,6 @@ enum BackupManager {
             preferences = .init(
                 highContrastTextEnabled: appSettings.highContrastTextEnabled,
                 rememberFavoritesEnabled: appSettings.rememberFavoritesEnabled,
-                labsMeasurementToolsEnabled: appSettings.labsMeasurementToolsEnabled,
                 collisionMode: appSettings.collisionMode.rawValue
             )
         } else {
@@ -198,7 +196,6 @@ enum BackupManager {
         if let importedPreferences = payload.preferences {
             appSettings.highContrastTextEnabled = importedPreferences.highContrastTextEnabled
             appSettings.rememberFavoritesEnabled = importedPreferences.rememberFavoritesEnabled
-            appSettings.labsMeasurementToolsEnabled = importedPreferences.labsMeasurementToolsEnabled
             if let collisionModeRawValue = importedPreferences.collisionMode,
                let collisionMode = FurnitureCollisionMode(rawValue: collisionModeRawValue) {
                 appSettings.collisionMode = collisionMode

@@ -89,7 +89,7 @@ struct ToolbarOrnament: View {
                         .accessibilityLabel("Collision mode")
                         .accessibilityHint("Switch between off, warn, and prevent collision behavior")
 
-                        if AppFeatureFlags.measurementToolsEnabled && appSettings.labsMeasurementToolsEnabled {
+                        if AppFeatureFlags.measurementToolsEnabled {
                             ornamentButton(
                                 systemImage: "ruler",
                                 action: { showMeasurementOptions = true }

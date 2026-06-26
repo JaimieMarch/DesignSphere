@@ -10,7 +10,6 @@ final class AppSettings: ObservableObject {
     private enum Keys {
         static let highContrastText = "settings.highContrastTextEnabled"
         static let rememberFavorites = "settings.rememberFavoritesEnabled"
-        static let labsMeasurementTools = "settings.labs.measurementToolsEnabled"
         static let collisionMode = "settings.collisionMode"
         static let onboardingCompleted = "settings.onboardingCompleted"
     }
@@ -24,12 +23,6 @@ final class AppSettings: ObservableObject {
     @Published var rememberFavoritesEnabled: Bool {
         didSet {
             UserDefaults.standard.set(rememberFavoritesEnabled, forKey: Keys.rememberFavorites)
-        }
-    }
-
-    @Published var labsMeasurementToolsEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(labsMeasurementToolsEnabled, forKey: Keys.labsMeasurementTools)
         }
     }
 
@@ -54,7 +47,6 @@ final class AppSettings: ObservableObject {
         } else {
             rememberFavoritesEnabled = defaults.bool(forKey: Keys.rememberFavorites)
         }
-        labsMeasurementToolsEnabled = defaults.bool(forKey: Keys.labsMeasurementTools)
         let storedCollisionMode = defaults.string(forKey: Keys.collisionMode)
         collisionMode = storedCollisionMode.flatMap(FurnitureCollisionMode.init(rawValue:)) ?? .warn
         hasCompletedOnboarding = defaults.bool(forKey: Keys.onboardingCompleted)
@@ -70,7 +62,6 @@ final class AppSettings: ObservableObject {
     }
 
     func resetLabsPreferences() {
-        labsMeasurementToolsEnabled = false
         collisionMode = .warn
     }
 

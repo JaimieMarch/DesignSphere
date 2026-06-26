@@ -45,7 +45,6 @@ final class AppSettingsTests: XCTestCase {
     private let settingsKeys = [
         "settings.highContrastTextEnabled",
         "settings.rememberFavoritesEnabled",
-        "settings.labs.measurementToolsEnabled",
         "settings.collisionMode",
         "settings.onboardingCompleted",
         AppSettings.favoritesDefaultsKey,
@@ -65,7 +64,6 @@ final class AppSettingsTests: XCTestCase {
         let settings = AppSettings()
         XCTAssertFalse(settings.highContrastTextEnabled)
         XCTAssertTrue(settings.rememberFavoritesEnabled)
-        XCTAssertFalse(settings.labsMeasurementToolsEnabled)
         XCTAssertEqual(settings.collisionMode, .warn)
     }
 
@@ -73,13 +71,11 @@ final class AppSettingsTests: XCTestCase {
         let settings = AppSettings()
         settings.highContrastTextEnabled = true
         settings.rememberFavoritesEnabled = false
-        settings.labsMeasurementToolsEnabled = true
         settings.collisionMode = .prevent
 
         let restored = AppSettings()
         XCTAssertTrue(restored.highContrastTextEnabled)
         XCTAssertFalse(restored.rememberFavoritesEnabled)
-        XCTAssertTrue(restored.labsMeasurementToolsEnabled)
         XCTAssertEqual(restored.collisionMode, .prevent)
     }
 
@@ -90,12 +86,10 @@ final class AppSettingsTests: XCTestCase {
 
     func testResetLabsPreferencesPersistsDefaults() {
         let settings = AppSettings()
-        settings.labsMeasurementToolsEnabled = true
         settings.collisionMode = .prevent
         settings.resetLabsPreferences()
-        XCTAssertFalse(settings.labsMeasurementToolsEnabled)
         XCTAssertEqual(settings.collisionMode, .warn)
-        XCTAssertFalse(AppSettings().labsMeasurementToolsEnabled)
+        XCTAssertEqual(AppSettings().collisionMode, .warn)
     }
 
     func testClearFavoritesRemovesStorageAndPostsNotification() {
@@ -163,7 +157,6 @@ final class BackupValueTests: XCTestCase {
             preferences: .init(
                 highContrastTextEnabled: true,
                 rememberFavoritesEnabled: false,
-                labsMeasurementToolsEnabled: true,
                 collisionMode: FurnitureCollisionMode.prevent.rawValue
             )
         )

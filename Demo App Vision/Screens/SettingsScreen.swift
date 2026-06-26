@@ -378,21 +378,6 @@ struct SettingsScreen: View {
                 }
 
                 SettingsCard(title: "Labs") {
-                    if AppFeatureFlags.measurementToolsEnabled {
-                        Toggle(isOn: $appSettings.labsMeasurementToolsEnabled) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Measurement Tools")
-                                    .font(.headline)
-                                Text("Adds a ruler button to the toolbar for measuring distances and model dimensions.")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .toggleStyle(.switch)
-                        .accessibilityLabel("Measurement tools")
-                        .accessibilityHint("Enables the measurement tools button in the bottom toolbar")
-                    }
-
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Collision Mode")
                             .font(.headline)
