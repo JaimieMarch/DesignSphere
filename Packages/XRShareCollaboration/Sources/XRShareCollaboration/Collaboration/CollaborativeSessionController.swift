@@ -120,7 +120,7 @@ public final class CollaborativeSessionController: ObservableObject {
     @Published public private(set) var loadingProgress: Float = 0.0
     @Published public private(set) var isFocusModeActive: Bool = false
     @Published public private(set) var focusRoomDimensions: FocusModeManager.FocusRoomDimensions = FocusModeManager.FocusRoomDimensions(width: 7.0, depth: 7.0, height: 3.2)
-    @Published public private(set) var collisionMode: FurnitureCollisionMode = .warn
+    @Published public private(set) var collisionMode: FurnitureCollisionMode = .off
     @Published public private(set) var collisionWarningCount: Int = 0
     @Published public private(set) var canUndo: Bool = false
     @Published public private(set) var canRedo: Bool = false

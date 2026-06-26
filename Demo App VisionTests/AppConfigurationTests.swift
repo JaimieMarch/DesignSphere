@@ -64,7 +64,7 @@ final class AppSettingsTests: XCTestCase {
         let settings = AppSettings()
         XCTAssertFalse(settings.highContrastTextEnabled)
         XCTAssertTrue(settings.rememberFavoritesEnabled)
-        XCTAssertEqual(settings.collisionMode, .warn)
+        XCTAssertEqual(settings.collisionMode, .off)
     }
 
     func testChangesPersistAcrossInstances() {
@@ -79,17 +79,17 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(restored.collisionMode, .prevent)
     }
 
-    func testUnknownCollisionModeFallsBackToWarn() {
+    func testUnknownCollisionModeFallsBackToOff() {
         UserDefaults.standard.set("future-mode", forKey: "settings.collisionMode")
-        XCTAssertEqual(AppSettings().collisionMode, .warn)
+        XCTAssertEqual(AppSettings().collisionMode, .off)
     }
 
     func testResetLabsPreferencesPersistsDefaults() {
         let settings = AppSettings()
         settings.collisionMode = .prevent
         settings.resetLabsPreferences()
-        XCTAssertEqual(settings.collisionMode, .warn)
-        XCTAssertEqual(AppSettings().collisionMode, .warn)
+        XCTAssertEqual(settings.collisionMode, .off)
+        XCTAssertEqual(AppSettings().collisionMode, .off)
     }
 
     func testClearFavoritesRemovesStorageAndPostsNotification() {

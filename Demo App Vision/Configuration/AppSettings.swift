@@ -48,7 +48,7 @@ final class AppSettings: ObservableObject {
             rememberFavoritesEnabled = defaults.bool(forKey: Keys.rememberFavorites)
         }
         let storedCollisionMode = defaults.string(forKey: Keys.collisionMode)
-        collisionMode = storedCollisionMode.flatMap(FurnitureCollisionMode.init(rawValue:)) ?? .warn
+        collisionMode = storedCollisionMode.flatMap(FurnitureCollisionMode.init(rawValue:)) ?? .off
         hasCompletedOnboarding = defaults.bool(forKey: Keys.onboardingCompleted)
     }
 
@@ -62,7 +62,7 @@ final class AppSettings: ObservableObject {
     }
 
     func resetLabsPreferences() {
-        collisionMode = .warn
+        collisionMode = .off
     }
 
     func requestTutorialReplay() {

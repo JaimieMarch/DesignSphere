@@ -378,22 +378,21 @@ struct SettingsScreen: View {
                 }
 
                 SettingsCard(title: "Labs") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Collision Mode")
-                            .font(.headline)
-                        Text("Controls how furniture overlap is handled during placement and movement.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        Picker("Collision Mode", selection: $appSettings.collisionMode) {
-                            ForEach(FurnitureCollisionMode.allCases) { mode in
-                                Text(mode.label).tag(mode)
-                            }
+                    Toggle(isOn: Binding(
+                        get: { appSettings.collisionMode != .off },
+                        set: { appSettings.collisionMode = $0 ? .prevent : .off }
+                    )) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Collision")
+                                .font(.headline)
+                            Text("Keeps furniture from settling into overlap when placed or moved. Off by default.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                         }
-                        .pickerStyle(.segmented)
-                        .accessibilityLabel("Collision mode")
-                        .accessibilityHint("Choose how furniture collisions are handled")
                     }
+                    .toggleStyle(.switch)
+                    .accessibilityLabel("Collision")
+                    .accessibilityHint("Prevents furniture from overlapping when placed or moved")
                 }
 
                 SettingsCard(title: "Backups") {
