@@ -1232,7 +1232,11 @@ public final class CollaborativeSessionController: ObservableObject {
             billboard.blendFactor = 1.0
             attachment.components.set(billboard)
         }
-        attachment.scale = SIMD3<Float>(repeating: 0.0012)
+        // RealityView attachment entities arrive already sized in meters
+        // (points → physical size); do NOT apply the legacy 0.0012
+        // points-to-meters factor from the ViewAttachmentComponent era — it
+        // shrank the panel to under a millimeter and made it invisible.
+        attachment.scale = .one
         updateEditMenuAttachmentPosition()
     }
     #endif

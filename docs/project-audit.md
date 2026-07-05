@@ -52,9 +52,7 @@ and tests).
   drives every capability.
 - Covered by `MeasurementTests` in the package suite.
 
-**Remaining:** on-device verification of the spatial overlays/ruler (overlays
-render via RealityKit and are subject to the same simulator caveat as the edit
-panel).
+**Remaining:** on-device verification of the spatial overlays/ruler.
 
 ### ✅ Model Import — complete for USDZ
 
@@ -137,20 +135,24 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
   [`DesignSphere-Info.plist`](../DesignSphere-Info.plist) and the
   `INFOPLIST_KEY_*` build settings in the pbxproj (the two copies are
   duplicated — keep them in sync). Two follow-ups came out of the audit:
-- [ ] **Remove the unused `NSMainCameraUsageDescription`** — no code in the app
-  or package touches camera APIs (`CameraFrameProvider` etc.), and main-camera
-  access on visionOS is an enterprise-only entitlement anyway. The stray usage
-  string (in both the plist and the pbxproj) invites App Review questions for a
-  capability the app doesn't have.
-- [ ] **Verify the `com.apple.developer.arkit` entitlement key** — the
-  entitlements file claims it, but this does not appear to be a standard
-  visionOS entitlement (ARKit data access is granted via the usage-description
-  keys + runtime permission, not an entitlement). An unrecognized entitlement
-  can break device provisioning/signing. Confirm against a device build and
-  remove if bogus.
-- [ ] **On-device verification pass** — edit panel (RealityView attachments do
-  not draw in the simulator), measurement overlays + ruler, world-anchor
-  cross-room persistence, and the Foundation Models NL box.
+- [x] **Remove the unused `NSMainCameraUsageDescription`** — done 2026-07-05
+  (removed from both the plist and the pbxproj). No code in the app or package
+  touches camera APIs, and main-camera access on visionOS is an enterprise-only
+  entitlement anyway.
+- [x] **Remove the `com.apple.developer.arkit` entitlement key** — done
+  2026-07-05. It is not a standard visionOS entitlement (ARKit data access is
+  granted via the usage-description keys + runtime permission, not an
+  entitlement), and an unrecognized entitlement can break device
+  provisioning/signing. **Sanity-check the next device build** — if signing
+  complains, this is the first thing to revisit.
+- [ ] **On-device verification pass** — measurement overlays + ruler,
+  world-anchor cross-room persistence, and the Foundation Models NL box.
+  (The edit panel is no longer on this list: its invisibility was **not** a
+  simulator limitation but a leftover 0.0012 points-to-meters scale factor
+  from the `ViewAttachmentComponent` era that shrank the RealityView
+  attachment — which arrives already sized in meters — to under a millimeter.
+  Fixed 2026-07-05 and pinned by `EditMenuAttachmentTests`; it should now
+  render in the simulator and on device alike.)
 - [ ] **Resolve SharePlay** — delete vs. wire (see above).
 - [x] **Graduate Measurement out of Labs** — done 2026-06-26 (ruler now in the
   default toolbar; on-device verification still pending).

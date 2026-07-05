@@ -184,8 +184,7 @@ loads the hosted catalog and downloads a model, so it requires network access.
 ## Known Limitations
 
 - **World Anchor Persistence**: Projects anchored to physical locations work best when loaded in the same room where they were created
-- **Edit Panel in Simulator**: the floating edit panel renders via RealityView attachments and does **not** draw in the visionOS simulator (a simulator limitation, not the app); the open/position logic is verified, and it is expected to render on a physical device
-- **Measurement Tools**: Fully implemented and available from the bottom toolbar; the spatial overlays/ruler render via RealityKit and so are subject to the same simulator caveat as the edit panel (verify on device)
+- **Measurement Tools**: Fully implemented and available from the bottom toolbar; the spatial overlays/ruler still deserve an on-device verification pass
 - **Model Import**: Currently only supports USDZ format; OBJ and FBX support planned for future releases
 - **Focus Mode**: Provides a neutral enclosing design space, not selective removal of individual real-world items from passthrough
 - **SharePlay**: Disabled — the feature flag is off, the toolbar button is removed, and peer-to-peer networking is not yet implemented (the session UI is present in the codebase but not wired in)
@@ -228,7 +227,7 @@ Our roadmap is driven by both user feedback and the evolution of spatial computi
 
 - ~~move the catalogue to the cloud - keep local sandboxed storage for user uploads/spatial web~~ — **done**: catalog hosted on Cloudflare R2 with lazy download + on-device caching ([docs/remote-catalog.md](docs/remote-catalog.md))
 - ~~intent-aware catalog search~~ — **done** (`ModelSearchEngine`, see test suite)
-- verify the floating edit panel on a physical device (renders via RealityView attachments; does not draw in the simulator)
+- ~~verify the floating edit panel on a physical device (renders via RealityView attachments; does not draw in the simulator)~~ — **root-caused and fixed** (2026-07-05): the panel was never a simulator limitation; a leftover 0.0012 points-to-meters scale factor shrank it below a millimeter. It now renders at natural size everywhere (regression-tested); give it a quick on-device sanity check
 - finalize all required functionality for acceptable release version
 - resolve removed/orphaned UI: decide SharePlay's fate (delete vs. wire)
 - ~~complete the measurement tools~~ — **done**: dimensions, distance, ruler, units all wired (`MeasurementManager`) and graduated from Labs into the default toolbar; remaining work is on-device verification
