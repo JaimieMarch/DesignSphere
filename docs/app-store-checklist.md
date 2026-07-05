@@ -37,24 +37,59 @@ Status of DesignSphere against the App Review Guidelines, split into what is
 - [ ] **Review notes** — mention that the catalog streams from Cloudflare R2,
   so first launch needs network; models download on placement.
 
-## ⚠️ Open risks to resolve before submitting
+## ⚠️ The path to submission — what actually remains
 
-1. **Model asset licenses (guidelines 4.1 / 5.2 — IP).** The app
-   *redistributes* 180+ models to users from R2. Poly Haven and The Base Mesh
-   are CC0 (fine). **BlenderKit assets need a per-asset license check** —
-   BlenderKit's royalty-free license generally covers use *inside* a rendered
-   product, not redistribution of the asset files themselves. This is the
-   biggest legal/review exposure in the project. Audit `catalog.json` sources
-   and drop or replace anything not clearly redistributable.
-2. **`pub-*.r2.dev` catalog URL.** The r2.dev development URL is rate-limited
-   by Cloudflare and not intended for production traffic. Put the bucket
-   behind a custom domain before launch (`AppFeatureFlags.remoteCatalogBaseURL`).
-3. **First-launch-offline UX (2.1 completeness).** With no network and no
-   cached catalog the browse screen is empty. Reviewers test on real networks
-   so this is unlikely to block, but a friendly "connect to load the catalog"
-   state is cheap insurance (tracked in project-audit backlog).
-4. **On-device verification pass** — measurement overlays/ruler, world-anchor
-   persistence, Foundation Models NL box, and a sanity check of the edit panel
-   (its invisibility was a scale bug, fixed + regression-tested 2026-07-05).
-5. **Paid Apple Developer Program membership** and App Store distribution
-   certificate/profile for `com.designsphere.app`.
+Everything statically checkable in the repo is done (see the table above).
+These four blocks are what stand between the current state and a confident
+submission, **ordered by risk**:
+
+### 1. Asset license audit — the one real legal/rejection risk (4.1 / 5.2)
+
+- [ ] The app _redistributes_ 180+ models to users from R2. Poly Haven and
+  The Base Mesh are CC0 (fine). **BlenderKit assets need a per-asset license
+  check** — BlenderKit's royalty-free license generally covers use _inside_ a
+  rendered product, not redistribution of the asset files themselves. Audit
+  `catalog.json` sources and drop or replace anything not clearly
+  redistributable.
+
+### 2. One session on a physical Vision Pro
+
+Compliance-relevant, not just polish: guideline 2.1 rejections mostly come
+from reviewers hitting bugs, and the app hasn't been run on hardware recently.
+One device session covers all of it:
+
+- [ ] **Signing/provisioning still works** after the non-standard
+  `com.apple.developer.arkit` entitlement was removed (2026-07-05). If the
+  build won't sign, reverting that one-line entitlement change is the fix.
+- [ ] **Edit panel renders** — its invisibility was a scale bug (fixed +
+  regression-tested 2026-07-05), but only verified in the simulator so far.
+- [ ] **Measurement overlays + ruler** draw and respond to unit changes.
+- [ ] **World-anchor persistence** — save in one room, reload in place.
+- [ ] **Foundation Models NL box** appears and answers on-device (requires
+  Apple Intelligence hardware; invisible in the simulator).
+
+### 3. One DNS change
+
+- [ ] Move the catalog off `pub-*.r2.dev` (Cloudflare's rate-limited dev
+  endpoint) to a custom domain (`AppFeatureFlags.remoteCatalogBaseURL`). Not a
+  guideline violation per se — but if the endpoint throttles while a reviewer
+  browses the catalog, the app looks broken and that _is_ a 2.1 rejection.
+
+### 4. App Store Connect form-filling (~an hour, all mandatory)
+
+The "To do in App Store Connect" section above: privacy policy URL,
+"Data Not Collected" labels, support URL, device-captured screenshots, age
+rating, honest description, review notes. Plus:
+
+- [ ] **Paid Apple Developer Program membership** and an App Store
+  distribution certificate/profile for `com.designsphere.app`.
+
+### Known-but-low-risk (won't block, worth knowing)
+
+- **First-launch-offline UX (2.1):** with no network and no cached catalog the
+  browse screen is empty. Reviewers test on real networks, so this is unlikely
+  to block; a friendly "connect to load the catalog" state is cheap insurance
+  (tracked in the project-audit backlog).
+- **HIG / design conformance (2.4 / 4.0):** inherently a live-device judgment
+  call by Apple; the UI follows visionOS conventions, so treat as low risk but
+  unverifiable in advance.
