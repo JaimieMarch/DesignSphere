@@ -38,7 +38,7 @@ struct ToolbarOrnament: View {
                             action: { showFocusModeSheet = true }
                         )
                         .accessibilityLabel("Focus mode")
-                        .accessibilityHint("Opens focus mode options to hide or show real-world items")
+                        .accessibilityHint("Opens focus mode options for a distraction-free design space")
 
                         ornamentButton(
                             systemImage: "square.and.arrow.down",

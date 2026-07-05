@@ -345,7 +345,6 @@
 				INFOPLIST_KEY_CFBundleDisplayName = DesignSphere;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHandsTrackingUsageDescription = "We use hand tracking so you can interact with models using gestures";
-				INFOPLIST_KEY_NSMainCameraUsageDescription = "We use the main camera to understand your environment";
 				INFOPLIST_KEY_NSWorldSensingUsageDescription = "We use world sensing to detect planes and place 3D content accurately";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsMultipleScenes = YES;
@@ -384,7 +383,6 @@
 				INFOPLIST_KEY_CFBundleDisplayName = DesignSphere;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSHandsTrackingUsageDescription = "We use hand tracking so you can interact with models using gestures";
-				INFOPLIST_KEY_NSMainCameraUsageDescription = "We use the main camera to understand your environment";
 				INFOPLIST_KEY_NSWorldSensingUsageDescription = "We use world sensing to detect planes and place 3D content accurately";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsMultipleScenes = YES;

@@ -37,8 +37,6 @@
 	<string>public.app-category.lifestyle</string>
 	<key>NSHandsTrackingUsageDescription</key>
 	<string>We use hand tracking so you can interact with models using gestures</string>
-	<key>NSMainCameraUsageDescription</key>
-	<string>We use the main camera to understand your environment</string>
 	<key>NSWorldSensingUsageDescription</key>
 	<string>We use world sensing to detect planes and place 3D content accurately</string>
 	<key>UIApplicationSceneManifest</key>
