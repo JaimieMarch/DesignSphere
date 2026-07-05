@@ -94,9 +94,11 @@ real-scene occlusion work if selective hiding is ever pursued.
 - The real peer-to-peer logic is commented out in
   `SharePlayCoordinator` (package networking layer).
 
-**Decision needed:** either delete the orphaned UI + commented coordinator code,
-or commit to wiring it. Leaving it half-present is the worst state for the build
-and for contributors.
+**Decision (2026-07-05): keep as-is.** The orphaned UI and commented
+coordinator stay in the repo as the starting point for future SharePlay work.
+They are unreachable from the app, so there is no user-facing or App Review
+impact — contributors should just know this code is intentionally dormant, not
+wired in.
 
 ### ✅ Already shipped (for completeness)
 
@@ -153,7 +155,8 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
   attachment — which arrives already sized in meters — to under a millimeter.
   Fixed 2026-07-05 and pinned by `EditMenuAttachmentTests`; it should now
   render in the simulator and on device alike.)
-- [ ] **Resolve SharePlay** — delete vs. wire (see above).
+- [x] **Resolve SharePlay** — decided 2026-07-05: keep the dormant code in the
+  repo for future wiring (see above).
 - [x] **Graduate Measurement out of Labs** — done 2026-06-26 (ruler now in the
   default toolbar; on-device verification still pending).
 - [ ] **Reconcile Focus Mode UI copy** with the enclosure behavior. As of

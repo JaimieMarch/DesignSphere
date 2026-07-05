@@ -231,7 +231,7 @@ Our roadmap is driven by both user feedback and the evolution of spatial computi
 - ~~intent-aware catalog search~~ — **done** (`ModelSearchEngine`, see test suite)
 - ~~verify the floating edit panel on a physical device (renders via RealityView attachments; does not draw in the simulator)~~ — **root-caused and fixed** (2026-07-05): the panel was never a simulator limitation; a leftover 0.0012 points-to-meters scale factor shrank it below a millimeter. It now renders at natural size everywhere (regression-tested); give it a quick on-device sanity check
 - finalize all required functionality for acceptable release version
-- resolve removed/orphaned UI: decide SharePlay's fate (delete vs. wire)
+- ~~resolve removed/orphaned UI: decide SharePlay's fate (delete vs. wire)~~ — **decided** (2026-07-05): the dormant SharePlay code stays in the repo for future wiring; it is unreachable from the app
 - ~~complete the measurement tools~~ — **done**: dimensions, distance, ruler, units all wired (`MeasurementManager`) and graduated from Labs into the default toolbar; remaining work is on-device verification
 - ~~audit `Info.plist` privacy/usage strings (ARKit world-sensing, hand tracking, persistence) before submission~~ — **done** (2026-07-05): required strings present; two follow-ups (unused camera string, entitlement key verification) tracked in [docs/project-audit.md](docs/project-audit.md)
 - go through apple guidelines and conform
