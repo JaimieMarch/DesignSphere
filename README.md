@@ -19,6 +19,7 @@ Designed for students, interior designers, real estate stagers, and businesses a
 - **Designer Palettes**: Curated interior-design color palettes (`PaletteAdvisor`) in the editor for quickly finishing the untextured "Customizable" models
 - **Advanced Model Editing**: Comprehensive editing tools allowing users to adjust size, position, rotation, style, texture, and color of each item
 - **Spatial Recognition**: Built-in spatial APIs anchor objects with incredible accuracy, matching scale and perspective to your room's exact dimensions
+- **Collision Handling (Labs)**: An optional Settings toggle that keeps furniture from settling into overlap during placement and movement — off by default
 - **Project Management**: Save and organize multiple room layouts, create different versions to compare design options, and return to previous projects anytime
 - **Location-Aware Loading**: The app can recognize a space and automatically load the related design when you return
 
@@ -131,9 +132,9 @@ DesignSphere leverages visionOS native gestures for intuitive spatial interactio
 
 ## Running the App
 
-Clone the repo from: <https://github.com/JaimieMarch/DesignSphere/tree/sam_new>
+Clone the repo from: <https://github.com/JaimieMarch/DesignSphere>
 
-Currently, sam_new is our active branch.
+`main` is the default branch; active development happens on `refactoring`.
 
 1. Open [Demo App.xcodeproj](Demo App.xcodeproj) in Xcode
 2. Select a Vision Pro simulator or device
@@ -231,7 +232,7 @@ Our roadmap is driven by both user feedback and the evolution of spatial computi
 - finalize all required functionality for acceptable release version
 - resolve removed/orphaned UI: decide SharePlay's fate (delete vs. wire)
 - ~~complete the measurement tools~~ — **done**: dimensions, distance, ruler, units all wired (`MeasurementManager`) and graduated from Labs into the default toolbar; remaining work is on-device verification
-- audit `Info.plist` privacy/usage strings (ARKit world-sensing, hand tracking, persistence) before submission
+- ~~audit `Info.plist` privacy/usage strings (ARKit world-sensing, hand tracking, persistence) before submission~~ — **done** (2026-07-05): required strings present; two follow-ups (unused camera string, entitlement key verification) tracked in [docs/project-audit.md](docs/project-audit.md)
 - go through apple guidelines and conform
 - ~~AI design assistant: wire the assistant shell to real catalog-driven suggestions~~ — **done**: on-device recommender + optional Foundation Models layer ([docs/design-assistant.md](docs/design-assistant.md))
 
@@ -245,8 +246,6 @@ As this is an active course project, we're continuously iterating based on:
 - Technological advancements in spatial computing
 
 The roadmap remains flexible and will adapt as we learn more about how users interact with spatial design tools and as Apple's visionOS platform matures.
-
-AUDIT FIXES IS THE LAST STABLE COMMIT PRE-REWORKED VERSION OF EDIT MODEL VIEW
 
 ## Credits
 

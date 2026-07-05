@@ -1,6 +1,8 @@
 # Project Audit & Backlog
 
-_Last audited: 2026-06-26 (branch `refactoring`)._
+_Last audited: 2026-07-05 (branch `refactoring`). Full deterministic test
+suite (`Tools/run-tests.sh`) green as of this date: 21 pipeline tests, 131
+package tests (1 skipped live-network test), and the app-target suite._
 
 This document records the **true state** of features that are partially shipped,
 deferred, gated behind flags, or removed from the UI — and the prioritized
@@ -102,7 +104,13 @@ and for contributors.
 
 Remote R2 catalog with lazy download + LRU caching, intent-aware catalog search,
 the on-device Design Assistant (DesignAdvisor + optional Foundation Models),
-designer color palettes, first-run onboarding, undo/redo, collision modes.
+designer color palettes, first-run onboarding, undo/redo, collision handling.
+
+**Collision (updated 2026-07-01, `a4f955e`):** collision is now a single Labs
+toggle in Settings, **off by default**. The toggle maps off ↔ `prevent`; the
+`.warn` case still exists in `FurnitureCollisionMode` and legacy stored values
+decode correctly, but it is no longer reachable from the UI (unknown/absent
+stored values fall back to `.off`, covered by `AppSettingsTests`).
 
 ---
 
@@ -123,16 +131,33 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
 
 ### Near-term (release-readiness)
 
-- [ ] **Info.plist privacy/usage strings audit** — ARKit world-sensing / hand
-  tracking / persistence require usage descriptions; missing strings are a hard
-  App Store rejection and can crash the first permission prompt.
+- [x] **Info.plist privacy/usage strings audit** — done 2026-07-05. The
+  required strings are present: `NSWorldSensingUsageDescription` and
+  `NSHandsTrackingUsageDescription` exist in both
+  [`DesignSphere-Info.plist`](../DesignSphere-Info.plist) and the
+  `INFOPLIST_KEY_*` build settings in the pbxproj (the two copies are
+  duplicated — keep them in sync). Two follow-ups came out of the audit:
+- [ ] **Remove the unused `NSMainCameraUsageDescription`** — no code in the app
+  or package touches camera APIs (`CameraFrameProvider` etc.), and main-camera
+  access on visionOS is an enterprise-only entitlement anyway. The stray usage
+  string (in both the plist and the pbxproj) invites App Review questions for a
+  capability the app doesn't have.
+- [ ] **Verify the `com.apple.developer.arkit` entitlement key** — the
+  entitlements file claims it, but this does not appear to be a standard
+  visionOS entitlement (ARKit data access is granted via the usage-description
+  keys + runtime permission, not an entitlement). An unrecognized entitlement
+  can break device provisioning/signing. Confirm against a device build and
+  remove if bogus.
 - [ ] **On-device verification pass** — edit panel (RealityView attachments do
   not draw in the simulator), measurement overlays + ruler, world-anchor
   cross-room persistence, and the Foundation Models NL box.
 - [ ] **Resolve SharePlay** — delete vs. wire (see above).
 - [x] **Graduate Measurement out of Labs** — done 2026-06-26 (ruler now in the
   default toolbar; on-device verification still pending).
-- [ ] **Reconcile Focus Mode UI copy** with the enclosure behavior.
+- [ ] **Reconcile Focus Mode UI copy** with the enclosure behavior. As of
+  2026-07-05 the remaining offender is the toolbar accessibility hint
+  ("Opens focus mode options to hide or show real-world items" in
+  `ToolbarOrnament.swift`); the sheet and tutorial copy are already accurate.
 - [ ] **Apple HIG / guidelines conformance pass.**
 
 ### Medium-term
