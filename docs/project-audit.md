@@ -160,7 +160,10 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
   2026-07-05 the remaining offender is the toolbar accessibility hint
   ("Opens focus mode options to hide or show real-world items" in
   `ToolbarOrnament.swift`); the sheet and tutorial copy are already accurate.
-- [ ] **Apple HIG / guidelines conformance pass.**
+- [ ] **Apple HIG / guidelines conformance pass.** App Review readiness is now
+  tracked item-by-item in [app-store-checklist.md](app-store-checklist.md)
+  (repo-side items verified 2026-07-05; Connect-side work and license risks
+  listed there).
 
 ### Medium-term
 

@@ -197,6 +197,8 @@ A full feature-by-feature audit (what's done, gated, or deferred) lives in [docs
 
 **DesignSphere is currently a work in progress**, developed as a course project for CPSC 575. While the core design experience is functional and demonstrates the vision for spatial computing in interior design, several advanced features remain in various stages of development.
 
+App Store submission readiness is tracked in [docs/app-store-checklist.md](docs/app-store-checklist.md) — repo-side compliance is verified there, alongside the remaining App Store Connect work and content-license checks.
+
 ### Future Development Roadmap
 
 Our roadmap is driven by both user feedback and the evolution of spatial computing capabilities:
