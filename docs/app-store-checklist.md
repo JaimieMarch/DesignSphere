@@ -23,6 +23,7 @@ Status of DesignSphere against the App Review Guidelines, split into what is
 | Entitlements | 2.5.1 | Cleaned 2026-07-05 (non-standard `com.apple.developer.arkit` key removed). **Confirm signing on the next device build.** |
 | No dead user-facing UI | 2.1 | SharePlay is fully removed from the UI (orphaned source files remain in the repo but are unreachable). |
 | Accessibility labels/hints | — | Toolbar, settings, and edit panel carry labels + hints; high-contrast mode supported. |
+| App Store metadata packet | 2.3 | Product copy, privacy/age-rating answers, required visionOS motion answer, screenshot plan, and review notes are prepared in `app-store-metadata.md`. Account-specific fields remain open. |
 
 ## 📋 To do in App Store Connect
 
@@ -30,14 +31,18 @@ Status of DesignSphere against the App Review Guidelines, split into what is
 - [ ] **Privacy nutrition labels** — declare **Other Diagnostic Data**, used for
   **App Functionality**, **not linked to identity**, and **not used for
   tracking**. Do not select “Data Not Collected.”
-- [ ] **Support URL** and marketing description. The description must match
-  wired-up reality — do **not** promise SharePlay, LiDAR scanning, or voice
+- [ ] **Support URL** and marketing description. Copy is prepared in
+  `app-store-metadata.md`; do **not** promise SharePlay, LiDAR scanning, or voice
   commands (they are roadmap items; see project-audit.md).
-- [ ] **Screenshots** — must be captured on Apple Vision Pro (device
-  screenshots, not simulator composites, per 2.3.3).
+- [ ] **Screenshots** — capture and upload 1–10 images at exactly 3840 × 2160
+  with no alpha channel. Apple permits accurate Simulator captures that are
+  resized/cropped correctly, while recommending Developer Capture on device.
 - [ ] **Age rating questionnaire** (expect 4+).
+- [ ] **App motion information** — required for visionOS; the prepared answer is
+  No high motion, subject to confirmation during the device pass.
 - [ ] **Review notes** — mention that the catalog streams from Cloudflare R2,
-  so first launch needs network; models download on placement.
+  so first launch needs network; models download on placement. Copy is prepared
+  in `app-store-metadata.md`.
 
 ## ⚠️ The path to submission — what actually remains
 
@@ -77,8 +82,8 @@ One device session covers all of it:
 ### 4. App Store Connect form-filling (~an hour, all mandatory)
 
 The "To do in App Store Connect" section above: privacy policy URL, the prepared
-Other Diagnostic Data label, support URL, device-captured screenshots, age
-rating, honest description, review notes. Plus:
+Other Diagnostic Data label, support URL, compliant screenshots, age rating,
+app-motion answer, honest description, review notes. Plus:
 
 - [ ] **Paid Apple Developer Program membership** and an App Store
   distribution certificate/profile for `com.designsphere.app`.

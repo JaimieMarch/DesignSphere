@@ -231,8 +231,12 @@ required item is checked off.
     imports/backups, Focus Mode, Foundation Models, and offline/slow-network
     behavior.
 - [ ] **5. Finish App Store Connect setup (required)**
-  - Supply the privacy policy URL, Support URL, privacy answers, age rating,
-    description, screenshots, review contact, and review notes.
+  - [x] Prepare character-limit-checked product copy, privacy and age-rating
+    answers, required visionOS motion information, review notes, and a compliant
+    screenshot shot list in [the metadata packet](docs/app-store-metadata.md).
+  - [ ] Supply the published Privacy Policy and Support URLs, legal/account
+    details, final screenshots, private review contact, and uploaded build in
+    App Store Connect.
   - Keep public metadata limited to features that are actually enabled; do not
     advertise SharePlay, LiDAR scanning, voice commands, or other roadmap work.
 - [x] **6. Verify production privacy declarations (required)** — completed July 26, 2026
