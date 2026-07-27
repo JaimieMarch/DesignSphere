@@ -31,6 +31,7 @@ final class RemoteCatalogTests: XCTestCase {
         XCTAssertEqual(entry.id, "armchair_01")
         XCTAssertEqual(entry.category, "seating")
         XCTAssertEqual(entry.file.url, "models/armchair_01.usdz")
+        XCTAssertEqual(entry.file.bytes, 123)
         XCTAssertEqual(entry.placement.classification, "floor")
         XCTAssertTrue(entry.placement.preserveRealWorldScale)
     }
@@ -66,10 +67,13 @@ final class RemoteCatalogTests: XCTestCase {
             classification: .floor, plane: .horizontal,
             canStack: true, needsPhysics: false, preserveRealWorldScale: true,
             url: URL(string: "https://example.com/models/armchair_01.usdz")!,
-            sha256: "abc"
+            sha256: "abc",
+            fileBytes: 12_345_678
         )
         XCTAssertTrue(type.isRemote)
         XCTAssertEqual(type.remoteSHA256, "abc")
+        XCTAssertEqual(type.remoteFileBytes, 12_345_678)
+        XCTAssertNotNil(type.remoteDownloadSizeLabel)
         XCTAssertTrue(type.canStack)
         XCTAssertTrue(type.preserveRealWorldScale)  // override beats the hard-coded table
     }

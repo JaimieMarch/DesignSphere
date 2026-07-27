@@ -40,6 +40,9 @@ public struct ModelType: Hashable, Identifiable, Sendable {
     /// URL (verified against `remoteSHA256`) instead of resolved from the bundle.
     public var remoteURL: URL? = nil
     public var remoteSHA256: String? = nil
+    /// Download size declared by the remote manifest. The catalog UI displays
+    /// this before placement starts the first download.
+    public var remoteFileBytes: Int? = nil
     /// Pre-rendered thumbnail hosted alongside the model.
     public var remoteThumbnailURL: URL? = nil
     /// False for geometry-only models that ship without materials — the app
@@ -50,6 +53,14 @@ public struct ModelType: Hashable, Identifiable, Sendable {
     public var preserveScaleOverride: Bool? = nil
 
     public var isRemote: Bool { remoteURL != nil }
+
+    public var remoteDownloadSizeLabel: String? {
+        guard let remoteFileBytes, remoteFileBytes > 0 else { return nil }
+        return ByteCountFormatter.string(
+            fromByteCount: Int64(remoteFileBytes),
+            countStyle: .file
+        )
+    }
 
     public init(rawValue: String,
                     classification: AnchoringComponent.Target.Classification = .any,
@@ -72,6 +83,7 @@ public struct ModelType: Hashable, Identifiable, Sendable {
                 preserveRealWorldScale: Bool,
                 url: URL,
                 sha256: String?,
+                fileBytes: Int? = nil,
                 thumbnailURL: URL? = nil,
                 hasBakedMaterials: Bool = true) {
         self.rawValue = remoteID
@@ -82,6 +94,7 @@ public struct ModelType: Hashable, Identifiable, Sendable {
         self.preserveScaleOverride = preserveRealWorldScale
         self.remoteURL = url
         self.remoteSHA256 = sha256
+        self.remoteFileBytes = fileBytes
         self.remoteThumbnailURL = thumbnailURL
         self.hasBakedMaterials = hasBakedMaterials
     }
@@ -223,4 +236,3 @@ public struct ModelType: Hashable, Identifiable, Sendable {
     }
 }
 #endif
-

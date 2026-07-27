@@ -78,7 +78,7 @@ struct HomeScreen: View {
                                 Button("Add") { controller.addModel(descriptor) }
                             }
                             .accessibilityLabel("\(descriptor.name)\(isFavorite ? ", favorited" : "")")
-                            .accessibilityHint("Tap to add \(descriptor.name) to your design")
+                            .accessibilityHint(accessibilityHint(for: descriptor))
                             .accessibilityAddTraits(.isButton)
                         }
                     }
@@ -97,6 +97,15 @@ struct HomeScreen: View {
 
     private var filteredModels: [CollaborativeSessionController.ModelDescriptor] {
         filtered(controller.availableModels)
+    }
+
+    private func accessibilityHint(
+        for descriptor: CollaborativeSessionController.ModelDescriptor
+    ) -> String {
+        if let size = descriptor.type.remoteDownloadSizeLabel {
+            return "Tap to download \(size) on first use and add \(descriptor.name) to your design"
+        }
+        return "Tap to add \(descriptor.name) to your design"
     }
 
     private var catalogLoadingView: some View {

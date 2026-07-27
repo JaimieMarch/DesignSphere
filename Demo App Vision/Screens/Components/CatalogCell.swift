@@ -39,16 +39,27 @@ struct CatalogCell: View {
                     .foregroundStyle(.secondary)
                     .frame(height: 130)
             }
-            // Display model name beneath the thumbnail
-            Text(name)
-                .font(.footnote.weight(.medium))
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .frame(height: 32)
+            // Display model name and the first-use network cost before a tap
+            // starts downloading a remote model.
+            VStack(spacing: 2) {
+                Text(name)
+                    .font(.footnote.weight(.medium))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+
+                if !showRemove, let size = modelType?.remoteDownloadSizeLabel {
+                    Label("\(size) download on first use", systemImage: "arrow.down.circle")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .accessibilityLabel("Downloads \(size) the first time this model is used")
+                }
+            }
+            .frame(height: 46)
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .frame(height: 200)
+        .frame(height: 214)
         .glassBackground(cornerRadius: 20)
         .overlay {
             // Download progress / failure for remote models

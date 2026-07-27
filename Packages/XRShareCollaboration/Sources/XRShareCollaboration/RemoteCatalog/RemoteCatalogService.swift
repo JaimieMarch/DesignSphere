@@ -72,6 +72,7 @@ public final class RemoteCatalogService {
             preserveRealWorldScale: entry.placement.preserveRealWorldScale,
             url: baseURL.appendingPathComponent(entry.file.url),
             sha256: entry.file.sha256,
+            fileBytes: entry.file.bytes,
             thumbnailURL: entry.thumbnail.map { baseURL.appendingPathComponent($0.url) },
             hasBakedMaterials: entry.textured ?? true
         )

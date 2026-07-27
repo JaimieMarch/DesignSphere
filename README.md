@@ -242,10 +242,12 @@ required item is checked off.
     Data** used for **App Functionality**; see
     [the production privacy decision](docs/production-privacy-declaration.md).
 - [ ] **7. Productionize remote catalog delivery (strongly recommended)**
-  - Move from the public `r2.dev` development endpoint to a production custom
-    domain and add availability monitoring.
-  - Show download sizes/disclosure before fetching required remote content and
-    preserve a useful failure/retry experience when the catalog is unavailable.
+  - [ ] Move from the public `r2.dev` development endpoint to a production
+    custom domain, update `AppFeatureFlags.remoteCatalogBaseURL`, and verify it.
+  - [x] Add hourly manifest/model availability monitoring; the prepared GitHub
+    Actions workflow becomes active after it reaches the default branch.
+  - [x] Show each model's download size before first-use fetching and preserve
+    catalog/model failure states with accessible retry actions.
 
 ### Future Development Roadmap
 

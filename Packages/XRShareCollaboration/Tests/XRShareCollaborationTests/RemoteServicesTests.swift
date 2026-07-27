@@ -100,6 +100,8 @@ final class RemoteCatalogServiceTests: XCTestCase {
         XCTAssertEqual(chair.remoteURL?.absoluteString, "https://example.test/base/models/chair.usdz")
         XCTAssertEqual(chair.remoteThumbnailURL?.absoluteString, "https://example.test/base/thumbs/chair.png")
         XCTAssertEqual(chair.remoteSHA256, "ABC")
+        XCTAssertEqual(chair.remoteFileBytes, 12)
+        XCTAssertNotNil(chair.remoteDownloadSizeLabel)
         XCTAssertFalse(chair.hasBakedMaterials)
         XCTAssertEqual(service.manifestCategory(forID: "CHAIR_01"), "seating")
 
