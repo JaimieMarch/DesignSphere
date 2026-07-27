@@ -497,6 +497,14 @@ struct SettingsScreen: View {
                 if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
             }
 
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+            guard values.isRegularFile != false else {
+                throw BackupManagerError.invalidBackupFile
+            }
+            if let fileSize = values.fileSize {
+                try BackupManager.validateBackupFileSize(Int64(fileSize))
+            }
+
             let data = try Data(contentsOf: url)
             let summary = try BackupManager.importBackupData(data, appSettings: appSettings)
             backupResultMessage = summary.summaryText

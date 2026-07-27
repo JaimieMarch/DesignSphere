@@ -199,6 +199,50 @@ A full feature-by-feature audit (what's done, gated, or deferred) lives in [docs
 
 App Store submission readiness is tracked in [docs/app-store-checklist.md](docs/app-store-checklist.md) — repo-side compliance is verified there, alongside the remaining App Store Connect work and content-license checks.
 
+### App Store Release Blockers
+
+Work through these one at a time. Do not submit the app for review until every
+required item is checked off.
+
+- [ ] **1. Add in-app privacy and support information (required)**
+  - Publish a public DesignSphere privacy policy and support/contact page.
+  - Add easily accessible Privacy Policy, Support, and contact links in Settings.
+  - Document local project/import storage, spatial permissions, the remote
+    catalog, on-device Foundation Models, data retention, deletion, and backups.
+- [ ] **2. Complete the asset-license audit (required)**
+  - Record the source, author, exact license, attribution requirements, and
+    redistribution permission for every hosted model, thumbnail, texture, and
+    app-icon asset.
+  - Remove or replace any asset—especially BlenderKit content—whose USDZ
+    redistribution rights cannot be proven.
+- [x] **3. Secure backup imports (required)** — completed July 26, 2026
+  - Sanitize embedded filenames, enforce the expected extensions, and verify
+    every standardized destination remains inside its intended app directory.
+  - Add limits for backup size, file count, and embedded-file size; validate
+    imported project, anchor, and model data before writing it.
+  - Add tests for path traversal, malformed data, invalid extensions, and
+    oversized backups.
+- [ ] **4. Complete physical-device and TestFlight validation (required)**
+  - Produce a distribution-signed Release archive and upload it to TestFlight.
+  - On a physical Apple Vision Pro, test first launch, permission grant/denial,
+    placement, editing, measurement, save/load and world-anchor restoration,
+    imports/backups, Focus Mode, Foundation Models, and offline/slow-network
+    behavior.
+- [ ] **5. Finish App Store Connect setup (required)**
+  - Supply the privacy policy URL, Support URL, privacy answers, age rating,
+    description, screenshots, review contact, and review notes.
+  - Keep public metadata limited to features that are actually enabled; do not
+    advertise SharePlay, LiDAR scanning, voice commands, or other roadmap work.
+- [ ] **6. Verify production privacy declarations (required)**
+  - Confirm whether Cloudflare/R2 retains IP addresses or request logs. Declare
+    any retained data in App Store Connect and the privacy policy; use “Data Not
+    Collected” only if the production configuration genuinely qualifies.
+- [ ] **7. Productionize remote catalog delivery (strongly recommended)**
+  - Move from the public `r2.dev` development endpoint to a production custom
+    domain and add availability monitoring.
+  - Show download sizes/disclosure before fetching required remote content and
+    preserve a useful failure/retry experience when the catalog is unavailable.
+
 ### Future Development Roadmap
 
 Our roadmap is driven by both user feedback and the evolution of spatial computing capabilities:

@@ -1,4 +1,5 @@
 import Foundation
+import RealityKit
 import UniformTypeIdentifiers
 import XRShareCollaboration
 
@@ -59,6 +60,9 @@ enum BackupManagerError: LocalizedError {
     case missingDocumentsDirectory
     case invalidBackupFile
     case unsupportedBackupVersion(Int)
+    case backupTooLarge(maximumBytes: Int64)
+    case tooManyEmbeddedFiles(maximumCount: Int)
+    case embeddedFileTooLarge(maximumBytes: Int)
 
     var errorDescription: String? {
         switch self {
@@ -68,6 +72,12 @@ enum BackupManagerError: LocalizedError {
             return "The selected backup file is invalid."
         case .unsupportedBackupVersion(let version):
             return "Backup format version \(version) is not supported."
+        case .backupTooLarge(let maximumBytes):
+            return "The selected backup exceeds the \(maximumBytes / 1_048_576) MB size limit."
+        case .tooManyEmbeddedFiles(let maximumCount):
+            return "The selected backup contains more than \(maximumCount) files."
+        case .embeddedFileTooLarge(let maximumBytes):
+            return "A file in the selected backup exceeds the \(maximumBytes / 1_048_576) MB size limit."
         }
     }
 }
@@ -96,6 +106,21 @@ struct DesignSphereBackupPayload: Codable {
 
 enum BackupManager {
     private static let formatVersion = 1
+    static let maximumBackupFileBytes: Int64 = 512 * 1_024 * 1_024
+    static let maximumProjectFileBytes = 10 * 1_024 * 1_024
+    private static let maximumImportedModelFileBytes = 150 * 1_024 * 1_024
+    private static let maximumAnchorFileBytes = 5 * 1_024 * 1_024
+    private static let maximumTotalEmbeddedBytes = 384 * 1_024 * 1_024
+    private static let maximumEmbeddedFileCount = 500
+    private static let maximumProjectModelCount = 10_000
+    private static let maximumAnchorCount = 10_000
+    private static let maximumFavoriteCount = 10_000
+    private static let maximumNameLength = 255
+
+    private struct BackupAnchorRecord: Codable {
+        let id: UUID
+        let matrix: [Float]
+    }
 
     @MainActor
     static func createBackupData(categories: Set<BackupCategory>, appSettings: AppSettings) throws -> Data {
@@ -158,11 +183,16 @@ enum BackupManager {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.sortedKeys]
-        return try encoder.encode(payload)
+        try validatePayload(payload)
+        let data = try encoder.encode(payload)
+        try validateBackupFileSize(Int64(data.count))
+        return data
     }
 
     @MainActor
     static func importBackupData(_ data: Data, appSettings: AppSettings) throws -> BackupImportSummary {
+        try validateBackupFileSize(Int64(data.count))
+
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let payload: DesignSphereBackupPayload
@@ -175,6 +205,10 @@ enum BackupManager {
         guard payload.formatVersion == formatVersion else {
             throw BackupManagerError.unsupportedBackupVersion(payload.formatVersion)
         }
+
+        // Validate every category before changing files, defaults, or settings so
+        // malformed backups cannot result in a partial import.
+        try validatePayload(payload)
 
         let documentsURL = try documentsDirectory()
         var summary = BackupImportSummary()
@@ -206,6 +240,12 @@ enum BackupManager {
         return summary
     }
 
+    static func validateBackupFileSize(_ byteCount: Int64) throws {
+        guard byteCount >= 0, byteCount <= maximumBackupFileBytes else {
+            throw BackupManagerError.backupTooLarge(maximumBytes: maximumBackupFileBytes)
+        }
+    }
+
     private static func documentsDirectory() throws -> URL {
         guard let url = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
             throw BackupManagerError.missingDocumentsDirectory
@@ -225,16 +265,31 @@ enum BackupManager {
             .filter { $0.pathExtension.caseInsensitiveCompare(allowedExtension) == .orderedSame }
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
             .map { url in
-                .init(name: url.lastPathComponent, data: try Data(contentsOf: url))
+                let limit = allowedExtension == "usdz" ? maximumImportedModelFileBytes : maximumProjectFileBytes
+                let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+                guard values.isRegularFile == true,
+                      let fileSize = values.fileSize,
+                      fileSize <= limit else {
+                    throw BackupManagerError.embeddedFileTooLarge(maximumBytes: limit)
+                }
+                return .init(name: url.lastPathComponent, data: try Data(contentsOf: url))
             }
     }
 
     private static func writeFiles(_ files: [DesignSphereBackupPayload.BackupFile], to directoryURL: URL) throws -> Int {
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        let standardizedDirectory = directoryURL.resolvingSymlinksInPath().standardizedFileURL
         var writtenCount = 0
         for file in files {
             let destination = uniqueDestinationURL(for: file.name, in: directoryURL)
+            let standardizedParent = destination
+                .deletingLastPathComponent()
+                .resolvingSymlinksInPath()
+                .standardizedFileURL
+            guard standardizedParent == standardizedDirectory else {
+                throw BackupManagerError.invalidBackupFile
+            }
             try file.data.write(to: destination, options: .atomic)
             try fileManager.setAttributes(
                 [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
@@ -269,17 +324,14 @@ enum BackupManager {
     private static func mergeAnchors(with importedData: Data, documentsURL: URL) throws -> Int {
         let fileManager = FileManager.default
         let anchorsURL = documentsURL.appendingPathComponent("DesignSphereAnchors.json")
+        let decoder = JSONDecoder()
+        let importedDictionary = try decoder.decode([UUID: BackupAnchorRecord].self, from: importedData)
 
-        let importedJSONObject = try JSONSerialization.jsonObject(with: importedData)
-        guard let importedDictionary = importedJSONObject as? [String: Any] else {
-            throw BackupManagerError.invalidBackupFile
-        }
-
-        var currentDictionary: [String: Any] = [:]
+        var currentDictionary: [UUID: BackupAnchorRecord] = [:]
         if fileManager.fileExists(atPath: anchorsURL.path),
            let existingData = try? Data(contentsOf: anchorsURL),
-           let existingJSON = try? JSONSerialization.jsonObject(with: existingData) as? [String: Any] {
-            currentDictionary = existingJSON
+           let existingAnchors = try? decoder.decode([UUID: BackupAnchorRecord].self, from: existingData) {
+            currentDictionary = existingAnchors
         }
 
         var added = 0
@@ -288,13 +340,160 @@ enum BackupManager {
             added += 1
         }
 
-        let serialized = try JSONSerialization.data(withJSONObject: currentDictionary, options: [.prettyPrinted, .sortedKeys])
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let serialized = try encoder.encode(currentDictionary)
         try serialized.write(to: anchorsURL, options: .atomic)
         try fileManager.setAttributes(
             [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
             ofItemAtPath: anchorsURL.path
         )
         return added
+    }
+
+    private static func validatePayload(_ payload: DesignSphereBackupPayload) throws {
+        let categoryNames = payload.categories
+        guard categoryNames.count <= BackupCategory.allCases.count,
+              Set(categoryNames).count == categoryNames.count,
+              categoryNames.allSatisfy({ BackupCategory(rawValue: $0) != nil }) else {
+            throw BackupManagerError.invalidBackupFile
+        }
+
+        let embeddedFileCount = payload.projects.count + payload.importedModels.count
+        guard embeddedFileCount <= maximumEmbeddedFileCount else {
+            throw BackupManagerError.tooManyEmbeddedFiles(maximumCount: maximumEmbeddedFileCount)
+        }
+
+        let embeddedBytes = payload.projects.reduce(0) { $0 + $1.data.count }
+            + payload.importedModels.reduce(0) { $0 + $1.data.count }
+        guard embeddedBytes <= maximumTotalEmbeddedBytes else {
+            throw BackupManagerError.embeddedFileTooLarge(maximumBytes: maximumTotalEmbeddedBytes)
+        }
+
+        try validateFiles(payload.projects, expectedExtension: "json", maximumBytes: maximumProjectFileBytes)
+        try validateFiles(payload.importedModels, expectedExtension: "usdz", maximumBytes: maximumImportedModelFileBytes)
+
+        let projectDecoder = JSONDecoder()
+        projectDecoder.dateDecodingStrategy = .iso8601
+        for file in payload.projects {
+            guard let project = try? projectDecoder.decode(ProjectData.self, from: file.data),
+                  project.schemaVersion > 0,
+                  project.schemaVersion <= ProjectData.currentSchemaVersion,
+                  isValidText(project.roomName),
+                  project.models.count <= maximumProjectModelCount,
+                  project.dateCreated.timeIntervalSinceReferenceDate.isFinite,
+                  project.dateModified.timeIntervalSinceReferenceDate.isFinite,
+                  project.models.allSatisfy(isValidSavedModel) else {
+                throw BackupManagerError.invalidBackupFile
+            }
+        }
+
+        for file in payload.importedModels where !isLoadableUSDZ(file.data) {
+            throw BackupManagerError.invalidBackupFile
+        }
+
+        if let anchorData = payload.worldAnchorsData {
+            guard anchorData.count <= maximumAnchorFileBytes,
+                  let anchors = try? JSONDecoder().decode([UUID: BackupAnchorRecord].self, from: anchorData),
+                  anchors.count <= maximumAnchorCount,
+                  anchors.allSatisfy({ key, anchor in
+                      key == anchor.id && anchor.matrix.count == 16 && anchor.matrix.allSatisfy(\.isFinite)
+                  }) else {
+                throw BackupManagerError.invalidBackupFile
+            }
+        }
+
+        if let favorites = payload.favorites {
+            guard favorites.count <= maximumFavoriteCount,
+                  favorites.allSatisfy(isValidText) else {
+                throw BackupManagerError.invalidBackupFile
+            }
+        }
+
+        if let collisionMode = payload.preferences?.collisionMode,
+           FurnitureCollisionMode(rawValue: collisionMode) == nil {
+            throw BackupManagerError.invalidBackupFile
+        }
+    }
+
+    private static func validateFiles(
+        _ files: [DesignSphereBackupPayload.BackupFile],
+        expectedExtension: String,
+        maximumBytes: Int
+    ) throws {
+        var normalizedNames = Set<String>()
+        for file in files {
+            guard isSafeFilename(file.name),
+                  URL(fileURLWithPath: file.name).pathExtension.caseInsensitiveCompare(expectedExtension) == .orderedSame,
+                  normalizedNames.insert(file.name.lowercased()).inserted else {
+                throw BackupManagerError.invalidBackupFile
+            }
+            guard file.data.count <= maximumBytes else {
+                throw BackupManagerError.embeddedFileTooLarge(maximumBytes: maximumBytes)
+            }
+        }
+    }
+
+    private static func isSafeFilename(_ filename: String) -> Bool {
+        guard !filename.isEmpty,
+              filename.utf8.count <= maximumNameLength,
+              filename != ".",
+              filename != "..",
+              !filename.hasPrefix("."),
+              !filename.contains("/"),
+              !filename.contains("\\"),
+              !filename.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
+              URL(fileURLWithPath: filename).lastPathComponent == filename else {
+            return false
+        }
+        return true
+    }
+
+    private static func isValidText(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty
+            && value.utf8.count <= maximumNameLength
+            && !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+    }
+
+    private static func isValidSavedModel(_ model: ProjectData.SavedModel) -> Bool {
+        isValidText(model.modelTypeName)
+            && [model.position.x, model.position.y, model.position.z].allSatisfy(\.isFinite)
+            && [model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w].allSatisfy(\.isFinite)
+            && [model.scale.x, model.scale.y, model.scale.z].allSatisfy(\.isFinite)
+            && (model.originalBounds.map {
+                [$0.x, $0.y, $0.z].allSatisfy(\.isFinite)
+            } ?? true)
+            && (model.material.map {
+                [$0.baseColorR, $0.baseColorG, $0.baseColorB, $0.baseColorA].allSatisfy(\.isFinite)
+                    && ($0.roughness.map(\.isFinite) ?? true)
+                    && ($0.metallic.map(\.isFinite) ?? true)
+                    && ($0.specular.map(\.isFinite) ?? true)
+            } ?? true)
+    }
+
+    private static func isLoadableUSDZ(_ data: Data) -> Bool {
+        let signatures: [[UInt8]] = [
+            [0x50, 0x4B, 0x03, 0x04],
+            [0x50, 0x4B, 0x05, 0x06],
+            [0x50, 0x4B, 0x07, 0x08],
+        ]
+        guard signatures.contains(where: { data.prefix($0.count).elementsEqual($0) }) else {
+            return false
+        }
+
+        let stagingURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DesignSphereBackupValidation-\(UUID().uuidString)")
+            .appendingPathExtension("usdz")
+        do {
+            try data.write(to: stagingURL, options: [.atomic, .completeFileProtection])
+            defer { try? FileManager.default.removeItem(at: stagingURL) }
+            _ = try ModelEntity.loadModel(contentsOf: stagingURL)
+            return true
+        } catch {
+            try? FileManager.default.removeItem(at: stagingURL)
+            return false
+        }
     }
 
     private static func mergeFavorites(_ importedFavorites: [String]) -> Int {

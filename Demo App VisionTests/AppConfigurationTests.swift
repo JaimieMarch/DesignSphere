@@ -143,6 +143,9 @@ final class BackupValueTests: XCTestCase {
         XCTAssertNotNil(BackupManagerError.missingDocumentsDirectory.errorDescription)
         XCTAssertNotNil(BackupManagerError.invalidBackupFile.errorDescription)
         XCTAssertTrue(BackupManagerError.unsupportedBackupVersion(9).errorDescription?.contains("9") == true)
+        XCTAssertTrue(BackupManagerError.backupTooLarge(maximumBytes: 10 * 1_048_576).errorDescription?.contains("10 MB") == true)
+        XCTAssertNotNil(BackupManagerError.tooManyEmbeddedFiles(maximumCount: 500).errorDescription)
+        XCTAssertNotNil(BackupManagerError.embeddedFileTooLarge(maximumBytes: 10 * 1_048_576).errorDescription)
     }
 
     func testBackupPayloadRoundTripsBinaryDataAndPreferences() throws {
@@ -202,5 +205,150 @@ final class BackupValueTests: XCTestCase {
                 return XCTFail("Unexpected error: \(error)")
             }
         }
+    }
+
+    @MainActor
+    func testPathTraversalAndInvalidProjectExtensionsAreRejected() throws {
+        let projectData = try validProjectData()
+        let unsafeNames = [
+            "../outside.json",
+            "subdirectory/room.json",
+            "..\\outside.json",
+            "/tmp/outside.json",
+            ".hidden.json",
+            "room.txt",
+        ]
+
+        for name in unsafeNames {
+            let data = try backupData(
+                categories: [.projects],
+                projects: [.init(name: name, data: projectData)]
+            )
+            XCTAssertThrowsError(try BackupManager.importBackupData(data, appSettings: AppSettings()), name) { error in
+                guard case BackupManagerError.invalidBackupFile = error else {
+                    return XCTFail("Unexpected error for \(name): \(error)")
+                }
+            }
+        }
+    }
+
+    @MainActor
+    func testMalformedProjectModelAndAnchorPayloadsAreRejected() throws {
+        let payloads = try [
+            backupData(
+                categories: [.projects],
+                projects: [.init(name: "room.json", data: Data("not-project-json".utf8))]
+            ),
+            backupData(
+                categories: [.importedModels],
+                importedModels: [.init(
+                    name: "chair.usdz",
+                    data: Data([0x50, 0x4B, 0x03, 0x04, 0, 0, 0, 0])
+                )]
+            ),
+            backupData(
+                categories: [.worldAnchors],
+                worldAnchorsData: Data(#"{"not-a-uuid":{"id":"bad","matrix":[]}}"#.utf8)
+            ),
+        ]
+
+        for data in payloads {
+            XCTAssertThrowsError(try BackupManager.importBackupData(data, appSettings: AppSettings())) { error in
+                guard case BackupManagerError.invalidBackupFile = error else {
+                    return XCTFail("Unexpected error: \(error)")
+                }
+            }
+        }
+    }
+
+    @MainActor
+    func testWholePayloadIsValidatedBeforePreferencesAreChanged() throws {
+        let settings = AppSettings()
+        settings.highContrastTextEnabled = false
+        let data = try backupData(
+            categories: [.projects, .appPreferences],
+            projects: [
+                .init(name: "valid.json", data: try validProjectData()),
+                .init(name: "invalid.json", data: Data("invalid".utf8)),
+            ],
+            preferences: .init(
+                highContrastTextEnabled: true,
+                rememberFavoritesEnabled: false,
+                collisionMode: FurnitureCollisionMode.prevent.rawValue
+            )
+        )
+
+        XCTAssertThrowsError(try BackupManager.importBackupData(data, appSettings: settings))
+        XCTAssertFalse(settings.highContrastTextEnabled)
+    }
+
+    @MainActor
+    func testBackupAndEmbeddedFileLimitsAreEnforced() throws {
+        XCTAssertNoThrow(try BackupManager.validateBackupFileSize(BackupManager.maximumBackupFileBytes))
+        XCTAssertThrowsError(try BackupManager.validateBackupFileSize(BackupManager.maximumBackupFileBytes + 1)) { error in
+            guard case BackupManagerError.backupTooLarge = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+        }
+
+        let oversizedProject = DesignSphereBackupPayload.BackupFile(
+            name: "large.json",
+            data: Data(repeating: 0, count: BackupManager.maximumProjectFileBytes + 1)
+        )
+        let data = try backupData(categories: [.projects], projects: [oversizedProject])
+        XCTAssertThrowsError(try BackupManager.importBackupData(data, appSettings: AppSettings())) { error in
+            guard case BackupManagerError.embeddedFileTooLarge = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+        }
+    }
+
+    @MainActor
+    func testEmbeddedFileCountLimitIsEnforced() throws {
+        let files = (0...500).map {
+            DesignSphereBackupPayload.BackupFile(name: "room-\($0).json", data: Data())
+        }
+        let data = try backupData(categories: [.projects], projects: files)
+        XCTAssertThrowsError(try BackupManager.importBackupData(data, appSettings: AppSettings())) { error in
+            guard case BackupManagerError.tooManyEmbeddedFiles = error else {
+                return XCTFail("Unexpected error: \(error)")
+            }
+        }
+    }
+
+    private func validProjectData() throws -> Data {
+        let project = ProjectData(
+            roomName: "Secure Import Test",
+            worldAnchorID: nil,
+            dateCreated: Date(timeIntervalSince1970: 100),
+            dateModified: Date(timeIntervalSince1970: 200),
+            models: []
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(project)
+    }
+
+    private func backupData(
+        categories: Set<BackupCategory>,
+        projects: [DesignSphereBackupPayload.BackupFile] = [],
+        importedModels: [DesignSphereBackupPayload.BackupFile] = [],
+        worldAnchorsData: Data? = nil,
+        favorites: [String]? = nil,
+        preferences: DesignSphereBackupPayload.PreferencesSnapshot? = nil
+    ) throws -> Data {
+        let payload = DesignSphereBackupPayload(
+            formatVersion: 1,
+            createdAt: Date(timeIntervalSince1970: 123),
+            categories: categories.map(\.rawValue).sorted(),
+            projects: projects,
+            importedModels: importedModels,
+            worldAnchorsData: worldAnchorsData,
+            favorites: favorites,
+            preferences: preferences
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(payload)
     }
 }
