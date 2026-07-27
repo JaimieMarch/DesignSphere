@@ -8,9 +8,10 @@ the DesignSphere project team. This policy explains how the app handles data.
 
 ## Summary
 
-DesignSphere has no user accounts, advertising, or third-party analytics. The
+DesignSphere has no user accounts, advertising, or behavioral analytics. The
 app does not sell personal information and does not use data to track people
-across apps or websites.
+across apps or websites. Cloudflare processes limited network and diagnostic
+metadata when it delivers the remote catalog, as described below.
 
 ## Data stored on the device
 
@@ -51,14 +52,21 @@ DesignSphere contacts a catalog hosted on Cloudflare infrastructure to download:
 - model thumbnails; and
 - USDZ model files selected for placement.
 
-As with other Internet services, Cloudflare may process an IP address and
-request metadata to deliver, secure, and operate the service. DesignSphere does
-not use catalog requests for advertising, cross-app tracking, or user profiles.
-Cloudflare's handling of service data is governed by its
+These HTTPS requests necessarily expose the requesting IP address to Cloudflare.
+Cloudflare may retain customer or service logs containing an IP address, request
+URL/object name, timestamp, response status, and related security or diagnostic
+metadata. Cloudflare documents 31-day retention for R2 operational metrics; its
+other service-log retention is governed by its contracts and
 [privacy policy](https://www.cloudflare.com/privacypolicy/).
 
-The DesignSphere team must verify the production Cloudflare logging and
-retention configuration before making a final App Store privacy declaration.
+This limited metadata is used only to deliver the requested files, protect the
+service, diagnose failures, and maintain availability. DesignSphere has no
+account or advertising identifier with which to link it, and does not use it for
+advertising, cross-app tracking, behavioral analytics, or user profiles. The App
+Store privacy declaration therefore reports **Other Diagnostic Data**, used for
+**App Functionality**, **not linked to the user**, and **not used for tracking**.
+No project, imported model, backup, spatial map, hand data, or design-assistant
+prompt is sent with a catalog request.
 
 ## On-device design assistant
 

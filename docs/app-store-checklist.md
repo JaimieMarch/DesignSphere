@@ -1,6 +1,6 @@
 # App Store Launch Checklist
 
-_Last verified: 2026-07-05 (branch `refactoring`)._
+_Last verified: 2026-07-26 (branch `refactoring`)._
 
 Status of DesignSphere against the App Review Guidelines, split into what is
 **verified in this repo**, what must be done **in App Store Connect**, and the
@@ -14,7 +14,8 @@ Status of DesignSphere against the App Review Guidelines, split into what is
 | Item | Guideline | Status |
 | --- | --- | --- |
 | Privacy usage strings (`NSWorldSensingUsageDescription`, `NSHandsTrackingUsageDescription`) | 5.1.1 | Present in `DesignSphere-Info.plist` and pbxproj `INFOPLIST_KEY_*` (keep the two in sync). Unused camera string removed 2026-07-05. |
-| Privacy manifest (`PrivacyInfo.xcprivacy`) | 5.1 | Ships automatically (synchronized folder). Declares no tracking, no data collection, and both required-reason APIs in use: UserDefaults (`CA92.1`) and file timestamps (`C617.1`, added 2026-07-05 — the LRU model cache and project listing read modification dates). |
+| Privacy manifest (`PrivacyInfo.xcprivacy`) | 5.1 | Ships automatically (synchronized folder). Declares Cloudflare network/request metadata conservatively as non-linked, non-tracking **Other Diagnostic Data** used for **App Functionality**, plus both required-reason APIs in use: UserDefaults (`CA92.1`) and file timestamps (`C617.1`). |
+| Production privacy decision | 5.1 | Cloudflare may retain IP/request metadata, so “Data Not Collected” is not used. The exact App Store Connect answers and evidence are recorded in `production-privacy-declaration.md`. |
 | Export compliance | — | `ITSAppUsesNonExemptEncryption = false` (HTTPS-only, exempt). Added 2026-07-05 so submissions skip the per-build encryption questionnaire. |
 | App Transport Security | — | No `http://` URLs anywhere; catalog is HTTPS (Cloudflare R2). No ATS exceptions declared. |
 | App icon | 2.3.8 | Layered visionOS icon present (`AppIcon.solidimagestack`, 3 layers). |
@@ -26,8 +27,9 @@ Status of DesignSphere against the App Review Guidelines, split into what is
 ## 📋 To do in App Store Connect
 
 - [ ] **Privacy policy URL** — required even though the app collects no data.
-- [ ] **Privacy nutrition labels** — declare **"Data Not Collected"** (matches
-  the manifest: no collection, no tracking).
+- [ ] **Privacy nutrition labels** — declare **Other Diagnostic Data**, used for
+  **App Functionality**, **not linked to identity**, and **not used for
+  tracking**. Do not select “Data Not Collected.”
 - [ ] **Support URL** and marketing description. The description must match
   wired-up reality — do **not** promise SharePlay, LiDAR scanning, or voice
   commands (they are roadmap items; see project-audit.md).
@@ -43,14 +45,11 @@ Everything statically checkable in the repo is done (see the table above).
 These four blocks are what stand between the current state and a confident
 submission, **ordered by risk**:
 
-### 1. Asset license audit — the one real legal/rejection risk (4.1 / 5.2)
+### 1. Asset license audit — completed July 26, 2026 (4.1 / 5.2)
 
-- [ ] The app _redistributes_ 180+ models to users from R2. Poly Haven and
-  The Base Mesh are CC0 (fine). **BlenderKit assets need a per-asset license
-  check** — BlenderKit's royalty-free license generally covers use _inside_ a
-  rendered product, not redistribution of the asset files themselves. Audit
-  `catalog.json` sources and drop or replace anything not clearly
-  redistributable.
+- [x] All 182 production models map to a CC0 Poly Haven or The Base Mesh record;
+  generated thumbnails, embedded textures, and app-icon ownership are covered.
+  No BlenderKit asset is present. See `asset-license-audit.md`.
 
 ### 2. One session on a physical Vision Pro
 
@@ -77,8 +76,8 @@ One device session covers all of it:
 
 ### 4. App Store Connect form-filling (~an hour, all mandatory)
 
-The "To do in App Store Connect" section above: privacy policy URL,
-"Data Not Collected" labels, support URL, device-captured screenshots, age
+The "To do in App Store Connect" section above: privacy policy URL, the prepared
+Other Diagnostic Data label, support URL, device-captured screenshots, age
 rating, honest description, review notes. Plus:
 
 - [ ] **Paid Apple Developer Program membership** and an App Store

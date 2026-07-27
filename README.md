@@ -235,10 +235,12 @@ required item is checked off.
     description, screenshots, review contact, and review notes.
   - Keep public metadata limited to features that are actually enabled; do not
     advertise SharePlay, LiDAR scanning, voice commands, or other roadmap work.
-- [ ] **6. Verify production privacy declarations (required)**
-  - Confirm whether Cloudflare/R2 retains IP addresses or request logs. Declare
-    any retained data in App Store Connect and the privacy policy; use “Data Not
-    Collected” only if the production configuration genuinely qualifies.
+- [x] **6. Verify production privacy declarations (required)** — completed July 26, 2026
+  - Cloudflare may retain IP/request diagnostic metadata, so “Data Not
+    Collected” is not used. The manifest, policy, and prepared App Store Connect
+    answers consistently declare non-linked, non-tracking **Other Diagnostic
+    Data** used for **App Functionality**; see
+    [the production privacy decision](docs/production-privacy-declaration.md).
 - [ ] **7. Productionize remote catalog delivery (strongly recommended)**
   - Move from the public `r2.dev` development endpoint to a production custom
     domain and add availability monitoring.

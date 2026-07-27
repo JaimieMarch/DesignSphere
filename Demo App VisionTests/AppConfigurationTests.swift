@@ -51,6 +51,33 @@ final class AppEnumTests: XCTestCase {
             XCTAssertEqual(destination.onlineURL?.host, "github.com")
         }
     }
+
+    func testPrivacyManifestMatchesProductionCloudflareDeclaration() throws {
+        let manifestURL = try XCTUnwrap(
+            Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy")
+        )
+        let data = try Data(contentsOf: manifestURL)
+        let propertyList = try XCTUnwrap(
+            PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+        )
+
+        XCTAssertEqual(propertyList["NSPrivacyTracking"] as? Bool, false)
+        let collectedTypes = try XCTUnwrap(
+            propertyList["NSPrivacyCollectedDataTypes"] as? [[String: Any]]
+        )
+        XCTAssertEqual(collectedTypes.count, 1)
+        let diagnosticData = collectedTypes[0]
+        XCTAssertEqual(
+            diagnosticData["NSPrivacyCollectedDataType"] as? String,
+            "NSPrivacyCollectedDataTypeOtherDiagnosticData"
+        )
+        XCTAssertEqual(diagnosticData["NSPrivacyCollectedDataTypeLinked"] as? Bool, false)
+        XCTAssertEqual(diagnosticData["NSPrivacyCollectedDataTypeTracking"] as? Bool, false)
+        XCTAssertEqual(
+            diagnosticData["NSPrivacyCollectedDataTypePurposes"] as? [String],
+            ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+        )
+    }
 }
 
 @MainActor

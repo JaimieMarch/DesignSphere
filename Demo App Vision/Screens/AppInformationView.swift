@@ -77,7 +77,7 @@ struct AppInformationView: View {
         VStack(alignment: .leading, spacing: 20) {
             informationSection(
                 title: "Overview",
-                text: "DesignSphere has no accounts, advertising, or third-party analytics. The app does not sell personal information or use data to track you across apps or websites."
+                text: "DesignSphere has no accounts, advertising, or behavioral analytics. The app does not sell personal information or use data to track you across apps or websites. Cloudflare processes limited network metadata when it delivers the remote catalog."
             )
 
             informationSection(
@@ -92,7 +92,7 @@ struct AppInformationView: View {
 
             informationSection(
                 title: "Remote Catalog",
-                text: "The app contacts a Cloudflare-hosted catalog to retrieve its manifest, thumbnails, and USDZ models. Cloudflare may process an IP address and request metadata to deliver and protect that service. DesignSphere does not use those requests for advertising, tracking, or user profiles."
+                text: "The app contacts a Cloudflare-hosted catalog to retrieve its manifest, thumbnails, and USDZ models. Cloudflare may retain an IP address, requested object, timestamp, response status, and related diagnostic metadata to deliver, secure, and operate that service. This is declared as Other Diagnostic Data used for app functionality, not linked to you, and not used for tracking. Projects, imports, backups, spatial information, and assistant prompts are never included in catalog requests."
             )
 
             informationSection(
