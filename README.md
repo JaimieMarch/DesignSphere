@@ -225,7 +225,10 @@ required item is checked off.
   - Add tests for path traversal, malformed data, invalid extensions, and
     oversized backups.
 - [ ] **4. Complete physical-device and TestFlight validation (required)**
-  - Produce a distribution-signed Release archive and upload it to TestFlight.
+  - [x] Fix the target's invalid Development Assets setting and produce a
+    generic Apple Vision Pro Release archive with the production Info.plist,
+    privacy manifest, icon/assets, and arm64 executable (unsigned local check).
+  - [ ] Produce a distribution-signed Release archive and upload it to TestFlight.
   - On a physical Apple Vision Pro, test first launch, permission grant/denial,
     placement, editing, measurement, save/load and world-anchor restoration,
     imports/backups, Focus Mode, Foundation Models, and offline/slow-network

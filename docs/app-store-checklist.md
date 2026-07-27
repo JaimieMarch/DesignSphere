@@ -21,6 +21,7 @@ Status of DesignSphere against the App Review Guidelines, split into what is
 | App icon | 2.3.8 | Layered visionOS icon present (`AppIcon.solidimagestack`, 3 layers). |
 | Bundle identity | — | `com.designsphere.app`, v1.0 (build 1), category `public.app-category.lifestyle`. |
 | Entitlements | 2.5.1 | Cleaned 2026-07-05 (non-standard `com.apple.developer.arkit` key removed). **Confirm signing on the next device build.** |
+| Generic Release archive | 2.1 / 2.5 | Passed July 26, 2026 after removing the source folder from `DEVELOPMENT_ASSET_PATHS`. The unsigned arm64 archive contains the production Info.plist, privacy manifest, icon/assets, and executable. Distribution signing and upload remain open. |
 | No dead user-facing UI | 2.1 | SharePlay is fully removed from the UI (orphaned source files remain in the repo but are unreachable). |
 | Accessibility labels/hints | — | Toolbar, settings, and edit panel carry labels + hints; high-contrast mode supported. |
 | App Store metadata packet | 2.3 | Product copy, privacy/age-rating answers, required visionOS motion answer, screenshot plan, and review notes are prepared in `app-store-metadata.md`. Account-specific fields remain open. |
@@ -62,6 +63,10 @@ Compliance-relevant, not just polish: guideline 2.1 rejections mostly come
 from reviewers hitting bugs, and the app hasn't been run on hardware recently.
 One device session covers all of it:
 
+- [x] **Generic-device Release compilation and archive contents** — verified
+  locally with signing disabled on July 26, 2026. This found and fixed a target
+  setting that had incorrectly marked the whole source folder as Development
+  Assets. It does not validate certificates, provisioning, or installation.
 - [ ] **Signing/provisioning still works** after the non-standard
   `com.apple.developer.arkit` entitlement was removed (2026-07-05). If the
   build won't sign, reverting that one-line entitlement change is the fix.

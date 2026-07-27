@@ -1,8 +1,8 @@
 # Project Audit & Backlog
 
-_Last audited: 2026-07-05 (branch `refactoring`). Full deterministic test
-suite (`Tools/run-tests.sh`) green as of this date: 21 pipeline tests, 131
-package tests (1 skipped live-network test), and the app-target suite._
+_Last audited: 2026-07-26 (branch `refactoring`). Current release verification:
+25 pipeline tests, 143 package tests (1 skipped live-network test), all 27 app
+tests, and an unsigned generic-device Release archive are green._
 
 This document records the **true state** of features that are partially shipped,
 deferred, gated behind flags, or removed from the UI — and the prioritized
@@ -155,6 +155,12 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
   attachment — which arrives already sized in meters — to under a millimeter.
   Fixed 2026-07-05 and pinned by `EditMenuAttachmentTests`; it should now
   render in the simulator and on device alike.)
+- [x] **Generic-device Release archive** — passed unsigned on July 26, 2026.
+  The first archive attempt exposed that `DEVELOPMENT_ASSET_PATHS` pointed at
+  the entire app source folder, which excluded root-level production Swift
+  files from archive compilation. The invalid setting was removed from Debug
+  and Release. Distribution signing, TestFlight upload, and device installation
+  remain part of the on-device verification blocker.
 - [x] **Resolve SharePlay** — decided 2026-07-05: keep the dormant code in the
   repo for future wiring (see above).
 - [x] **Graduate Measurement out of Labs** — done 2026-06-26 (ruler now in the

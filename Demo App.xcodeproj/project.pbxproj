@@ -337,7 +337,6 @@
 				CODE_SIGN_ENTITLEMENTS = "Demo App Vision/Demo App Vision.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"Demo App Vision/\"";
 				DEVELOPMENT_TEAM = HC2XYK55Y8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -375,7 +374,6 @@
 				CODE_SIGN_ENTITLEMENTS = "Demo App Vision/Demo App Vision.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = "\"Demo App Vision/\"";
 				DEVELOPMENT_TEAM = HC2XYK55Y8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
