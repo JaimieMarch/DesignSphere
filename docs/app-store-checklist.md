@@ -68,8 +68,11 @@ One device session covers all of it:
   setting that had incorrectly marked the whole source folder as Development
   Assets. It does not validate certificates, provisioning, or installation.
 - [ ] **Signing/provisioning still works** after the non-standard
-  `com.apple.developer.arkit` entitlement was removed (2026-07-05). If the
-  build won't sign, reverting that one-line entitlement change is the fix.
+  `com.apple.developer.arkit` entitlement was removed (2026-07-05). The July 26
+  archive attempt found one valid local signing identity but zero installed
+  provisioning profiles and failed specifically because no profile exists for
+  `com.designsphere.app`. Sign in to the correct paid team and let Xcode create
+  or install the profile, then rerun the signed archive.
 - [ ] **Edit panel renders** — its invisibility was a scale bug (fixed +
   regression-tested 2026-07-05), but only verified in the simulator so far.
 - [ ] **Measurement overlays + ruler** draw and respond to unit changes.

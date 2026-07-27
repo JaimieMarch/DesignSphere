@@ -229,6 +229,9 @@ required item is checked off.
     generic Apple Vision Pro Release archive with the production Info.plist,
     privacy manifest, icon/assets, and arm64 executable (unsigned local check).
   - [ ] Produce a distribution-signed Release archive and upload it to TestFlight.
+    The July 26 local check found one valid signing identity but no installed
+    provisioning profiles for `com.designsphere.app`; an authenticated Apple
+    Developer account must create/install the profile before this can pass.
   - On a physical Apple Vision Pro, test first launch, permission grant/denial,
     placement, editing, measurement, save/load and world-anchor restoration,
     imports/backups, Focus Mode, Foundation Models, and offline/slow-network
