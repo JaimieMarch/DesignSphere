@@ -38,6 +38,19 @@ final class AppEnumTests: XCTestCase {
             }
         }
     }
+
+    func testAppInformationDestinationsHaveSecurePublicURLs() {
+        XCTAssertEqual(
+            Set(AppInformationDestination.allCases.map(\.id)).count,
+            AppInformationDestination.allCases.count
+        )
+        for destination in AppInformationDestination.allCases {
+            XCTAssertFalse(destination.title.isEmpty)
+            XCTAssertFalse(destination.systemImage.isEmpty)
+            XCTAssertEqual(destination.onlineURL?.scheme, "https")
+            XCTAssertEqual(destination.onlineURL?.host, "github.com")
+        }
+    }
 }
 
 @MainActor

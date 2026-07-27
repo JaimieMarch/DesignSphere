@@ -313,6 +313,7 @@ struct SettingsScreen: View {
     @State private var backupFilename = "DesignSphere-Backup"
     @State private var backupResultMessage: String?
     @State private var backupErrorMessage: String?
+    @State private var selectedInformation: AppInformationDestination?
 
     var body: some View {
         ScrollView {
@@ -360,16 +361,25 @@ struct SettingsScreen: View {
                         .foregroundStyle(.secondary)
 
                     Button {
+                        selectedInformation = .privacyPolicy
+                    } label: {
+                        settingsNavigationLabel("Privacy Policy", systemImage: "hand.raised")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens the DesignSphere privacy policy")
+
+                    Button {
+                        selectedInformation = .support
+                    } label: {
+                        settingsNavigationLabel("Support & Contact", systemImage: "questionmark.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens support information and contact links")
+
+                    Button {
                         showLocalDataManagement = true
                     } label: {
-                        HStack {
-                            Text("Manage Local Data")
-                                .font(.headline)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
+                        settingsNavigationLabel("Manage Local Data", systemImage: "internaldrive")
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 4)
@@ -454,6 +464,9 @@ struct SettingsScreen: View {
                 createBackup(with: categories)
             }
         }
+        .sheet(item: $selectedInformation) { destination in
+            AppInformationView(destination: destination)
+        }
         .fileExporter(
             isPresented: $showBackupExporter,
             document: backupDocument,
@@ -518,6 +531,17 @@ struct SettingsScreen: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HHmm"
         return "DesignSphere-Backup-\(formatter.string(from: Date()))"
+    }
+
+    private func settingsNavigationLabel(_ title: String, systemImage: String) -> some View {
+        HStack {
+            Label(title, systemImage: systemImage)
+                .font(.headline)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
     }
 }
 

@@ -205,9 +205,10 @@ Work through these one at a time. Do not submit the app for review until every
 required item is checked off.
 
 - [ ] **1. Add in-app privacy and support information (required)**
-  - Publish a public DesignSphere privacy policy and support/contact page.
-  - Add easily accessible Privacy Policy, Support, and contact links in Settings.
-  - Document local project/import storage, spatial permissions, the remote
+  - [ ] Publish the prepared DesignSphere privacy policy and support/contact
+    pages by merging them into the public `main` branch, then verify both URLs.
+  - [x] Add easily accessible Privacy Policy, Support, and contact links in Settings.
+  - [x] Document local project/import storage, spatial permissions, the remote
     catalog, on-device Foundation Models, data retention, deletion, and backups.
 - [ ] **2. Complete the asset-license audit (required)**
   - Record the source, author, exact license, attribution requirements, and
