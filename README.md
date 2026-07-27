@@ -210,12 +210,13 @@ required item is checked off.
   - [x] Add easily accessible Privacy Policy, Support, and contact links in Settings.
   - [x] Document local project/import storage, spatial permissions, the remote
     catalog, on-device Foundation Models, data retention, deletion, and backups.
-- [ ] **2. Complete the asset-license audit (required)**
-  - Record the source, author, exact license, attribution requirements, and
-    redistribution permission for every hosted model, thumbnail, texture, and
-    app-icon asset.
-  - Remove or replace any asset—especially BlenderKit content—whose USDZ
-    redistribution rights cannot be proven.
+- [x] **2. Complete the asset-license audit (required)** — completed July 26, 2026
+  - Audited all 182 production models, their generated thumbnails and embedded
+    textures, plus all three app-icon layers; see
+    [the evidence and per-ID registry](docs/asset-license-audit.md).
+  - Every model maps to a CC0 Poly Haven or The Base Mesh source record. No
+    BlenderKit or other unproven asset remains, and future catalog builds fail
+    when a model lacks audited provenance.
 - [x] **3. Secure backup imports (required)** — completed July 26, 2026
   - Sanitize embedded filenames, enforce the expected extensions, and verify
     every standardized destination remains inside its intended app directory.

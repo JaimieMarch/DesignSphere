@@ -1,0 +1,76 @@
+# Asset license audit
+
+Status: **passed for the current production catalog** on July 26, 2026.
+
+This audit covers the 182 models in the production catalog, every generated
+thumbnail, the textures embedded in the textured USDZ files, and all three
+visionOS app-icon layers. The complete machine-readable record is
+[`asset_provenance.json`](../Tools/catalog-pipeline/asset_provenance.json).
+
+## Production catalog snapshot
+
+- Catalog URL: <https://pub-efd589f26cb24d3db0c409b9416b4ecd.r2.dev/catalog.json>
+- Catalog `generatedAt`: June 21, 2026
+- Catalog SHA-256:
+  `cd24d5c53df41da4b5a6db5e3ba57834a0c24a9f50bc9f1d03fd5392369dd036`
+- Audited entries: 182 of 182
+- Unmatched or unlicensed entries: 0
+- BlenderKit entries: 0
+
+Each production ID was matched to a current record in the relevant source's
+official catalog. Three The Base Mesh source pages use a shorter public slug:
+`amphora_01` maps to `amphora`, `guitar_stand_01` maps to `guitar-stand`, and
+`iron_chandelier_01` maps to `iron-chandelier`.
+
+## Models, textures, and thumbnails
+
+| Source | Entries | Credited author(s) | Exact license | Attribution | Redistribution | Covered output |
+| --- | ---: | --- | --- | --- | --- | --- |
+| [Poly Haven](https://polyhaven.com/models) | 66 | The individual creator(s) returned by Poly Haven's official API; recorded per ID in the provenance registry | [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) | Not required | Permitted, including commercial products | USDZ model, embedded PBR textures, generated thumbnail |
+| [The Base Mesh](https://www.thebasemesh.com/model-library) | 116 | Tim Steer and The Base Mesh contributors | [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/) | Not required | Permitted, including commercial products | USDZ model and generated thumbnail |
+
+Poly Haven states that all of its models and textures are CC0 and may be used,
+redistributed, and sold without attribution. The Base Mesh likewise states that
+its models are CC0, may be used commercially without restriction, and need not
+be credited. Its submission rules require donated models to be released under
+CC0. The Base Mesh does not publish a separate creator field for each model, so
+the registry records the official publisher/rights source as “Tim Steer and The
+Base Mesh contributors”; this does not weaken the published CC0 grant.
+
+Hosted thumbnails are renders produced by DesignSphere's `usdrecord` pipeline,
+not copies of either source site's promotional renders. They are derivatives of
+the audited model and therefore carry the same CC0 permission. The Base Mesh
+models in this catalog are geometry-only and have no hosted third-party texture
+files. Poly Haven textures are converted and embedded into the corresponding
+USDZ; they are covered by Poly Haven's asset license.
+
+## App icon
+
+| Files | Author / owner | License | Attribution | Redistribution |
+| --- | --- | --- | --- | --- |
+| `Front.png`, `Middle.png`, and `Back.png` in `AppIcon.solidimagestack` | Sam Safe / DesignSphere project | Project-owned artwork; all rights reserved | Not required | Permitted as part of DesignSphere and its App Store/marketing materials |
+
+The three 1024×1024 icon layers entered the repository together in commit
+`a3d26f80ab6d2992bde1943d06ce469bddbc847c` on December 4, 2025, authored and
+committed by Sam Safe. No third-party source or stock-art dependency is present
+in the repository history. This audit treats that commit as the project's
+ownership record; if that ownership assertion is ever found to be incorrect,
+the icon must be replaced before distribution.
+
+## Enforcement
+
+The catalog builder now loads the checked-in provenance registry by default. A
+build fails before conversion or upload when any discovered model lacks an
+audited record. Successful builds embed source, source URL, authors, exact
+license, attribution requirement, redistribution permission, and covered asset
+types in every manifest entry. Tests also require the registry to contain all
+182 audited models and all three current icon files.
+
+When adding or replacing an asset:
+
+1. Confirm the exact source page and redistribution license before downloading.
+2. Add the model ID, source ID, author(s), and license to the provenance registry.
+3. Keep source evidence; do not use an asset whose redistribution rights are
+   merely assumed from a marketplace or search result.
+4. Run the pipeline tests before rebuilding or uploading the catalog.
+

@@ -15,6 +15,7 @@ from unittest import mock
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "build_catalog.py"
+PROVENANCE_PATH = MODULE_PATH.parent / "asset_provenance.json"
 SPEC = importlib.util.spec_from_file_location("build_catalog", MODULE_PATH)
 assert SPEC and SPEC.loader
 build_catalog = importlib.util.module_from_spec(SPEC)
@@ -130,6 +131,52 @@ class CatalogDiscoveryTests(unittest.TestCase):
         return mesh
 
 
+class CatalogProvenanceTests(unittest.TestCase):
+    def test_checked_in_registry_covers_every_hosted_asset(self):
+        records = build_catalog.load_model_provenance(PROVENANCE_PATH)
+        self.assertEqual(len(records), 182)
+        self.assertEqual(records["armchair_01"]["source"], "Poly Haven")
+        self.assertEqual(records["armchair_01"]["authors"], ["Kirill Sannikov"])
+        self.assertEqual(records["acoustic_guitar"]["source"], "The Base Mesh")
+        self.assertEqual(records["amphora_01"]["sourceID"], "amphora")
+        self.assertTrue(all(record["redistributionAllowed"] for record in records.values()))
+        self.assertTrue(all(not record["attributionRequired"] for record in records.values()))
+
+        registry = json.loads(PROVENANCE_PATH.read_text())
+        repository_root = MODULE_PATH.parents[2]
+        icon_paths = registry["appIcon"]["assets"]
+        self.assertEqual(len(icon_paths), 3)
+        self.assertTrue(all((repository_root / path).is_file() for path in icon_paths))
+
+    def test_duplicate_or_missing_authorship_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "provenance.json"
+            source = self._source(assets=["chair", "chair"])
+            path.write_text(json.dumps({"schemaVersion": 1, "sources": {"test": source}}))
+            with self.assertRaisesRegex(ValueError, "duplicate provenance"):
+                build_catalog.load_model_provenance(path)
+
+            source = self._source(assets=["chair"])
+            source["authors"] = []
+            path.write_text(json.dumps({"schemaVersion": 1, "sources": {"test": source}}))
+            with self.assertRaisesRegex(ValueError, "missing author"):
+                build_catalog.load_model_provenance(path)
+
+    @staticmethod
+    def _source(assets: list[str]) -> dict:
+        return {
+            "name": "Test Source",
+            "sourceURLTemplate": "https://example.com/{sourceID}",
+            "authors": ["Test Author"],
+            "license": "CC0 1.0 Universal",
+            "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+            "attributionRequired": False,
+            "redistributionAllowed": True,
+            "covers": ["model", "generatedThumbnail"],
+            "assets": assets,
+        }
+
+
 class CatalogConversionTests(unittest.TestCase):
     def test_external_converter_is_invoked_with_input_and_output(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -240,6 +287,25 @@ class CatalogBuildTests(unittest.TestCase):
             self.assertIn("chair", stdout.getvalue())
             self.assertIn("seating", stdout.getvalue())
 
+    def test_build_rejects_model_without_audited_provenance(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "source"
+            source.mkdir()
+            CatalogDiscoveryTests._mesh_folder(source, "chair", ".glb")
+            registry = root / "provenance.json"
+            registry.write_text(json.dumps({
+                "schemaVersion": 1,
+                "sources": {"test": CatalogProvenanceTests._source([])},
+            }))
+            stderr = io.StringIO()
+            with redirect_stderr(stderr):
+                result = build_catalog.build(
+                    self._args(source, root / "out", dry_run=True, provenance=str(registry))
+                )
+            self.assertEqual(result, 2)
+            self.assertIn("missing audited provenance for: chair", stderr.getvalue())
+
     def test_full_build_writes_deterministic_manifest_metadata(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -266,6 +332,33 @@ class CatalogBuildTests(unittest.TestCase):
             self.assertEqual(entry["file"]["bytes"], len(b"converted-model"))
             self.assertEqual(entry["file"]["sha256"], hashlib.sha256(b"converted-model").hexdigest())
             self.assertNotIn("thumbnail", entry)
+
+    def test_full_build_embeds_audited_provenance(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "source"
+            source.mkdir()
+            CatalogDiscoveryTests._mesh_folder(source, "chair", ".glb")
+            output = root / "out"
+            (output / "models").mkdir(parents=True)
+            (output / "models" / "chair.usdz").write_bytes(b"model")
+            registry = root / "provenance.json"
+            registry.write_text(json.dumps({
+                "schemaVersion": 1,
+                "sources": {"test": CatalogProvenanceTests._source(["chair"])},
+            }))
+
+            with redirect_stdout(io.StringIO()):
+                result = build_catalog.build(
+                    self._args(source, output, provenance=str(registry), skip_thumbnails=True)
+                )
+
+            self.assertEqual(result, 0)
+            provenance = json.loads((output / "catalog.json").read_text())["models"][0]["provenance"]
+            self.assertEqual(provenance["source"], "Test Source")
+            self.assertEqual(provenance["authors"], ["Test Author"])
+            self.assertEqual(provenance["license"], "CC0 1.0 Universal")
+            self.assertTrue(provenance["redistributionAllowed"])
 
     def test_existing_thumbnail_is_referenced_when_rendering_is_skipped(self):
         with tempfile.TemporaryDirectory() as temp:

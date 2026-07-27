@@ -11,8 +11,9 @@ _catalog_build/
   catalog.json          # the manifest the app fetches at launch
 ```
 
-The assets themselves are **never committed** — only this script and (optionally)
-the generated `catalog.json`. Build output is gitignored.
+The assets themselves are **never committed** — only this script, the audited
+`asset_provenance.json` registry, and (optionally) the generated `catalog.json`.
+Build output is gitignored.
 
 ## One-time setup
 
@@ -57,6 +58,7 @@ python3 build_catalog.py --source ~/Downloads
 #   --downscale 2048  larger textures (default 1024)
 #   --limit 5         process a handful first
 #   --force           re-convert models whose usdz already exists
+#   --provenance ...  audited registry (defaults to asset_provenance.json)
 
 # 3. Upload to R2 (bucket public-read):
 rclone copy ~/Downloads/_catalog_build r2:designsphere-catalog --progress --exclude ".DS_Store"
@@ -75,6 +77,17 @@ rclone copy ~/Downloads/_catalog_build r2:designsphere-catalog --progress --excl
       "category": "seating",
       "file": { "url": "models/wooden_chair_01.usdz", "bytes": 123456, "sha256": "…" },
       "thumbnail": { "url": "thumbnails/wooden_chair_01.png" },
+      "provenance": {
+        "source": "The Base Mesh",
+        "sourceID": "wooden-chair-01",
+        "sourceURL": "https://www.thebasemesh.com/asset/wooden-chair-01",
+        "authors": ["Tim Steer and The Base Mesh contributors"],
+        "license": "CC0 1.0 Universal",
+        "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "attributionRequired": false,
+        "redistributionAllowed": true,
+        "covers": ["model", "generatedThumbnail"]
+      },
       "placement": {
         "classification": "floor", "plane": "horizontal",
         "canStack": true, "needsPhysics": false, "preserveRealWorldScale": true
@@ -87,6 +100,9 @@ rclone copy ~/Downloads/_catalog_build r2:designsphere-catalog --progress --excl
 `placement` is the per-model metadata currently hard-coded in `ModelType.swift`;
 moving it into the manifest lets the app load remote models it has never seen.
 `sha256` lets the on-device cache detect when a re-uploaded model has changed.
+`provenance` is required for release builds and records the legal basis for
+hosting each model and its derivative assets. The app safely ignores these extra
+fields, while the build pipeline refuses any model missing from the registry.
 
 ## Notes
 
@@ -95,3 +111,5 @@ moving it into the manifest lets the app load remote models it has never seen.
   Review the `--dry-run` output and tweak the rules before a full build.
 - `preserveRealWorldScale` defaults to `true` because the Poly Haven source set
   is modelled at real-world scale.
+- See [the asset-license audit](../../docs/asset-license-audit.md) for the current
+  production-catalog evidence and the rules for adding new assets.

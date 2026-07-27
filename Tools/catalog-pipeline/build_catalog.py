@@ -50,6 +50,7 @@ from pathlib import Path
 # Manifest schema version. Bump when the JSON shape changes so older app builds
 # can refuse a manifest they don't understand.
 MANIFEST_VERSION = 1
+DEFAULT_PROVENANCE_PATH = Path(__file__).resolve().parent / "asset_provenance.json"
 
 # Source mesh formats in order of preference. glb is self-contained (geometry +
 # materials + embedded textures) so it converts to USDZ with the best fidelity.
@@ -138,6 +139,51 @@ def model_id_from_folder(name: str) -> str:
 
 def display_name(model_id: str) -> str:
     return " ".join(part.capitalize() for part in model_id.replace("-", "_").split("_"))
+
+
+def load_model_provenance(path: Path) -> dict[str, dict]:
+    """Flatten the audited provenance registry into manifest-ready records."""
+    data = json.loads(path.read_text())
+    if data.get("schemaVersion") != 1 or not isinstance(data.get("sources"), dict):
+        raise ValueError("unsupported asset provenance schema")
+
+    records: dict[str, dict] = {}
+    for source in data["sources"].values():
+        required = (
+            "name", "sourceURLTemplate", "license", "licenseURL",
+            "attributionRequired", "redistributionAllowed", "covers",
+        )
+        if any(field not in source for field in required):
+            raise ValueError(f"incomplete provenance source: {source.get('name', '<unknown>')}")
+
+        def add_record(model_id: str, source_id: str, authors: list[str]) -> None:
+            if model_id in records:
+                raise ValueError(f"duplicate provenance for {model_id}")
+            if not authors or not all(isinstance(author, str) and author for author in authors):
+                raise ValueError(f"missing author for {model_id}")
+            records[model_id] = {
+                "source": source["name"],
+                "sourceID": source_id,
+                "sourceURL": source["sourceURLTemplate"].format(sourceID=source_id),
+                "authors": authors,
+                "license": source["license"],
+                "licenseURL": source["licenseURL"],
+                "attributionRequired": source["attributionRequired"],
+                "redistributionAllowed": source["redistributionAllowed"],
+                "covers": source["covers"],
+            }
+
+        if "authorGroups" in source:
+            for group in source["authorGroups"]:
+                for asset in group["assets"]:
+                    add_record(asset["id"], asset["sourceID"], group["authors"])
+        else:
+            authors = source.get("authors", [])
+            overrides = source.get("sourceIDOverrides", {})
+            for model_id in source.get("assets", []):
+                source_id = overrides.get(model_id, model_id.replace("_", "-"))
+                add_record(model_id, source_id, authors)
+    return records
 
 
 def find_source_mesh(folder: Path) -> Path | None:
@@ -254,6 +300,20 @@ def build(args: argparse.Namespace) -> int:
         print(f"No model folders found under {source}", file=sys.stderr)
         return 1
 
+    provenance: dict[str, dict] = {}
+    provenance_arg = getattr(args, "provenance", None)
+    if provenance_arg:
+        provenance_path = Path(provenance_arg).expanduser().resolve()
+        try:
+            provenance = load_model_provenance(provenance_path)
+        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as error:
+            print(f"error: invalid asset provenance registry: {error}", file=sys.stderr)
+            return 2
+        missing = [model_id for model_id, _mesh in models if model_id not in provenance]
+        if missing:
+            print("error: missing audited provenance for: " + ", ".join(missing), file=sys.stderr)
+            return 2
+
     print(f"Discovered {len(models)} model(s) under {source}")
     if not args.dry_run:
         (out / "models").mkdir(parents=True, exist_ok=True)
@@ -309,6 +369,8 @@ def build(args: argparse.Namespace) -> int:
             },
             "placement": asdict(placement),
         }
+        if model_id in provenance:
+            entry["provenance"] = provenance[model_id]
         if has_thumb:
             entry["thumbnail"] = {"url": f"thumbnails/{model_id}.png"}
         entries.append(entry)
@@ -355,6 +417,8 @@ def main() -> int:
                         help="Only process folders whose source is a .blend (the textured set)")
     parser.add_argument("--limit", type=int, default=0,
                         help="Process at most N models (for quick test runs)")
+    parser.add_argument("--provenance", default=str(DEFAULT_PROVENANCE_PATH),
+                        help="Audited asset provenance registry; every model must be present")
     return build(parser.parse_args())
 
 

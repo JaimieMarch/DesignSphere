@@ -1,0 +1,164 @@
+{
+  "schemaVersion": 1,
+  "sources": {
+    "poly_haven": {
+      "name": "Poly Haven",
+      "sourceURLTemplate": "https://polyhaven.com/a/{sourceID}",
+      "license": "CC0 1.0 Universal",
+      "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "redistributionAllowed": true,
+      "covers": ["model", "embeddedTextures", "generatedThumbnail"],
+      "authorGroups": [
+        {"authors": ["Amin"], "assets": [{"id": "modern_coffee_table_01", "sourceID": "modern_coffee_table_01"}]},
+        {"authors": ["Caspian Fortune"], "assets": [{"id": "ottoman_01", "sourceID": "Ottoman_01"}]},
+        {"authors": ["Ethan Place"], "assets": [{"id": "woodentable_01", "sourceID": "WoodenTable_01"}]},
+        {"authors": ["Fran Calvente"], "assets": [{"id": "sofa_03", "sourceID": "sofa_03"}]},
+        {"authors": ["Gabriel Radić"], "assets": [{"id": "shelf_01", "sourceID": "Shelf_01"}]},
+        {"authors": ["Garreth Dean"], "assets": [{"id": "wheelchair_01", "sourceID": "wheelchair_01"}]},
+        {
+          "authors": ["James Ray Cock"],
+          "assets": [
+            {"id": "antique_ceramic_vase_01", "sourceID": "antique_ceramic_vase_01"},
+            {"id": "ceramic_vase_02", "sourceID": "ceramic_vase_02"},
+            {"id": "dining_chair_02", "sourceID": "dining_chair_02"},
+            {"id": "hanging_picture_frame_02", "sourceID": "hanging_picture_frame_02"},
+            {"id": "ornate_mirror_01", "sourceID": "ornate_mirror_01"},
+            {"id": "potted_plant_04", "sourceID": "potted_plant_04"},
+            {"id": "side_table_01", "sourceID": "side_table_01"},
+            {"id": "side_table_tall_01", "sourceID": "side_table_tall_01"},
+            {"id": "standing_picture_frame_01", "sourceID": "standing_picture_frame_01"},
+            {"id": "steel_frame_shelves_01", "sourceID": "steel_frame_shelves_01"},
+            {"id": "steel_frame_shelves_02", "sourceID": "steel_frame_shelves_02"},
+            {"id": "vintage_wooden_drawer_01", "sourceID": "vintage_wooden_drawer_01"},
+            {"id": "wooden_display_shelves_01", "sourceID": "wooden_display_shelves_01"}
+          ]
+        },
+        {"authors": ["James Ray Cock", "Yann Kervran"], "assets": [{"id": "vintage_grandfather_clock_01", "sourceID": "vintage_grandfather_clock_01"}]},
+        {"authors": ["Jorge Camacho"], "assets": [{"id": "rockingchair_01", "sourceID": "Rockingchair_01"}]},
+        {"authors": ["Josh Dean"], "assets": [{"id": "street_lamp_02", "sourceID": "street_lamp_02"}]},
+        {
+          "authors": ["Kirill Sannikov"],
+          "assets": [
+            {"id": "armchair_01", "sourceID": "ArmChair_01"},
+            {"id": "chandelier_01", "sourceID": "Chandelier_01"},
+            {"id": "chinese_armchair", "sourceID": "chinese_armchair"},
+            {"id": "chinese_cabinet", "sourceID": "chinese_cabinet"},
+            {"id": "chinese_commode", "sourceID": "chinese_commode"},
+            {"id": "chinese_stool", "sourceID": "chinese_stool"},
+            {"id": "chinese_tea_table", "sourceID": "chinese_tea_table"},
+            {"id": "classicconsole_01", "sourceID": "ClassicConsole_01"},
+            {"id": "classicnightstand_01", "sourceID": "ClassicNightstand_01"},
+            {"id": "gothiccommode_01", "sourceID": "GothicCommode_01"},
+            {"id": "greenchair_01", "sourceID": "GreenChair_01"},
+            {"id": "painted_wooden_chair_02", "sourceID": "painted_wooden_chair_02"},
+            {"id": "painted_wooden_nightstand", "sourceID": "painted_wooden_nightstand"},
+            {"id": "painted_wooden_stool", "sourceID": "painted_wooden_stool"},
+            {"id": "painted_wooden_table", "sourceID": "painted_wooden_table"},
+            {"id": "sofa_01", "sourceID": "Sofa_01"},
+            {"id": "sofa_02", "sourceID": "sofa_02"}
+          ]
+        },
+        {
+          "authors": ["Kuutti Siitonen"],
+          "assets": [
+            {"id": "mid_century_lounge_chair", "sourceID": "mid_century_lounge_chair"},
+            {"id": "painted_wooden_chair_01", "sourceID": "painted_wooden_chair_01"},
+            {"id": "plastic_monobloc_chair_01", "sourceID": "plastic_monobloc_chair_01"},
+            {"id": "wooden_stool_02", "sourceID": "wooden_stool_02"}
+          ]
+        },
+        {"authors": ["Patrik Pangerl"], "assets": [{"id": "modern_wooden_cabinet", "sourceID": "modern_wooden_cabinet"}]},
+        {
+          "authors": ["Rico Cilliers"],
+          "assets": [
+            {"id": "horse_statue_01", "sourceID": "horse_statue_01"},
+            {"id": "marble_bust_01", "sourceID": "marble_bust_01"},
+            {"id": "vintage_cabinet_01", "sourceID": "vintage_cabinet_01"}
+          ]
+        },
+        {"authors": ["Rico Cilliers", "Rob Tuytel"], "assets": [{"id": "fancy_picture_frame_02", "sourceID": "fancy_picture_frame_02"}]},
+        {"authors": ["Rico Cilliers", "Yann Kervran"], "assets": [{"id": "mantel_clock_01", "sourceID": "mantel_clock_01"}]},
+        {
+          "authors": ["Serhii Khromov"],
+          "assets": [
+            {"id": "throw_pillows_01", "sourceID": "throw_pillows_01"},
+            {"id": "wooden_table_02", "sourceID": "wooden_table_02"}
+          ]
+        },
+        {
+          "authors": ["Ulan Cabanilla"],
+          "assets": [
+            {"id": "ceiling_fan", "sourceID": "ceiling_fan"},
+            {"id": "coffee_table_round_01", "sourceID": "coffee_table_round_01"},
+            {"id": "drawer_cabinet", "sourceID": "drawer_cabinet"},
+            {"id": "gallinera_chair", "sourceID": "gallinera_chair"},
+            {"id": "gallinera_table", "sourceID": "gallinera_table"},
+            {"id": "gothic_coffee_table", "sourceID": "gothic_coffee_table"},
+            {"id": "industrial_coffee_table", "sourceID": "industrial_coffee_table"},
+            {"id": "industrial_wall_sconce", "sourceID": "industrial_wall_sconce"},
+            {"id": "round_wooden_table_01", "sourceID": "round_wooden_table_01"},
+            {"id": "round_wooden_table_02", "sourceID": "round_wooden_table_02"},
+            {"id": "small_wooden_table_01", "sourceID": "small_wooden_table_01"},
+            {"id": "steel_frame_shelves_03", "sourceID": "steel_frame_shelves_03"},
+            {"id": "wooden_bookshelf_worn", "sourceID": "wooden_bookshelf_worn"},
+            {"id": "wooden_picnic_table", "sourceID": "wooden_picnic_table"}
+          ]
+        },
+        {"authors": ["Vibrant Nordic"], "assets": [{"id": "modern_arm_chair_01", "sourceID": "modern_arm_chair_01"}]}
+      ]
+    },
+    "the_base_mesh": {
+      "name": "The Base Mesh",
+      "sourceURLTemplate": "https://www.thebasemesh.com/asset/{sourceID}",
+      "authors": ["Tim Steer and The Base Mesh contributors"],
+      "license": "CC0 1.0 Universal",
+      "licenseURL": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attributionRequired": false,
+      "redistributionAllowed": true,
+      "covers": ["model", "generatedThumbnail"],
+      "sourceIDOverrides": {
+        "amphora_01": "amphora",
+        "guitar_stand_01": "guitar-stand",
+        "iron_chandelier_01": "iron-chandelier"
+      },
+      "assets": [
+        "acoustic_guitar", "air_vent_01", "amphora_01", "antique_clock_01", "arrow_01",
+        "bedside_table_01", "birdhouse", "canned_food_01", "canned_food_02", "canned_food_03",
+        "chest_of_drawers_01", "clothes_rail", "coat_stand_01", "coat_stand_02", "cocktail_glass",
+        "coffee_cup", "coffee_table_01", "coffee_table_02", "computer_keyboard_01", "computer_mouse_01",
+        "computer_screen_01", "computer_speaker_01", "conical_arrow", "deer_head", "desk_lamp",
+        "dining_chair_01", "display_table_03", "display_table_04", "display_table_05", "door_01",
+        "door_02", "door_03", "door_04", "door_05", "door_06", "electric_guitar", "filing_cabinet",
+        "flower_pot_01", "flower_vase_01", "folded_chair_02", "folding_camping_stool", "folding_chair_02",
+        "food_prep_table", "food_prep_table_corner", "fruit_bowl_01", "goblet_02", "greek_vase_01",
+        "guitar_stand_01", "iron_chandelier_01", "kennel_01", "letter_rack_01", "lounge_chair_01",
+        "lutyens_bench", "mesh_bin", "mug", "office_chair", "office_desk", "organizer_drawers_02",
+        "ornate_bench", "outdoor_folding_chair", "outdoor_wall_lamp_01", "painting_frame_01",
+        "painting_frame_02", "painting_frame_03", "painting_frame_04", "painting_frame_05", "painting_frame_06",
+        "painting_frame_07", "painting_frame_08", "painting_frame_09", "painting_frame_10", "painting_frame_11",
+        "painting_frame_12", "painting_frame_13", "park_bench", "photo_frame_01", "piano", "picnic_table_01",
+        "picture_frame_01", "picture_frame_02", "plastic_chair_01", "pub_stool", "roman_pottery_03",
+        "roman_pottery_04", "roman_pottery_08", "roman_pottery_09", "rounded_picket_fence", "sandal_01",
+        "sheepskin_boot", "shelving_unit_01", "snapback_cap", "square_table", "stem_bar_table_01", "stool_01",
+        "storage_shelving_01", "stylized_boot", "tealight", "tiered_fountain_01", "toilet_roll_holder_01",
+        "toilet_roll_holder_02", "towel_holder", "towel_rail_01", "trophy", "urban_bench_01", "urban_bench_02",
+        "urban_bench_03", "wall_clock", "wall_panelling_01", "wall_panelling_02", "wall_panelling_03",
+        "wall_panelling_04", "wellington_boot", "wine_rack_01", "wine_rack_02", "wooden_chair_01",
+        "wooden_gate_01"
+      ]
+    }
+  },
+  "appIcon": {
+    "authors": ["Sam Safe / DesignSphere project"],
+    "license": "Project-owned artwork; all rights reserved",
+    "attributionRequired": false,
+    "redistributionAllowed": "Only as part of DesignSphere and its store/marketing materials",
+    "evidence": "Git commit a3d26f80ab6d2992bde1943d06ce469bddbc847c (2025-12-04)",
+    "assets": [
+      "Demo App Vision/Assets.xcassets/AppIcon.solidimagestack/Front.solidimagestacklayer/Content.imageset/Front.png",
+      "Demo App Vision/Assets.xcassets/AppIcon.solidimagestack/Middle.solidimagestacklayer/Content.imageset/Middle.png",
+      "Demo App Vision/Assets.xcassets/AppIcon.solidimagestack/Back.solidimagestacklayer/Content.imageset/Back.png"
+    ]
+  }
+}
