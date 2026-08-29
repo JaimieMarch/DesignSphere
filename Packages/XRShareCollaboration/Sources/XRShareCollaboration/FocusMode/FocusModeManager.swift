@@ -203,7 +203,7 @@ public final class FocusModeManager: ObservableObject {
         }
 
         guard sharedAnchorEntity != nil else {
-            statusText = "Focus mode needs a live shared anchor"
+            statusText = "Focus mode needs an active scene anchor"
             return
         }
 
@@ -258,7 +258,7 @@ public final class FocusModeManager: ObservableObject {
 
     private func recenterFocusModeAnchor() {
         guard let sharedAnchor = sharedAnchorEntity else {
-            statusText = "Shared anchor unavailable"
+            statusText = "Scene anchor unavailable"
             return
         }
 

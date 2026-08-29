@@ -417,7 +417,7 @@ private struct InteractiveWalkthroughView: View {
             id: 3,
             icon: "ruler.fill",
             title: "Measure & arrange",
-            description: "Show object dimensions, measure the distance between items, or drop a virtual ruler — then arrange your room to exact scale."
+            description: "Show object dimensions, measure the distance between items, or drop a virtual ruler — then arrange your room to scale."
         ),
         .init(
             id: 4,

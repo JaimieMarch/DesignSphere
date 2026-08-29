@@ -17,9 +17,9 @@ Include:
 - what actually happened; and
 - concise steps that reproduce the problem.
 
-GitHub issues are public. Do **not** attach saved projects, room scans, backup
-files, imported private models, screenshots containing personal information, or
-other sensitive content. Support is provided on a best-effort basis.
+GitHub issues are public. Do **not** attach saved projects, backup files,
+imported private models, screenshots containing personal information, or other
+sensitive content. Support is provided on a best-effort basis.
 
 ## Common questions
 

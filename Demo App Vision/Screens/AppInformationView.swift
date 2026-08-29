@@ -135,7 +135,7 @@ struct AppInformationView: View {
 
             informationSection(
                 title: "Report a Problem",
-                text: "Include the app version, visionOS version, what you expected, what happened, and reproducible steps. Do not attach room scans, project files, backups, or other private content to a public report."
+                text: "Include the app version, visionOS version, what you expected, what happened, and reproducible steps. Do not attach project files, backups, or other private content to a public report."
             )
 
             if let issueURL = URL(string: "https://github.com/JaimieMarch/DesignSphere/issues/new") {

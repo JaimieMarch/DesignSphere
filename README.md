@@ -18,10 +18,10 @@ Designed for students, interior designers, real estate stagers, and businesses a
 - **Design Assistant**: An on-device assistant that furnishes a room in one tap (Living Room / Bedroom / Office / Dining), completes a space by suggesting the pieces it's missing, and arranges a whole set in front of you — all free, offline, and catalog-driven (see `DesignAdvisor`). On Apple-Intelligence hardware it also accepts natural-language requests via Apple's on-device **Foundation Models** (no API key, no cost)
 - **Designer Palettes**: Curated interior-design color palettes (`PaletteAdvisor`) in the editor for quickly finishing the untextured "Customizable" models
 - **Advanced Model Editing**: Comprehensive editing tools allowing users to adjust size, position, rotation, style, texture, and color of each item
-- **Spatial Recognition**: Built-in spatial APIs anchor objects with incredible accuracy, matching scale and perspective to your room's exact dimensions
+- **Spatial Recognition**: Built-in spatial APIs anchor objects to detected planes so models appear at true scale and correct perspective in your room
 - **Collision Handling (Labs)**: An optional Settings toggle that keeps furniture from settling into overlap during placement and movement — off by default
 - **Project Management**: Save and organize multiple room layouts, create different versions to compare design options, and return to previous projects anytime
-- **Location-Aware Loading**: The app can recognize a space and automatically load the related design when you return
+- **World-Anchored Projects**: Saved layouts store a world anchor, so reopening a project drops its models back where you left them
 
 ### Additional Features (status as audited — see [docs/project-audit.md](docs/project-audit.md))
 

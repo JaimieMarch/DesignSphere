@@ -436,14 +436,14 @@ struct SettingsScreen: View {
                 }
 
                 SettingsCard(title: "Tutorial") {
-                    Button("Open Tutorial Center") {
+                    Button("Open Tutorial") {
                         appSettings.requestTutorialReplay()
                     }
                     .buttonStyle(.borderedProminent)
-                    .accessibilityLabel("Open tutorial center")
-                    .accessibilityHint("Choose an interactive walkthrough or video tutorials")
+                    .accessibilityLabel("Open tutorial")
+                    .accessibilityHint("Opens the interactive walkthrough")
 
-                    Text("Choose Interactive Walkthrough or Video Tutorials, then exit anytime.")
+                    Text("Replay the Interactive Walkthrough anytime, then exit when you're done.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }

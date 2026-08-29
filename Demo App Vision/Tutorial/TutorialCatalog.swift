@@ -46,7 +46,7 @@ enum TutorialCatalog {
         .init(
             id: "focus-mode",
             title: "Focus Mode",
-            summary: "Use focus controls to reduce real-world distractions.",
+            summary: "Enter a themed neutral room shell for a distraction-free design space.",
             durationLabel: "1:20",
             source: .bundled(name: "tutorial_focus_mode", fileExtension: "mp4")
         ),

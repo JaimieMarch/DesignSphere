@@ -272,7 +272,7 @@ struct HomeScreen: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Model source filter")
-        .accessibilityHint("Filter models by presets, scans, or imports")
+        .accessibilityHint("Filter models by presets or your imports")
     }
 
     private var categoryFilter: some View {
