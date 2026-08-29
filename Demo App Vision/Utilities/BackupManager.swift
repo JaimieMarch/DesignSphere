@@ -486,7 +486,7 @@ enum BackupManager {
             .appendingPathComponent("DesignSphereBackupValidation-\(UUID().uuidString)")
             .appendingPathExtension("usdz")
         do {
-            try data.write(to: stagingURL, options: [.atomic, .completeFileProtection])
+            try data.write(to: stagingURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             defer { try? FileManager.default.removeItem(at: stagingURL) }
             _ = try ModelEntity.loadModel(contentsOf: stagingURL)
             return true

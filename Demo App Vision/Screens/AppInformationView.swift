@@ -24,6 +24,12 @@ enum AppInformationDestination: String, Identifiable, CaseIterable {
         }
     }
 
+    /// Public copies of the in-app policy and support text.
+    ///
+    /// These resolve only once `docs/` is on the default branch — App Store
+    /// Connect requires a working Privacy Policy URL, and App Review taps it.
+    /// Verify both in a signed-out browser before submitting; see
+    /// `docs/app-store-checklist.md`.
     var onlineURL: URL? {
         switch self {
         case .privacyPolicy:
