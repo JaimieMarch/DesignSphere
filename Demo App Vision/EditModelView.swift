@@ -32,6 +32,7 @@ struct EditModelView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Edit Model")
                         .font(.title3.weight(.semibold))
+                        .accessibilityAddTraits(.isHeader)
 
                     Text(controller.selectedModelIDVar?.displayName ?? "Unknown Model")
                         .font(.subheadline)
@@ -46,7 +47,8 @@ struct EditModelView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.headline)
-                        .frame(width: 28, height: 28)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.borderless)
                 .accessibilityLabel("Close edit menu")
@@ -110,6 +112,7 @@ struct EditModelView: View {
                             VStack(spacing: 16) {
                                 Text("Colour")
                                     .font(.title3.weight(.semibold))
+                                    .accessibilityAddTraits(.isHeader)
 
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 20) {
@@ -148,6 +151,7 @@ struct EditModelView: View {
                             VStack(spacing: 18) {
                                 Text("Material")
                                     .font(.title3.weight(.semibold))
+                                    .accessibilityAddTraits(.isHeader)
 
                                 HStack(spacing: 14) {
                                     materialButton("Wood", icon: "tree") {
@@ -204,6 +208,8 @@ struct EditModelView: View {
                                         .background(.ultraThinMaterial)
                                         .clipShape(RoundedRectangle(cornerRadius: 14))
                                 }
+                                .accessibilityLabel("Restore original materials")
+                                .accessibilityHint("Removes applied color and texture")
                                 .padding(.top, 4)
                             }
                             .padding()
@@ -313,6 +319,7 @@ struct EditModelView: View {
                                 .foregroundStyle(.primary)
                         )
                 }
+                .accessibilityLabel("Decrease \(title)")
                 Spacer()
                     .frame(width: 20)
 
@@ -333,10 +340,11 @@ struct EditModelView: View {
                     .font(.title3.monospacedDigit())
                     .multilineTextAlignment(.center)
                     .keyboardType(.numbersAndPunctuation)
-                    .frame(width: 100, height: 52)
+                    .frame(minWidth: 100, minHeight: 52)
                     .padding(.horizontal, 10)
                     .background(.thinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .accessibilityLabel("\(title) in centimeters")
 
                     Text("cm")
                         .font(.title3)
@@ -357,6 +365,7 @@ struct EditModelView: View {
                                 .foregroundStyle(.primary)
                         )
                 }
+                .accessibilityLabel("Increase \(title)")
             }
             .shadow(radius: 2, y: 1)
         }
@@ -386,6 +395,7 @@ struct EditModelView: View {
                                 .foregroundStyle(.primary)
                         )
                 }
+                .accessibilityLabel("Decrease \(title)")
                 Spacer()
                     .frame(width: 20)
 
@@ -406,10 +416,11 @@ struct EditModelView: View {
                     .font(.title3.monospacedDigit())
                     .multilineTextAlignment(.center)
                     .keyboardType(.numbersAndPunctuation)
-                    .frame(width: 100, height: 52)
+                    .frame(minWidth: 100, minHeight: 52)
                     .padding(.horizontal, 10)
                     .background(.thinMaterial)
                     .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .accessibilityLabel("\(title) in meters")
                 }
                 Spacer()
                     .frame(width: 20)
@@ -426,6 +437,7 @@ struct EditModelView: View {
                                 .foregroundStyle(.primary)
                         )
                 }
+                .accessibilityLabel("Increase \(title)")
             }
             .shadow(radius: 2, y: 1)
         }
@@ -453,20 +465,28 @@ struct EditModelView: View {
             Text("Designer Palettes")
                 .font(.title3.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .center)
+                .accessibilityAddTraits(.isHeader)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 18) {
                     ForEach(PaletteAdvisor.palettes) { palette in
                         VStack(spacing: 6) {
-                            HStack(spacing: 4) {
+                            HStack(spacing: 12) {
                                 ForEach(palette.colors) { paletteColor in
-                                    Circle()
-                                        .fill(color(for: paletteColor))
-                                        .frame(width: 30, height: 30)
-                                        .overlay(Circle().stroke(.white.opacity(0.25), lineWidth: 1))
-                                        .onTapGesture { applyPaletteColor(paletteColor) }
-                                        .accessibilityLabel("\(paletteColor.name), \(palette.name)")
-                                        .accessibilityHint("Apply this color to the model")
+                                    Button {
+                                        applyPaletteColor(paletteColor)
+                                    } label: {
+                                        Circle()
+                                            .fill(color(for: paletteColor))
+                                            .frame(width: 30, height: 30)
+                                            .overlay(Circle().stroke(.white.opacity(0.25), lineWidth: 1))
+                                            .frame(width: 44, height: 44)
+                                            .padding(8)
+                                            .contentShape(Circle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("\(paletteColor.name), \(palette.name)")
+                                    .accessibilityHint("Apply this color to the model")
                                 }
                             }
                             Text(palette.name)
@@ -498,6 +518,13 @@ struct EditModelView: View {
     private func colorCircle(_ color: Color) -> some View {
         let colorName = colorToName(color)
         let isSelected = selectedColor == color
+        let applySelection = {
+            selectedColor = color
+
+            var mat = PhysicallyBasedMaterial()
+            mat.baseColor = .init(tint: UIColor(color))
+            controller.applyMaterialToSelectedModel(mat, materialType: "custom")
+        }
         return Circle()
             .fill(color)
             .frame(width: 66, height: 66)
@@ -506,17 +533,13 @@ struct EditModelView: View {
                     .stroke(lineWidth: isSelected ? 3 : 1)
                     .foregroundStyle(isSelected ? .white : .gray.opacity(0.4))
             )
-            .onTapGesture {
-                selectedColor = color
-
-                var mat = PhysicallyBasedMaterial()
-                mat.baseColor = .init(tint: UIColor(color))
-                controller.applyMaterialToSelectedModel(mat, materialType: "custom")
-            }
+            .onTapGesture { applySelection() }
             .shadow(radius: isSelected ? 3 : 0)
             .accessibilityLabel("\(colorName) color")
             .accessibilityHint("Apply \(colorName) color to the model")
             .accessibilityAddTraits(isSelected ? .isSelected : [])
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction { applySelection() }
     }
 
     private func colorToName(_ color: Color) -> String {
@@ -608,23 +631,54 @@ struct EditModelView: View {
             Text("Quick Position")
                 .font(.headline)
                 .foregroundStyle(.secondary)
+                .accessibilityAddTraits(.isHeader)
 
             HStack(spacing: 10) {
                 Spacer()
-                nudgeButton(icon: "arrow.up", offset: SIMD3<Float>(0, 0, -0.05))
-                nudgeButton(icon: "arrow.up.to.line.compact", offset: SIMD3<Float>(0, 0.05, 0))
+                nudgeButton(
+                    icon: "arrow.up",
+                    label: "Move farther away",
+                    hint: "Moves the model 5 centimeters farther from you",
+                    offset: SIMD3<Float>(0, 0, -0.05)
+                )
+                nudgeButton(
+                    icon: "arrow.up.to.line.compact",
+                    label: "Move up",
+                    hint: "Raises the model 5 centimeters",
+                    offset: SIMD3<Float>(0, 0.05, 0)
+                )
                 Spacer()
             }
 
             HStack(spacing: 10) {
-                nudgeButton(icon: "arrow.left", offset: SIMD3<Float>(-0.05, 0, 0))
-                nudgeButton(icon: "arrow.down.to.line.compact", offset: SIMD3<Float>(0, -0.05, 0))
-                nudgeButton(icon: "arrow.right", offset: SIMD3<Float>(0.05, 0, 0))
+                nudgeButton(
+                    icon: "arrow.left",
+                    label: "Move left",
+                    hint: "Moves the model 5 centimeters to the left",
+                    offset: SIMD3<Float>(-0.05, 0, 0)
+                )
+                nudgeButton(
+                    icon: "arrow.down.to.line.compact",
+                    label: "Move down",
+                    hint: "Lowers the model 5 centimeters",
+                    offset: SIMD3<Float>(0, -0.05, 0)
+                )
+                nudgeButton(
+                    icon: "arrow.right",
+                    label: "Move right",
+                    hint: "Moves the model 5 centimeters to the right",
+                    offset: SIMD3<Float>(0.05, 0, 0)
+                )
             }
 
             HStack(spacing: 10) {
                 Spacer()
-                nudgeButton(icon: "arrow.down", offset: SIMD3<Float>(0, 0, 0.05))
+                nudgeButton(
+                    icon: "arrow.down",
+                    label: "Move closer",
+                    hint: "Moves the model 5 centimeters closer to you",
+                    offset: SIMD3<Float>(0, 0, 0.05)
+                )
                 Spacer()
             }
         }
@@ -633,18 +687,25 @@ struct EditModelView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
-    private func nudgeButton(icon: String, offset: SIMD3<Float>) -> some View {
+    private func nudgeButton(
+        icon: String,
+        label: String,
+        hint: String,
+        offset: SIMD3<Float>
+    ) -> some View {
         Button {
             controller.nudgeSelectedModel(by: offset)
             refreshSelectedModelState()
         } label: {
             Image(systemName: icon)
                 .font(.headline)
-                .frame(width: 52, height: 44)
+                .frame(width: 60, height: 60)
                 .background(.ultraThinMaterial)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityHint(hint)
     }
 
     private func refreshSelectedModelState() {

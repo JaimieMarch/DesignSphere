@@ -16,10 +16,12 @@ struct MeasurementView: View {
                             .font(.largeTitle)
                             .imageScale(.large)
                             .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
 
                         Text("Measurement Tools")
                             .font(.title)
                             .bold()
+                            .accessibilityAddTraits(.isHeader)
                     }
 
                     VStack(spacing: 20) {
@@ -97,6 +99,8 @@ struct MeasurementView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(16)
                         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Status: \(measurementManager.statusText)")
                     }
                 }
             }
@@ -111,6 +115,9 @@ struct MeasurementView: View {
             .controlSize(.large)
         }
         .padding(32)
+        .onChange(of: measurementManager.statusText) { _, newValue in
+            AccessibilityNotification.Announcement(newValue).post()
+        }
     }
 
     private func clearOrCancelMeasurement() {

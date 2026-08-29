@@ -35,17 +35,23 @@ struct AIAssistantView: View {
 
     private var naturalLanguageField: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Describe what you want").font(.headline)
+            Text("Describe what you want")
+                .font(.headline)
+                .accessibilityAddTraits(.isHeader)
             HStack(spacing: 10) {
                 TextField("e.g. a cozy minimalist reading nook", text: $prompt)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(submitPrompt)
                 Button(action: submitPrompt) {
-                    if isThinking {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "arrow.up.circle.fill").font(.title2)
+                    Group {
+                        if isThinking {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.up.circle.fill").font(.title2)
+                        }
                     }
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .disabled(prompt.trimmingCharacters(in: .whitespaces).isEmpty || isThinking)
@@ -67,7 +73,10 @@ struct AIAssistantView: View {
             }
             Spacer()
             Button { isPresented = false } label: {
-                Image(systemName: "xmark").font(.headline).frame(width: 30, height: 30)
+                Image(systemName: "xmark")
+                    .font(.headline)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Circle())
             }
             .buttonStyle(.borderless)
             .accessibilityLabel("Close assistant")
@@ -78,7 +87,9 @@ struct AIAssistantView: View {
 
     private var quickActions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Furnish a room").font(.headline)
+            Text("Furnish a room")
+                .font(.headline)
+                .accessibilityAddTraits(.isHeader)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
                 ForEach(DesignAdvisor.RoomType.allCases) { room in
                     Button { furnish(room) } label: {
@@ -105,7 +116,10 @@ struct AIAssistantView: View {
     private var suggestionsArea: some View {
         if suggestions.isEmpty {
             VStack(spacing: 10) {
-                Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(.secondary)
+                Image(systemName: "sparkles")
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
                 Text(headline.isEmpty ? "Pick a room above to get started." : headline)
                     .font(.callout).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -145,16 +159,17 @@ struct AIAssistantView: View {
                 .frame(height: 90)
             Text(descriptor.name)
                 .font(.caption)
-                .lineLimit(1)
+                .lineLimit(2)
         }
         .padding(10)
-        .frame(width: 150, height: 150)
+        .frame(minWidth: 150, minHeight: 150)
         .glassBackground(cornerRadius: 16)
         .overlay(alignment: .topTrailing) {
             if isPlaced {
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                     .padding(8)
+                    .accessibilityHidden(true)
             } else if let fraction = downloads.fraction(for: descriptor.id) {
                 ProgressView(value: fraction)
                     .progressViewStyle(.circular)
@@ -164,8 +179,12 @@ struct AIAssistantView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { place(descriptor) }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(descriptor.name)
-        .accessibilityHint(isPlaced ? "Added" : "Tap to add to your space")
+        .accessibilityValue(isPlaced ? "Added" : "")
+        .accessibilityHint(isPlaced ? "Already in your space" : "Adds this model to your space")
+        .accessibilityAddTraits(isPlaced ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction { place(descriptor) }
     }
 
     // MARK: - Actions

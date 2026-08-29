@@ -11,6 +11,7 @@ struct ImportModelView: View {
     @State private var errorMessage: String?
     @State private var importedFileName: String?
     @State private var isViewActive = false
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
     private let maxImportSizeBytes: Int64 = 150 * 1024 * 1024
 
     private enum ImportStatus: Equatable {
@@ -29,10 +30,12 @@ struct ImportModelView: View {
                         .font(.largeTitle)
                         .imageScale(.large)
                         .foregroundStyle(statusColor)
+                        .accessibilityHidden(true)
 
                     Text(statusTitle)
                         .font(.title)
                         .bold()
+                        .accessibilityAddTraits(.isHeader)
 
                     Text(statusDescription)
                         .font(.body)
@@ -80,7 +83,7 @@ struct ImportModelView: View {
                 .padding(.bottom, 20)
             }
             .padding(.horizontal, 32)
-            .frame(width: 500)
+            .frame(minWidth: 500)
             .navigationTitle("Import Model")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -95,6 +98,9 @@ struct ImportModelView: View {
             }
             .onDisappear {
                 isViewActive = false
+            }
+            .onChange(of: importStatus) { _, _ in
+                AccessibilityNotification.Announcement("\(statusTitle). \(statusDescription)").post()
             }
             // Only attach fileImporter when view is actually active
             // This prevents it from interfering with other UI elements when sheet is hidden
@@ -175,6 +181,10 @@ struct ImportModelView: View {
         errorMessage = nil
         importedFileName = nil
 
+        // VoiceOver users need time to hear the result and dismiss with "Done";
+        // a 2 second timer would cut the announcement off.
+        let shouldAutoDismiss = !voiceOverEnabled
+
         Task {
             do {
                 let selectedURLs = try result.get()
@@ -252,10 +262,12 @@ struct ImportModelView: View {
                     importStatus = .success
                 }
 
-                // Auto-dismiss after 2 seconds
-                try? await Task.sleep(nanoseconds: 2_000_000_000)
-                await MainActor.run {
-                    isPresented = false
+                // Auto-dismiss after 2 seconds unless VoiceOver is running.
+                if shouldAutoDismiss {
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    await MainActor.run {
+                        isPresented = false
+                    }
                 }
 
             } catch {

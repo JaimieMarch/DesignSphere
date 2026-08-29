@@ -14,6 +14,7 @@ struct DetailsScreen: View {
     @State private var showAlert: Bool = false
     @State private var alertMessage: String = ""
     @State private var showOverwriteConfirmation: Bool = false
+    @State private var showClearAllConfirmation: Bool = false
     @State private var pendingSaveRoomName: String = ""
 
     var body: some View {
@@ -25,6 +26,7 @@ struct DetailsScreen: View {
                             Text("Projects")
                                 .font(.largeTitle.bold())
                                 .lineLimit(1)
+                                .accessibilityAddTraits(.isHeader)
 
                             Text(projectSummary)
                                 .font(.subheadline)
@@ -59,6 +61,7 @@ struct DetailsScreen: View {
                         Text("Project Name")
                             .font(.headline)
                             .foregroundStyle(.primary)
+                            .accessibilityAddTraits(.isHeader)
 
                         TextField("Enter project name", text: $roomName)
                             .textFieldStyle(.plain)
@@ -69,7 +72,7 @@ struct DetailsScreen: View {
                                 Capsule(style: .continuous)
                                     .fill(.thinMaterial)
                             )
-                            .accessibilityLabel("Room name")
+                            .accessibilityLabel("Project name")
                             .accessibilityHint("Enter a name for your room project")
                     }
                 }
@@ -81,6 +84,7 @@ struct DetailsScreen: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Placed Models")
                                 .font(.headline)
+                                .accessibilityAddTraits(.isHeader)
                             Text("Manage the models currently in your scene.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
@@ -96,6 +100,7 @@ struct DetailsScreen: View {
                                     Capsule()
                                         .fill(.quaternary)
                                 )
+                                .accessibilityLabel("\(controller.placedModelDescriptors.count) models in scene")
                         }
                     }
                     .padding(16)
@@ -111,6 +116,7 @@ struct DetailsScreen: View {
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
+                        .accessibilityElement(children: .combine)
                     }
 
                     ScrollView {
@@ -120,6 +126,7 @@ struct DetailsScreen: View {
                                     .font(.largeTitle)
                                     .imageScale(.large)
                                     .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
 
                                 Text("No models in scene")
                                     .font(.title3)
@@ -145,6 +152,8 @@ struct DetailsScreen: View {
                                             controller.removeModelById(withInstanceID: descriptor.id)
                                         }
                                     )
+                                    .accessibilityElement(children: .contain)
+                                    .accessibilityLabel(descriptor.name)
                                 }
                             }
                             .padding(16)
@@ -154,9 +163,9 @@ struct DetailsScreen: View {
                     if !controller.placedModelDescriptors.isEmpty {
                         Divider()
 
-                        Button(action: {
-                            Task { await controller.removeAllModels() }
-                        }) {
+                        Button(role: .destructive) {
+                            showClearAllConfirmation = true
+                        } label: {
                             HStack {
                                 Image(systemName: "trash.fill")
                                 Text("Clear All Models")
@@ -201,6 +210,18 @@ struct DetailsScreen: View {
             }
         } message: {
             Text("A project named '\(pendingSaveRoomName)' already exists. Do you want to overwrite it?")
+        }
+        .confirmationDialog(
+            "Clear All Models?",
+            isPresented: $showClearAllConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Clear All Models", role: .destructive) {
+                Task { await controller.removeAllModels() }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This removes every model from the scene. This action cannot be undone.")
         }
     }
 

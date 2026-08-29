@@ -10,6 +10,7 @@ struct EditModelHeader: View {
                 .font(.largeTitle)
                 .imageScale(.large)
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
 
             Text("Edit Model")
                 .font(.title)
@@ -42,7 +43,7 @@ struct DimensionSlider: View {
             ), in: 0...100)
             .tint(.white)
             .controlSize(.large)
-            .accessibilityLabel("\(title) slider")
+            .accessibilityLabel(title)
             .accessibilityValue("\(Int(value * 100)) centimeters")
         }
     }
@@ -63,8 +64,8 @@ struct CoordinateSlider: View {
             Slider(value: $value, in: -10...10, step: 0.001)
                 .tint(.white)
                 .controlSize(.large)
-                .accessibilityLabel("\(title) position slider")
-                .accessibilityValue("\(Int(value))")
+                .accessibilityLabel(title)
+                .accessibilityValue("\(String(format: "%.2f", value)) meters")
         }
     }
 }
@@ -72,6 +73,7 @@ struct CoordinateSlider: View {
 // MARK: - Color Picker
 struct ColorCircle: View {
     let color: Color
+    let colorName: String
     let isSelected: Bool
     let onTap: () -> Void
 
@@ -88,8 +90,9 @@ struct ColorCircle: View {
                 .shadow(radius: isSelected ? 3 : 0)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Color swatch")
+        .accessibilityLabel(colorName)
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
         .accessibilityAddTraits(.isButton)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

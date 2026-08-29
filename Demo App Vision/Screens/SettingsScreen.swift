@@ -197,6 +197,7 @@ private struct SettingsCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
                 .font(.title2.bold())
+                .accessibilityAddTraits(.isHeader)
             content
         }
         .padding(20)
@@ -263,6 +264,8 @@ private struct LocalDataResetDetailView: View {
                 TextField("DELETE", text: $confirmationText)
                     .textInputAutocapitalization(.characters)
                     .disableAutocorrection(true)
+                    .accessibilityLabel("Deletion confirmation")
+                    .accessibilityHint("Type DELETE in capital letters to enable the wipe button")
             }
 
             Section {
@@ -282,12 +285,21 @@ private struct LocalDataResetDetailView: View {
 
             if let errorMessage {
                 Section("Error") {
-                    Text(errorMessage)
+                    Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
+                        .accessibilityLabel("Error: \(errorMessage)")
                 }
             }
         }
         .navigationTitle(target.title)
+        .onChange(of: resultMessage) { _, newValue in
+            guard let newValue else { return }
+            AccessibilityNotification.Announcement(newValue).post()
+        }
+        .onChange(of: errorMessage) { _, newValue in
+            guard let newValue else { return }
+            AccessibilityNotification.Announcement("Error: \(newValue)").post()
+        }
     }
 
     private func runWipe() {
@@ -366,6 +378,7 @@ struct SettingsScreen: View {
                         settingsNavigationLabel("Privacy Policy", systemImage: "hand.raised")
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Privacy Policy")
                     .accessibilityHint("Opens the DesignSphere privacy policy")
 
                     Button {
@@ -374,6 +387,7 @@ struct SettingsScreen: View {
                         settingsNavigationLabel("Support & Contact", systemImage: "questionmark.circle")
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Support and contact")
                     .accessibilityHint("Opens support information and contact links")
 
                     Button {
@@ -429,9 +443,10 @@ struct SettingsScreen: View {
                     }
 
                     if let backupErrorMessage {
-                        Text(backupErrorMessage)
+                        Label(backupErrorMessage, systemImage: "exclamationmark.triangle.fill")
                             .font(.subheadline)
                             .foregroundStyle(.red)
+                            .accessibilityLabel("Error: \(backupErrorMessage)")
                     }
                 }
 
@@ -487,6 +502,14 @@ struct SettingsScreen: View {
         ) { result in
             importBackup(from: result)
         }
+        .onChange(of: backupResultMessage) { _, newValue in
+            guard let newValue else { return }
+            AccessibilityNotification.Announcement(newValue).post()
+        }
+        .onChange(of: backupErrorMessage) { _, newValue in
+            guard let newValue else { return }
+            AccessibilityNotification.Announcement("Error: \(newValue)").post()
+        }
     }
 
     private func createBackup(with categories: Set<BackupCategory>) {
@@ -541,6 +564,7 @@ struct SettingsScreen: View {
             Image(systemName: "chevron.right")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
         }
     }
 }

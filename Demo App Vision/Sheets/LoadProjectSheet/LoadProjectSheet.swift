@@ -116,16 +116,18 @@ struct ProjectRow: View {
                         .foregroundStyle(.green)
                 }
             }
+            .accessibilityElement(children: .combine)
 
             Spacer()
 
-            HStack(spacing: 8) {
+            HStack(spacing: 16) {
                 Button(action: onDelete) {
                     Image(systemName: "trash")
                         .foregroundStyle(.red)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.bordered)
-                .accessibilityLabel("Delete project")
+                .accessibilityLabel("Delete \(project.roomName)")
                 .accessibilityHint("Permanently delete this saved project")
 
                 Button(action: onLoad) {
@@ -133,7 +135,7 @@ struct ProjectRow: View {
                         .padding(.horizontal, 8)
                 }
                 .buttonStyle(.borderedProminent)
-                .accessibilityLabel("Load project")
+                .accessibilityLabel("Load \(project.roomName)")
                 .accessibilityHint("Load this project into the scene")
             }
         }

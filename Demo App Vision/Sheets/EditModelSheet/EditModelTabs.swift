@@ -36,6 +36,7 @@ struct StyleTab: View {
     @Binding var customColor: Color
     
     private let presetColors: [Color] = [.red, .green, .blue, .orange, .purple]
+    private let presetColorNames: [String] = ["Red", "Green", "Blue", "Orange", "Purple"]
     
     var body: some View {
         VStack(spacing: 12) {
@@ -46,6 +47,7 @@ struct StyleTab: View {
                     ForEach(0..<3, id: \.self) { index in
                         ColorCircle(
                             color: presetColors[index],
+                            colorName: presetColorNames[index],
                             isSelected: selectedColor == presetColors[index],
                             onTap: { selectedColor = presetColors[index] }
                         )
@@ -55,12 +57,14 @@ struct StyleTab: View {
                     ForEach(3..<5, id: \.self) { index in
                         ColorCircle(
                             color: presetColors[index],
+                            colorName: presetColorNames[index],
                             isSelected: selectedColor == presetColors[index],
                             onTap: { selectedColor = presetColors[index] }
                         )
                     }
                     ColorPicker("", selection: $customColor)
                         .labelsHidden()
+                        .accessibilityLabel("Custom color")
                         .onChange(of: customColor) {
                             selectedColor = customColor
                         }

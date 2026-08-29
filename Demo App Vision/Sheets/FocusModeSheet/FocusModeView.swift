@@ -60,6 +60,7 @@ struct FocusModeView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text(title)
                     .font(.title2.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
                 content
             }
             .padding(20)
@@ -243,6 +244,8 @@ struct FocusModeView: View {
                             themeCard(theme)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityAddTraits(focusModeManager.activeTheme == theme ? [.isSelected] : [])
+                        .accessibilityHint("Sets the focus room environment style")
                     }
                 }
             }
@@ -269,6 +272,7 @@ struct FocusModeView: View {
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(theme.swatch)
+                        .accessibilityHidden(true)
                 }
             }
 
@@ -439,7 +443,7 @@ struct FocusModeView: View {
 
             Slider(value: value, in: range, step: 0.1)
                 .tint(focusModeManager.activeTheme.swatch)
-                .accessibilityLabel("\(label) slider")
+                .accessibilityLabel(label)
                 .accessibilityValue("\(value.wrappedValue, specifier: "%.1f") meters")
         }
     }
@@ -464,6 +468,7 @@ struct FocusModeView: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
+        .accessibilityElement(children: .combine)
     }
 
     private func applyPreset(_ preset: RoomPreset) {
