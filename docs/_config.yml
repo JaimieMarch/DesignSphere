@@ -1,0 +1,31 @@
+# GitHub Pages configuration for the DesignSphere public pages.
+#
+# Purpose: App Store Connect requires a working, publicly reachable Privacy
+# Policy URL and Support URL. Serving them from this folder gives both a stable
+# https:// address at no hosting cost (GitHub Pages is free for public repos).
+#
+# To publish: repository Settings > Pages > Source: "Deploy from a branch",
+# Branch: "main", Folder: "/docs". No other setup is required.
+
+title: DesignSphere
+description: Interior design for Apple Vision Pro.
+theme: jekyll-theme-minimal
+
+# Rewrites relative links between .md files to their published .html paths.
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: false
+
+# Internal engineering and submission-planning documents stay in the repository
+# but are not part of the published site.
+exclude:
+  - app-store-checklist.md
+  - app-store-metadata.md
+  - asset-license-audit.md
+  - design-assistant.md
+  - production-privacy-declaration.md
+  - project-audit.md
+  - remote-catalog.md
