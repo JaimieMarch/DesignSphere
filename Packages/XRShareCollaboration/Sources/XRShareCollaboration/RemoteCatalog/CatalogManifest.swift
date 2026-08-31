@@ -39,4 +39,38 @@ public struct CatalogManifest: Codable, Sendable {
         public let needsPhysics: Bool
         public let preserveRealWorldScale: Bool
     }
+
+    enum CodingKeys: String, CodingKey {
+        case version, generatedAt, models
+    }
+
+    public init(version: Int, generatedAt: String?, models: [Entry]) {
+        self.version = version
+        self.generatedAt = generatedAt
+        self.models = models
+    }
+
+    /// `version` is decoded strictly — a document without it isn't a catalog.
+    /// `models` is decoded leniently: a single malformed entry (a new field the
+    /// pipeline added, a row missing `canStack`) drops just that row instead of
+    /// throwing away all 182. A whole-document failure would leave every user
+    /// without a disk cache on "Catalog unavailable", and each Retry tap costs
+    /// another full manifest fetch.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decode(Int.self, forKey: .version)
+        generatedAt = try container.decodeIfPresent(String.self, forKey: .generatedAt)
+        let rows = try container.decodeIfPresent([FailableDecodable<Entry>].self, forKey: .models) ?? []
+        models = rows.compactMap(\.value)
+    }
+}
+
+/// Decodes `T` when the element is well-formed, and yields `nil` rather than
+/// throwing when it isn't, so one bad element cannot fail a whole array.
+struct FailableDecodable<T: Decodable>: Decodable {
+    let value: T?
+
+    init(from decoder: any Decoder) throws {
+        value = try? T(from: decoder)
+    }
 }

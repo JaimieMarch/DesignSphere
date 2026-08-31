@@ -44,8 +44,11 @@ public final class RemoteCatalogService {
         guard isEnabled, let baseURL else { return [] }
         let manifestURL = baseURL.appendingPathComponent("catalog.json")
 
+        // A fetch that yields no usable entries (empty document, every row
+        // malformed) must not overwrite a good disk cache or blank the catalog,
+        // because "Catalog unavailable" invites a Retry tap and another fetch.
         let manifest: CatalogManifest?
-        if let fetched = await fetchManifest(from: manifestURL) {
+        if let fetched = await fetchManifest(from: manifestURL), !fetched.models.isEmpty {
             cacheManifest(fetched)
             manifest = fetched
         } else {
@@ -100,13 +103,21 @@ public final class RemoteCatalogService {
 
     private func fetchManifest(from url: URL) async -> CatalogManifest? {
         var request = URLRequest(url: url)
-        request.cachePolicy = .reloadIgnoringLocalCacheData
+        // Revalidate rather than ignore the cache: the manifest carries an ETag
+        // and Last-Modified, so an unchanged catalog costs a 304 with no body
+        // instead of re-downloading all 182 entries on every launch and every
+        // Retry tap. URLSession serves the stored body on a 304, so the decode
+        // below sees the same JSON it would have downloaded.
+        request.cachePolicy = .reloadRevalidatingCacheData
         request.timeoutInterval = 20
         do {
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 return nil
             }
+            // No stored body to revalidate against (or a truncated response):
+            // fall through to the disk cache instead of decoding nothing.
+            guard !data.isEmpty else { return nil }
             return try JSONDecoder().decode(CatalogManifest.self, from: data)
         } catch {
             return nil

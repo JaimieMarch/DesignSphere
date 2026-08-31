@@ -2,11 +2,17 @@ name: Catalog availability
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    # Daily. This is an availability canary, not a monitor: hourly cost the R2
+    # bucket 24 manifest + 24 model GETs a day to re-learn the same answer.
+    - cron: "17 6 * * *"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: catalog-availability
+  cancel-in-progress: true
 
 jobs:
   check-catalog:

@@ -55,6 +55,24 @@ private final class MockURLProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
+/// Hand-wound clock so backoff windows can be tested without sleeping.
+private final class TestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current = Date(timeIntervalSince1970: 1_000_000)
+
+    var now: Date {
+        lock.lock()
+        defer { lock.unlock() }
+        return current
+    }
+
+    func advance(_ interval: TimeInterval) {
+        lock.lock()
+        current += interval
+        lock.unlock()
+    }
+}
+
 @MainActor
 final class RemoteCatalogServiceTests: XCTestCase {
     private var temporaryDirectory: URL!
@@ -131,6 +149,82 @@ final class RemoteCatalogServiceTests: XCTestCase {
         service.configure(baseURL: URL(string: "https://offline.test")!, enabled: true)
         let models = await service.loadCatalog()
         XCTAssertTrue(models.isEmpty)
+    }
+
+    func testManifestRequestRevalidatesRatherThanIgnoringTheCache() async {
+        let data = manifestData()
+        MockURLProtocol.reset { request in
+            XCTAssertEqual(
+                request.cachePolicy, .reloadRevalidatingCacheData,
+                "revalidation lets R2 answer an unchanged catalog with a 304"
+            )
+            return .init(statusCode: 200, data: data)
+        }
+        let service = makeService(cacheURL: temporaryDirectory.appendingPathComponent("catalog.json"))
+        service.configure(baseURL: URL(string: "https://example.test")!, enabled: true)
+
+        let models = await service.loadCatalog()
+        XCTAssertEqual(models.count, 2)
+        XCTAssertEqual(MockURLProtocol.count(), 1)
+    }
+
+    func testEmptyResponseBodyKeepsTheCachedCatalog() async throws {
+        // If the stored body behind a revalidation is gone, we can be handed a
+        // success with nothing in it. That must not blank the catalog or
+        // overwrite a good cache with emptiness.
+        let cacheURL = temporaryDirectory.appendingPathComponent("catalog.json")
+        let good = manifestData()
+        try good.write(to: cacheURL)
+        MockURLProtocol.reset { _ in .init(statusCode: 200, data: Data()) }
+        let service = makeService(cacheURL: cacheURL)
+        service.configure(baseURL: URL(string: "https://example.test")!, enabled: true)
+
+        let models = await service.loadCatalog()
+        XCTAssertEqual(models.map(\.id), ["chair_01", "future"], "served from the disk cache")
+        XCTAssertEqual(try Data(contentsOf: cacheURL), good, "and the cache is untouched")
+    }
+
+    func testMalformedEntryDoesNotBlankTheWholeCatalog() async throws {
+        let data = Data(
+            """
+            {
+              "version": 1,
+              "models": [
+                {
+                  "id": "chair_01", "displayName": "Chair", "category": "seating",
+                  "file": { "url": "models/chair.usdz", "bytes": 12 },
+                  "placement": {
+                    "classification": "floor", "plane": "horizontal", "canStack": true,
+                    "needsPhysics": true, "preserveRealWorldScale": false
+                  }
+                },
+                { "id": "broken", "displayName": "Broken", "category": "seating" }
+              ]
+            }
+            """.utf8
+        )
+        MockURLProtocol.reset { _ in .init(statusCode: 200, data: data) }
+        let service = makeService(cacheURL: temporaryDirectory.appendingPathComponent("catalog.json"))
+        service.configure(baseURL: URL(string: "https://example.test")!, enabled: true)
+
+        let models = await service.loadCatalog()
+        XCTAssertEqual(models.map(\.id), ["chair_01"], "the bad row drops, the good one survives")
+    }
+
+    func testManifestWithNoUsableEntriesFallsBackToTheCache() async throws {
+        // Every row malformed decodes to an empty catalog. Serving that would
+        // show "Catalog unavailable" and invite another full fetch.
+        let cacheURL = temporaryDirectory.appendingPathComponent("catalog.json")
+        let good = manifestData()
+        try good.write(to: cacheURL)
+        let empty = Data(#"{"version": 1, "models": [{"id": "broken"}]}"#.utf8)
+        MockURLProtocol.reset { _ in .init(statusCode: 200, data: empty) }
+        let service = makeService(cacheURL: cacheURL)
+        service.configure(baseURL: URL(string: "https://example.test")!, enabled: true)
+
+        let models = await service.loadCatalog()
+        XCTAssertEqual(models.map(\.id), ["chair_01", "future"])
+        XCTAssertEqual(try Data(contentsOf: cacheURL), good, "a bad fetch never replaces a good cache")
     }
 
     private func makeService(cacheURL: URL? = nil) -> RemoteCatalogService {
@@ -269,13 +363,136 @@ final class ModelFileStoreTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: kept.path))
     }
 
-    private func makeStore(budget: Int = 1_000_000) -> ModelFileStore {
+    func testChecksumMismatchIsNeverRetried() async {
+        // A stale manifest sha means the bytes at that URL can never verify.
+        // Re-downloading the whole usdz on every tap is pure waste.
+        MockURLProtocol.reset { _ in .init(statusCode: 200, data: Data("wrong".utf8)) }
+        let model = remoteModel(data: Data("expected".utf8))
+        let clock = TestClock()
+        let store = makeStore(clock: clock)
+
+        await assertThrows(.checksumMismatch) { try await store.localURL(for: model) }
+        XCTAssertEqual(MockURLProtocol.count(), 1)
+
+        await assertThrows(.retrySuppressed) { try await store.localURL(for: model) }
+        XCTAssertEqual(MockURLProtocol.count(), 1, "no second download of the same bad bytes")
+
+        clock.advance(30 * 24 * 3600)
+        await assertThrows(.retrySuppressed) { try await store.localURL(for: model) }
+        XCTAssertEqual(MockURLProtocol.count(), 1, "an integrity failure never becomes retryable")
+        let delay = await store.retryDelay(for: model)
+        XCTAssertEqual(delay, Double.infinity)
+    }
+
+    func testTransientFailureBacksOffAndTheWindowGrows() async {
+        MockURLProtocol.reset { _ in .init(statusCode: 503, data: Data()) }
+        let model = remoteModel(data: Data("payload".utf8))
+        let clock = TestClock()
+        let store = makeStore(clock: clock)
+
+        await assertThrows(.downloadFailed) { try await store.localURL(for: model) }
+        XCTAssertEqual(MockURLProtocol.count(), 1)
+
+        clock.advance(59)
+        await assertThrows(.retrySuppressed) { try await store.localURL(for: model) }
+        XCTAssertEqual(MockURLProtocol.count(), 1, "tapping again inside the window costs nothing")
+
+        clock.advance(2)
+        await assertThrows(.downloadFailed) { try await store.localURL(for: model) }
+        XCTAssertEqual(MockURLProtocol.count(), 2, "past the window, one more attempt is allowed")
+
+        clock.advance(61)
+        await assertThrows(.retrySuppressed) { try await store.localURL(for: model) }
+        XCTAssertEqual(MockURLProtocol.count(), 2, "the second failure waits 120s, not 60s")
+
+        clock.advance(60)
+        await assertThrows(.downloadFailed) { try await store.localURL(for: model) }
+        XCTAssertEqual(MockURLProtocol.count(), 3)
+    }
+
+    func testBackoffDoublesPerFailureAndIsCapped() {
+        XCTAssertEqual(ModelFileStore.backoff(forAttempt: 1), 60)
+        XCTAssertEqual(ModelFileStore.backoff(forAttempt: 2), 120)
+        XCTAssertEqual(ModelFileStore.backoff(forAttempt: 3), 240)
+        XCTAssertEqual(ModelFileStore.backoff(forAttempt: 7), 3600)
+        XCTAssertEqual(ModelFileStore.backoff(forAttempt: 500), 3600, "capped, never unbounded")
+    }
+
+    func testSuccessClearsTheFailureMemo() async throws {
+        let payload = Data("recovered".utf8)
+        let model = remoteModel(data: payload)
+        let clock = TestClock()
+        let store = makeStore(clock: clock)
+
+        MockURLProtocol.reset { _ in .init(statusCode: 500, data: Data()) }
+        await assertThrows(.downloadFailed) { try await store.localURL(for: model) }
+
+        MockURLProtocol.handler = { _ in .init(statusCode: 200, data: payload) }
+        clock.advance(61)
+        let url = try await store.localURL(for: model)
+        let remaining = await store.retryDelay(for: model)
+        XCTAssertNil(remaining, "a success forgets the earlier failure")
+
+        // Caches/ is OS-purgeable: after a purge the model must be fetchable
+        // again immediately, not held off by a stale backoff.
+        try FileManager.default.removeItem(at: url)
+        _ = try await store.localURL(for: model)
+        XCTAssertEqual(MockURLProtocol.count(), 3)
+    }
+
+    func testDefaultCacheBudgetLimitsWhatAPurgeCanCost() {
+        XCTAssertLessThanOrEqual(
+            ModelFileStore.defaultCacheBudgetBytes, 500_000_000,
+            "Caches/ is purged without notice; a bigger budget is a bigger re-download"
+        )
+    }
+
+    func testEvictionStopsAsSoonAsItIsUnderBudget() async throws {
+        let older = temporaryDirectory.appendingPathComponent("older.usdz")
+        let newer = temporaryDirectory.appendingPathComponent("newer.usdz")
+        try Data(repeating: 1, count: 20).write(to: older)
+        try Data(repeating: 2, count: 20).write(to: newer)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSince1970: 0)], ofItemAtPath: older.path
+        )
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSince1970: 1_000)], ofItemAtPath: newer.path
+        )
+
+        let payload = Data(repeating: 3, count: 20)
+        MockURLProtocol.reset { _ in .init(statusCode: 200, data: payload) }
+        let model = remoteModel(data: payload)
+        let kept = try await makeStore(budget: 45).localURL(for: model)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: older.path), "least recently used goes first")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: newer.path), "and nothing more is evicted")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: kept.path))
+    }
+
+    private func assertThrows(
+        _ expected: ModelFileStore.StoreError,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        _ body: () async throws -> URL
+    ) async {
+        do {
+            _ = try await body()
+            XCTFail("Expected \(expected)", file: file, line: line)
+        } catch let error as ModelFileStore.StoreError {
+            XCTAssertEqual(error, expected, file: file, line: line)
+        } catch {
+            XCTFail("Unexpected error: \(error)", file: file, line: line)
+        }
+    }
+
+    private func makeStore(budget: Int = 1_000_000, clock: TestClock = TestClock()) -> ModelFileStore {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockURLProtocol.self]
         return ModelFileStore(
             cacheDirectory: temporaryDirectory,
             cacheBudgetBytes: budget,
-            sessionConfiguration: configuration
+            sessionConfiguration: configuration,
+            now: { clock.now }
         )
     }
 
