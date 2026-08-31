@@ -1,8 +1,8 @@
 # Project Audit & Backlog
 
-_Last audited: 2026-07-26 (branch `refactoring`). Current release verification:
-25 pipeline tests, 143 package tests (1 skipped live-network test), all 27 app
-tests, and an unsigned generic-device Release archive are green._
+_Last audited: 2026-08-30 (branch `app-store-compliance`). Current release
+verification: 25 pipeline tests, 200 Swift tests (1 skipped live-network test),
+and an unsigned generic-device Release archive are green._
 
 This document records the **true state** of features that are partially shipped,
 deferred, gated behind flags, or removed from the UI — and the prioritized
@@ -131,12 +131,15 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
 
 ### Near-term (release-readiness)
 
-- [x] **Info.plist privacy/usage strings audit** — done 2026-07-05. The
-  required strings are present: `NSWorldSensingUsageDescription` and
-  `NSHandsTrackingUsageDescription` exist in both
-  [`DesignSphere-Info.plist`](../DesignSphere-Info.plist) and the
-  `INFOPLIST_KEY_*` build settings in the pbxproj (the two copies are
-  duplicated — keep them in sync). Two follow-ups came out of the audit:
+- [x] **Info.plist privacy/usage strings audit** — done 2026-07-05, revised
+  2026-08-30. `NSWorldSensingUsageDescription` is the only usage string the
+  app needs, and it now describes the user benefit rather than plane
+  detection. `NSHandsTrackingUsageDescription` was removed: nothing in the app
+  or package instantiates a `HandTrackingProvider`, and Apple rejects strings
+  for unused APIs. The duplicate `INFOPLIST_KEY_*` build settings are gone
+  too — `GENERATE_INFOPLIST_FILE` is `NO`, so they never shipped anything, and
+  [`DesignSphere-Info.plist`](../DesignSphere-Info.plist) is now the single
+  source of truth. Two follow-ups came out of the original audit:
 - [x] **Remove the unused `NSMainCameraUsageDescription`** — done 2026-07-05
   (removed from both the plist and the pbxproj). No code in the app or package
   touches camera APIs, and main-camera access on visionOS is an enterprise-only
@@ -165,10 +168,19 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
   repo for future wiring (see above).
 - [x] **Graduate Measurement out of Labs** — done 2026-06-26 (ruler now in the
   default toolbar; on-device verification still pending).
-- [ ] **Reconcile Focus Mode UI copy** with the enclosure behavior. As of
-  2026-07-05 the remaining offender is the toolbar accessibility hint
-  ("Opens focus mode options to hide or show real-world items" in
-  `ToolbarOrnament.swift`); the sheet and tutorial copy are already accurate.
+- [x] **Reconcile Focus Mode UI copy** with the enclosure behavior — done.
+  The toolbar hint now reads "Opens focus mode options for a distraction-free
+  design space", and the manager's status text no longer says "shared anchor",
+  which was collaboration vocabulary for a session this build has no concept of.
+
+- [x] **The catalog resolved models through an empty bundle** — found and
+  fixed 2026-08-30. The app ships zero bundled `.usdz`, but `ModelType.allCases()`
+  scanned `Bundle` and synthesised a `placeholder` entry when it found nothing,
+  and several paths trusted it. Consequences, all user-visible: loading a saved
+  project restored **no** models while alerting "loaded successfully"; the first
+  eight catalog tiles showed a generic ARKit glyph; a manifest entry with no
+  thumbnail spun forever; and a USDZ import reported success but never joined
+  the catalog. See the 2.1 commit for the full accounting.
 - [ ] **Apple HIG / guidelines conformance pass.** App Review readiness is now
   tracked item-by-item in [app-store-checklist.md](app-store-checklist.md)
   (repo-side items verified 2026-07-05; Connect-side work and license risks
@@ -178,9 +190,19 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
 
 - [ ] Performance budget for 180+ streamed models — LOD, occlusion culling,
   progressive loading.
-- [ ] Cold-start-with-no-network UX (no cached catalog at all).
-- [ ] Accessibility — VoiceOver pass, high-contrast, alternative input.
+- [x] Cold-start-with-no-network UX — the "Catalog unavailable" view with a
+  Retry exists, and 2026-08-30 fixed the paths that made it misbehave (a
+  phantom "Placeholder" tile, a retry that skipped the loading state, and a
+  dead-end fallback whose error nothing presented).
+- [x] Accessibility — VoiceOver pass done 2026-08-30 across the editor,
+  sheets, and settings; gaze targets raised to ~60pt; Reduce Motion honoured.
+  High-contrast mode still does **not** reach the immersive edit panel: it is
+  a separate scene, and SwiftUI scenes do not inherit each other's
+  environment. Alternative input is untouched.
 - [ ] OBJ/FBX import via the conversion pipeline.
+- [ ] Thumbnail loading is uncapped: every catalog cell fetches from
+  `.onAppear` with no concurrency limit and no cancellation on scroll-away, so
+  a fast scroll can launch many simultaneous requests.
 
 ### Long-term (roadmap)
 
