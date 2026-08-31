@@ -29,3 +29,6 @@ Package.resolved
 # User-specific Xcode state
 XR\ Share.xcodeproj/xcuserdata/
 AGENTS.md
+
+# Simulator captures staged for App Store Connect upload (not source).
+AppStore-Screenshots/
