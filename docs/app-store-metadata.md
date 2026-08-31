@@ -22,7 +22,7 @@ references.
 | Bundle ID | `com.designsphere.app` |
 | SKU | Suggested: `DesignSphere-visionOS-1` (choose carefully; Apple does not allow changing it later) |
 | Primary language | English (Canada) |
-| Primary category | Lifestyle (matches the Xcode project) |
+| Primary category | Lifestyle. **Must be set here** — `LSApplicationCategoryType` is declared in `DesignSphere-Info.plist` but Xcode strips it from the built bundle (it is a macOS-only key), so nothing is inherited from the build. Verified against the built app 2026-08-30. |
 | Secondary category | Graphics & Design |
 | Version | `1.0` |
 | Build | `1` — increment before a replacement upload |
@@ -150,8 +150,10 @@ from the submitted build. Keep the window straight and the surroundings clean.
 
 ### Capture recipe (verified 2026-08-30)
 
-The visionOS Simulator writes PNGs at **exactly 3840 × 2160** — the required
-size — so no resize or crop step is needed:
+The visionOS Simulator writes at **exactly 3840 × 2160** — the required size —
+so no resize or crop is needed. It does, however, write **RGBA PNGs**, and
+Apple rejects screenshots that carry an alpha channel, so the conversion step
+below is mandatory:
 
 ```sh
 xcrun simctl bootstatus <device-udid> -b
@@ -159,7 +161,11 @@ xcrun simctl install booted /path/to/DesignSphere.app
 # Skip the first-run sheet: launch arguments land in NSArgumentDomain,
 # so this presets the onboarding flag without touching the container.
 xcrun simctl launch booted com.designsphere.app -settings.onboardingCompleted YES
-xcrun simctl io booted screenshot shot.png
+xcrun simctl io booted screenshot raw.png
+
+# Required: strip the alpha channel. JPEG cannot carry one, and Apple
+# accepts JPEG. Verify with `sips -g hasAlpha shot.jpg` before uploading.
+sips -s format jpeg -s formatOptions best raw.png --out shot.jpg
 ```
 
 Give the app ~25 s after launch before capturing: the catalog fetch has a 20 s

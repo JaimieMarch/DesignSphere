@@ -254,8 +254,10 @@ required item is checked off.
 - [ ] **7. Productionize remote catalog delivery (strongly recommended)**
   - [ ] Move from the public `r2.dev` development endpoint to a production
     custom domain, update `AppFeatureFlags.remoteCatalogBaseURL`, and verify it.
-  - [x] Add hourly manifest/model availability monitoring; the prepared GitHub
+  - [x] Add daily manifest/model availability monitoring; the prepared GitHub
     Actions workflow becomes active after it reaches the default branch.
+    (Was hourly; a canary does not need 24 manifest + 24 model GETs a day
+    against the bucket to re-learn the same answer.)
   - [x] Show each model's download size before first-use fetching and preserve
     catalog/model failure states with accessible retry actions.
 
@@ -293,8 +295,8 @@ Our roadmap is driven by both user feedback and the evolution of spatial computi
 - finalize all required functionality for acceptable release version
 - ~~resolve removed/orphaned UI: decide SharePlay's fate (delete vs. wire)~~ — **decided** (2026-07-05): the dormant SharePlay code stays in the repo for future wiring; it is unreachable from the app
 - ~~complete the measurement tools~~ — **done**: dimensions, distance, ruler, units all wired (`MeasurementManager`) and graduated from Labs into the default toolbar; remaining work is on-device verification
-- ~~audit `Info.plist` privacy/usage strings (ARKit world-sensing, hand tracking, persistence) before submission~~ — **done** (2026-07-05): required strings present; two follow-ups (unused camera string, entitlement key verification) tracked in [docs/project-audit.md](docs/project-audit.md)
-- go through apple guidelines and conform
+- ~~audit `Info.plist` privacy/usage strings (ARKit world-sensing, hand tracking, persistence) before submission~~ — **done** (2026-07-05, revised 2026-08-30): `NSWorldSensingUsageDescription` is the only usage string the app needs and now states the user benefit. The camera and hand-tracking strings were both removed as unused — nothing instantiates a `HandTrackingProvider` — and the duplicate `INFOPLIST_KEY_*` build settings are gone, leaving `DesignSphere-Info.plist` as the single source of truth. See [docs/app-store-checklist.md](docs/app-store-checklist.md)
+- ~~go through apple guidelines and conform~~ — **substantially done** (2026-08-30): metadata accuracy, permissions, accessibility, and a set of guideline-2.1 defects are fixed and tracked in [docs/app-store-checklist.md](docs/app-store-checklist.md). What remains is account- and hardware-gated: publishing the policy URLs, a paid developer account with a provisioning profile, and one physical-device pass
 - ~~AI design assistant: wire the assistant shell to real catalog-driven suggestions~~ — **done**: on-device recommender + optional Foundation Models layer ([docs/design-assistant.md](docs/design-assistant.md))
 
 ### Contributing to Development

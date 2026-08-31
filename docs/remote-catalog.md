@@ -71,8 +71,8 @@ otherwise hard-code in `ModelType`, so the app can load models it has never seen
 
 | Type | Responsibility |
 |---|---|
-| `RemoteCatalogService` (`@MainActor`) | Fetches `catalog.json` (network-first, cached to Application Support for offline), maps entries to `ModelType`s with placement + remote URLs, exposes per-id categories. |
-| `ModelFileStore` (`actor`) | Resolves a remote `ModelType` to a local usdz: cache-first, else download → SHA-256 verify → store under `Caches/RemoteModels/`. Coalesces concurrent requests; LRU-evicts past a ~1.5 GB budget. |
+| `RemoteCatalogService` (`@MainActor`) | Fetches `catalog.json` (revalidating, so an unchanged catalog costs a 304 rather than the whole manifest; cached to Application Support for offline and excluded from backup), maps entries to `ModelType`s with placement + remote URLs, exposes per-id categories. |
+| `ModelFileStore` (`actor`) | Resolves a remote `ModelType` to a local usdz: cache-first, else download → SHA-256 verify → store under `Caches/RemoteModels/`. Coalesces concurrent requests; LRU-evicts past a 500 MB budget; memoizes failures so a doomed download is not repeated on every tap. |
 | `RemoteDownloadProgress` (`@MainActor`) | Per-model 0–1 download progress + failure state, observed by the catalog UI for the progress overlay and retry affordance. |
 
 **Flow:** at launch `CollaborativeSessionController.loadRemoteCatalog()` populates
@@ -83,7 +83,12 @@ lists every model with its hosted thumbnail. Tapping a model calls
 Untextured models (`textured: false`) get a neutral grey material at load.
 
 `AppFeatureFlags.remoteCatalogEnabled` / `remoteCatalogBaseURL` gate and point
-the loader; with the flag off the app falls back to any bundled models.
+the loader. With the flag off the app falls back to bundle-scanned models —
+which the shipping app has **none** of, so the flag is effectively
+production-only. When the flag is on and the fetch fails, the app deliberately
+does *not* run that bundle fallback: it would iterate an empty list and strand
+the user on a blank grid, so the catalog state stays `.unavailable` and the UI
+shows its retry view instead.
 
 ## 4. Resilience
 
@@ -92,6 +97,19 @@ the loader; with the flag off the app falls back to any bundled models.
 - **Integrity:** every download is SHA-256-verified against the manifest.
 - **Failure UX:** a failed download surfaces a retry button on the catalog cell;
   a failed manifest fetch shows a "Catalog unavailable" + retry state.
+- **Partial manifests:** entries decode leniently, so one malformed row is
+  dropped rather than failing the whole document and blanking the catalog.
+  `version` stays strict — a document without it is not a catalog.
+- **Bounded retries:** a failed download is memoized with a backoff that doubles
+  to an hour. A checksum mismatch is suppressed outright rather than backed off,
+  because re-fetching cannot make the bytes match.
+- **Bounded fetching:** catalog cells load thumbnails from `.task` with a short
+  debounce, so a cell scrolled past is cancelled before it costs a request, and
+  concurrent thumbnail downloads are capped.
+
+Together these keep request volume against the bucket proportional to what the
+user actually looks at — which matters both for hosting cost and because a burst
+of parallel requests is what would trip rate limiting on the `r2.dev` endpoint.
 
 ## Updating the catalog
 

@@ -35,9 +35,11 @@ Status of DesignSphere against the App Review Guidelines, split into what is
   **App Functionality**, **not linked to identity**, **not used for tracking**.
   Do not select "Data Not Collected"; that would contradict the shipped privacy
   manifest and the in-app policy screen.
-- [ ] **Screenshots** — 1–10 images at exactly 3840 × 2160, no alpha. The
-  visionOS Simulator captures at exactly that size natively, so no resize or
-  crop is needed.
+- [ ] **Screenshots** — 1–10 images at exactly 3840 × 2160, **no alpha
+  channel**. The visionOS Simulator captures at exactly that size natively, so
+  no resize or crop is needed — but it writes RGBA PNGs, which Apple rejects.
+  Convert before uploading; the verified recipe is in `app-store-metadata.md`.
+  Two converted captures are staged in `AppStore-Screenshots/` (untracked).
 - [ ] **Age rating questionnaire** (expect 4+).
 - [ ] **App motion information** — required for visionOS. "No high motion" is
   now defensible: the full-window scale/blur tab transitions are gated behind
