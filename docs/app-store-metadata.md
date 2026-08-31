@@ -148,6 +148,33 @@ Do not show SharePlay, LiDAR scanning, voice commands, private room details,
 real account information, debug UI, a failed download, or features that differ
 from the submitted build. Keep the window straight and the surroundings clean.
 
+### Capture recipe (verified 2026-08-30)
+
+The visionOS Simulator writes PNGs at **exactly 3840 × 2160** — the required
+size — so no resize or crop step is needed:
+
+```sh
+xcrun simctl bootstatus <device-udid> -b
+xcrun simctl install booted /path/to/DesignSphere.app
+# Skip the first-run sheet: launch arguments land in NSArgumentDomain,
+# so this presets the onboarding flag without touching the container.
+xcrun simctl launch booted com.designsphere.app -settings.onboardingCompleted YES
+xcrun simctl io booted screenshot shot.png
+```
+
+Give the app ~25 s after launch before capturing: the catalog fetch has a 20 s
+timeout and the grid is empty until it resolves.
+
+Two limitations found while capturing:
+
+- **Scripted taps do not work.** Driving the Simulator with `osascript`/System
+  Events needs Accessibility permission for the calling terminal (System
+  Settings → Privacy & Security → Accessibility). Without it, only states
+  reachable from launch arguments or the container can be captured; anything
+  requiring navigation has to be captured by hand.
+- Untextured "Customizable" models render as neutral grey by design. Prefer
+  textured pieces in hero shots so the grid does not read as broken.
+
 ## App Review information
 
 ### Contact
