@@ -29,6 +29,13 @@ struct AIAssistantView: View {
             Spacer(minLength: 0)
         }
         .padding(28)
+        // A card is marked "Added" the moment it is tapped, so the user gets
+        // immediate feedback. If the download then fails, take the mark back
+        // rather than leaving a green checkmark over a model that never
+        // arrived — the tile becomes tappable again.
+        .onChange(of: downloads.failedIDs) { _, failed in
+            placedIDs.subtract(failed)
+        }
     }
 
     // MARK: - Natural language (on-device LLM, when available)

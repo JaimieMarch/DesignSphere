@@ -62,29 +62,34 @@ public struct UnifiedModelPreview: View {
     }
         }
         .frame(width: size.width, height: size.height)
-        .onAppear {
-            
-            
-            // First try to get from cache synchronously
+        // `.task` rather than `.onAppear`: it is cancelled when the cell leaves
+        // the grid, which is what makes the debounce below able to stop a
+        // download from ever starting.
+        .task(id: modelType.id) {
+            // Already in memory — no work, no request.
             if let cachedThumbnail = ThumbnailCache.shared.getCachedThumbnailSync(for: modelType.rawValue) {
-               
                 thumbnail = cachedThumbnail
                 didAttemptLoad = true
-                
-            } else {
-                
-                // If not cached, load asynchronously via ThumbnailCache. Remote
-                // models fetch their pre-rendered thumbnail; bundled models use
-                // the packaged PNG.
-                Task {
-                    let loadedThumbnail = await ThumbnailCache.shared.loadThumbnail(for: modelType)
-                    await MainActor.run {
-                        thumbnail = loadedThumbnail
-                        didAttemptLoad = true
-                    }
+                return
             }
+
+            // Scrolling the 182-model catalog mounts cells far faster than
+            // anyone reads them. Waiting briefly before fetching means a cell
+            // flicked past never costs a request at all, because SwiftUI
+            // cancels this task when the cell scrolls away.
+            do {
+                try await Task.sleep(nanoseconds: 200_000_000)
+            } catch {
+                return
             }
-}
+
+            // Remote models fetch their pre-rendered thumbnail; bundled models
+            // use the packaged PNG.
+            let loadedThumbnail = await ThumbnailCache.shared.loadThumbnail(for: modelType)
+            guard !Task.isCancelled else { return }
+            thumbnail = loadedThumbnail
+            didAttemptLoad = true
+        }
     }
 }
 

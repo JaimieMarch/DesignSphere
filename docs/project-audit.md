@@ -196,13 +196,32 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
   dead-end fallback whose error nothing presented).
 - [x] Accessibility — VoiceOver pass done 2026-08-30 across the editor,
   sheets, and settings; gaze targets raised to ~60pt; Reduce Motion honoured.
-  High-contrast mode still does **not** reach the immersive edit panel: it is
-  a separate scene, and SwiftUI scenes do not inherit each other's
-  environment. Alternative input is untouched.
+  High-contrast styling now reaches the immersive edit panel too: the contrast
+  logic moved into a `HighContrastAdaptive` modifier applied per scene, because
+  SwiftUI scenes do not inherit each other's environment. Alternative input is
+  still untouched.
 - [ ] OBJ/FBX import via the conversion pipeline.
-- [ ] Thumbnail loading is uncapped: every catalog cell fetches from
-  `.onAppear` with no concurrency limit and no cancellation on scroll-away, so
-  a fast scroll can launch many simultaneous requests.
+- [x] Thumbnail fetching is bounded — cells load from `.task` with a 200 ms
+  debounce, so a cell flicked past during a scroll is cancelled before it
+  costs a request, and downloads are capped at 4 concurrent by
+  `ThumbnailDownloadLimiter`.
+
+### Known, deliberately not fixed
+
+- **A permanently failed model still offers "Retry".** After the download
+  backoff work, a checksum mismatch is suppressed rather than re-attempted, so
+  tapping Retry re-shows the failure badge instead of silently doing nothing.
+  It is honest but unexplained; distinguishing permanent from transient
+  failure in the cell would need the error type plumbed to the UI.
+- **A slow first launch shows 20 s of dead air** at 70% / "Loading models…"
+  while the manifest request runs out its timeout. Shortening the timeout
+  would break genuinely slow networks; the real fix is rendering the catalog
+  shell immediately and loading the manifest behind it.
+- **The nav ornament nests a `TabView` inside a manual `.ornament()`**, which
+  duplicates a system affordance, and `ToolbarOrnament` declares a
+  `bottomOrnament` toolbar while itself being hosted in another manual
+  ornament. Works, but non-idiomatic; restructuring is unverifiable without
+  hardware.
 
 ### Long-term (roadmap)
 

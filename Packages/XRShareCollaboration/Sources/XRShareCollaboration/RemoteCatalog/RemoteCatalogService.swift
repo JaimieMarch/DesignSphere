@@ -137,8 +137,16 @@ public final class RemoteCatalogService {
     }
 
     private func cacheManifest(_ manifest: CatalogManifest) {
-        guard let cacheURL, let data = try? JSONEncoder().encode(manifest) else { return }
+        guard var cacheURL, let data = try? JSONEncoder().encode(manifest) else { return }
         try? data.write(to: cacheURL, options: .atomic)
+
+        // Application Support is backed up to iCloud, but this file is a
+        // re-downloadable copy of the catalog, not user data. Apple's storage
+        // guidance is that regenerable content must not consume a user's
+        // backup quota.
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? cacheURL.setResourceValues(values)
     }
 
     private func cachedManifest() -> CatalogManifest? {

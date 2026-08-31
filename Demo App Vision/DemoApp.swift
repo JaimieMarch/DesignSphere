@@ -16,11 +16,14 @@ struct DemoApp: App {
 
     var body: some SwiftUI.Scene {
         WindowGroup("StarterView") {
-            ContrastAwareRoot(controller: controller)
+            StarterView(controller: controller)
+                .modifier(HighContrastAdaptive())
                 .environmentObject(appSettings)
         }
         .defaultSize(width: 1280, height: 720)
-        .windowResizability(.contentSize)
+        // `.contentSize` pins the window to its content, which leaves no way to
+        // enlarge it to compensate for larger Dynamic Type.
+        .windowResizability(.contentMinSize)
 
 #if os(visionOS)
         ImmersiveSpace(id: "CollaborativeSpace") {
@@ -35,8 +38,14 @@ struct DemoApp: App {
             } attachments: {
                 if controller.expandedEditModelInstanceIDVar != nil {
                     Attachment(id: "model-edit-panel") {
+                        // The immersive space is a separate scene, and scenes do
+                        // not inherit one another's environment — without these
+                        // two lines the user's high-contrast setting silently
+                        // does nothing on the surface that needs it most.
                         EditModelView(controller: controller)
                             .frame(width: 380, height: 620)
+                            .modifier(HighContrastAdaptive())
+                            .environmentObject(appSettings)
                     }
                 }
             }
@@ -58,10 +67,14 @@ struct DemoApp: App {
 
 }
 
-/// Wrapper view that reads system contrast (unavailable at App level)
+/// Applies the app's high-contrast affordances, honouring both the in-app
+/// setting and the system's Increase Contrast switch.
+///
+/// This is a modifier rather than a wrapper view because it has to be applied
+/// once per scene: system contrast is unreadable at `App` level, and SwiftUI
+/// scenes do not inherit each other's environment.
 @available(visionOS 26.0, *)
-private struct ContrastAwareRoot: View {
-    @ObservedObject var controller: CollaborativeSessionController
+private struct HighContrastAdaptive: ViewModifier {
     @EnvironmentObject private var appSettings: AppSettings
     @Environment(\.colorSchemeContrast) private var systemContrast
 
@@ -69,8 +82,8 @@ private struct ContrastAwareRoot: View {
         appSettings.highContrastTextEnabled || systemContrast == .increased
     }
 
-    var body: some View {
-        StarterView(controller: controller)
+    func body(content: Content) -> some View {
+        content
             .environment(\.legibilityWeight, useHighContrast ? .bold : nil)
             .contrast(useHighContrast ? 1.15 : 1.0)
     }

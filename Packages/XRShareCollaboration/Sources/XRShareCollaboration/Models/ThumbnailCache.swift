@@ -128,7 +128,10 @@ class ThumbnailCache {
             return await inFlight.value
         }
         let task = Task<Image, Never> {
-            await Self.downloadThumbnail(from: url, savingTo: diskURL) ?? Self.placeholderThumbnail
+            await ThumbnailDownloadLimiter.shared.acquire()
+            let image = await Self.downloadThumbnail(from: url, savingTo: diskURL)
+            await ThumbnailDownloadLimiter.shared.release()
+            return image ?? Self.placeholderThumbnail
         }
         loadingTasks[key] = task
         let image = await task.value
@@ -271,6 +274,43 @@ class ThumbnailCache {
     /// Get cached thumbnail synchronously (for use in SwiftUI views)
     func getCachedThumbnailSync(for resource: String) -> Image? {
         return cache[resource]
+    }
+}
+
+/// Caps how many thumbnail downloads run at once.
+///
+/// Catalog cells request their artwork as they scroll into view, so without a
+/// ceiling the app can open a connection per visible cell against a catalog of
+/// 182 models. Beyond being wasteful, a burst of parallel requests is the
+/// pattern most likely to trip rate limiting on the `r2.dev` endpoint — which
+/// would make the catalog look broken to a reviewer.
+actor ThumbnailDownloadLimiter {
+    static let shared = ThumbnailDownloadLimiter(limit: 4)
+
+    private let limit: Int
+    private var active = 0
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    init(limit: Int) {
+        self.limit = limit
+    }
+
+    func acquire() async {
+        guard active >= limit else {
+            active += 1
+            return
+        }
+        // Resumed by `release()`, which hands over its permit rather than
+        // decrementing, so `active` is already correct on wake.
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func release() {
+        if waiters.isEmpty {
+            active = max(active - 1, 0)
+        } else {
+            waiters.removeFirst().resume()
+        }
     }
 }
 #endif
