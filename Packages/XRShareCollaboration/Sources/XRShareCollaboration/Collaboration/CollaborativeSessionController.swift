@@ -1078,6 +1078,10 @@ public final class CollaborativeSessionController: ObservableObject {
         remoteCatalogState = .loading
         let remoteTypes = await RemoteCatalogService.shared.loadCatalog()
         guard !remoteTypes.isEmpty else {
+            // Re-derive the catalog from whatever is still resolvable locally
+            // (user imports) so the list can't keep advertising models we can
+            // no longer reach, then let the UI show "Catalog unavailable".
+            refreshAvailableModels()
             remoteCatalogState = .unavailable
             return
         }
@@ -1091,15 +1095,31 @@ public final class CollaborativeSessionController: ObservableObject {
         // download lazily on placement, so we skip the bundle's eager load.
         if RemoteCatalogService.shared.isEnabled {
             await loadRemoteCatalog()
-            if remoteCatalogState == .ready { return }
-            // Remote unavailable — fall back to the bundled models below.
+            // There is deliberately no bundle fallback here. The app ships zero
+            // .usdz resources, so `arViewModel.loadModels()` would iterate an
+            // empty list and leave the user on an empty grid with no
+            // explanation. Leaving `remoteCatalogState == .unavailable` instead
+            // drives the catalog's "Catalog unavailable / Retry" view.
+            if remoteCatalogState == .ready {
+                switch strategy {
+                case .minimal:
+                    await ThumbnailCache.shared.preloadThumbnails(
+                        for: Array(catalogModelTypes.prefix(8))
+                    )
+                case .aggressive:
+                    if ThumbnailCache.shared.preloadingComplete == false {
+                        await ThumbnailCache.shared.preloadThumbnails(for: catalogModelTypes)
+                    }
+                }
+            }
+            return
         }
 
         await arViewModel.loadModels()
 
         switch strategy {
         case .minimal:
-            let previewModels = Array(modelManager.modelTypes.prefix(8))
+            let previewModels = Array(catalogModelTypes.prefix(8))
             await ThumbnailCache.shared.preloadThumbnails(for: previewModels)
         case .aggressive:
             if ModelCache.shared.preloadingComplete == false {
@@ -1993,8 +2013,37 @@ public final class CollaborativeSessionController: ObservableObject {
     }
 
 
+    /// The catalog the UI browses: the loaded remote manifest unioned with a
+    /// fresh scan of local models (bundle resources plus `Documents/Imports`).
+    ///
+    /// `modelManager.modelTypes` is replaced wholesale by the remote manifest
+    /// once the catalog loads, and local types are only ever scanned in
+    /// `ModelManager.init`. Without re-scanning here, a model imported during
+    /// the session never joins the catalog even though the import sheet reports
+    /// success, and the `Source → Imports` filter stays permanently empty.
+    ///
+    /// Deliberately does not write back to `modelManager.modelTypes`: that
+    /// property is observed and the observer calls straight back into this
+    /// method.
+    var catalogModelTypes: [ModelType] {
+        Self.mergedCatalogTypes(remote: modelManager.modelTypes, local: ModelType.allCases())
+    }
+
+    /// Order-preserving union keyed by `ModelType.id` (the lowercased raw
+    /// value); the catalog entry wins when both sides carry the same model, so
+    /// remote metadata is never shadowed by an inferred local one.
+    static func mergedCatalogTypes(remote: [ModelType], local: [ModelType]) -> [ModelType] {
+        var merged: [ModelType] = []
+        var seen: Set<String> = []
+        for modelType in remote + local {
+            guard seen.insert(modelType.id).inserted else { continue }
+            merged.append(modelType)
+        }
+        return merged
+    }
+
     public func refreshAvailableModels() {
-        availableModels = modelManager.modelTypes.map { modelType in
+        availableModels = catalogModelTypes.map { modelType in
             ModelDescriptor(
                 type: modelType,
                 source: source(for: modelType),

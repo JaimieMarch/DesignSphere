@@ -312,6 +312,13 @@ struct DetailsScreen: View {
                     alertMessage = "Project '\(roomName)' loaded, but world anchor \(anchorID.uuidString.prefix(8))... was unavailable. Models were restored without room relocalization."
                 }
 
+                // Restoring is best-effort: a saved model whose type left the
+                // catalog, or whose usdz will not download, cannot come back.
+                // Never report plain success over a half-empty room.
+                if let shortfall = projectManager.lastLoadSummary?.shortfallDescription {
+                    alertMessage += " \(shortfall)"
+                }
+
                 showAlert = true
             } catch {
                 alertMessage = "Failed to load project: \(error.localizedDescription)"

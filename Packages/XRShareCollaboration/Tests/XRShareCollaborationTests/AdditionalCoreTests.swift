@@ -60,9 +60,16 @@ final class ThumbnailCacheTests: XCTestCase {
         XCTAssertFalse(ThumbnailCache.shared.preloadingComplete)
     }
 
-    func testRemoteModelWithoutThumbnailURLReturnsNil() async {
-        let thumbnail = await ThumbnailCache.shared.getRemoteThumbnail(for: ModelType(rawValue: "chair"))
-        XCTAssertNil(thumbnail)
+    /// A manifest entry can legitimately arrive with no thumbnail — the
+    /// pipeline omits the field when its render step failed. Returning nil
+    /// used to leave the catalog tile spinning forever, so the cache now
+    /// resolves to a neutral placeholder instead.
+    func testRemoteModelWithoutThumbnailURLReturnsPlaceholder() async {
+        let modelType = ModelType(rawValue: "chair-\(UUID().uuidString)")
+        XCTAssertNil(modelType.remoteThumbnailURL)
+        let thumbnail = await ThumbnailCache.shared.getRemoteThumbnail(for: modelType)
+        XCTAssertNotNil(thumbnail)
+        XCTAssertTrue(ThumbnailCache.shared.isCached(modelType.rawValue))
     }
 
     func testCacheStatusReportsCount() async {

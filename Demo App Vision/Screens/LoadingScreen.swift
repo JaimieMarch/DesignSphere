@@ -5,10 +5,14 @@ struct LoadingScreen: View {
     @Binding var loadingProgress: Float
     @Binding var loadingMessage: String
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         ZStack {
-            // Background
-            Color.black.opacity(0.8)
+            // Glass over passthrough — a visionOS window should never paint an
+            // opaque slab over the user's room.
+            Rectangle()
+                .fill(.regularMaterial)
                 .ignoresSafeArea()
 
             VStack(spacing: 30) {
@@ -16,13 +20,13 @@ struct LoadingScreen: View {
                 Image(systemName: "cube.transparent")
                     .font(.largeTitle)
                     .imageScale(.large)
-                    .foregroundStyle(.white)
-                    .symbolEffect(.pulse, options: .repeating)
+                    .foregroundStyle(.primary)
+                    .symbolEffect(.pulse, options: .repeating, isActive: !reduceMotion)
 
                 // App Name
                 Text("DesignSphere")
                     .font(.largeTitle.bold())
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
 
                 // Progress Section
                 VStack(spacing: 16) {
@@ -35,12 +39,12 @@ struct LoadingScreen: View {
                     // Percentage
                     Text("\(Int(loadingProgress * 100))%")
                         .font(.title3.monospacedDigit())
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(.primary)
 
                     // Loading Message
                     Text(loadingMessage)
                         .font(.body)
-                        .foregroundStyle(.white.opacity(0.6))
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .frame(width: 300)
                 }
@@ -48,7 +52,12 @@ struct LoadingScreen: View {
             }
         }
         .opacity(isLoading ? 1 : 0)
-        .animation(.easeInOut(duration: 0.3), value: isLoading)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isLoading)
+        // A zero-opacity view still takes hits and still shows up in the
+        // accessibility tree, so an unconditionally mounted overlay would
+        // swallow taps on the whole window for the rest of the session.
+        .allowsHitTesting(isLoading)
+        .accessibilityHidden(!isLoading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Loading DesignSphere, \(Int(loadingProgress * 100)) percent, \(loadingMessage)")
     }

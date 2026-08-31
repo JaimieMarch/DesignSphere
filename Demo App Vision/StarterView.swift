@@ -11,6 +11,10 @@ import AVKit
 struct SessionState {
     var isImmersiveOpen = false
     var hasInitializedSession = false
+    /// Set when opening the immersive space failed or was cancelled. Without the
+    /// immersive space every placed model is parented to an anchor that is in no
+    /// scene, so the app looks alive but nothing can ever appear.
+    var immersiveSpaceFailure: String?
 }
 
 /// Manages loading screen state
@@ -44,6 +48,7 @@ struct StarterView: View {
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // Consolidated state structs
     @State private var sessionState = SessionState()
@@ -102,16 +107,16 @@ struct StarterView: View {
                     )
                     .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                     .opacity(navigationState.currentScreen == .home ? navigationState.transitionOpacity : 0)
-                    .scaleEffect(navigationState.currentScreen == .home ? navigationState.contentScale : 0.96)
-                    .blur(radius: navigationState.currentScreen == .home ? 0 : 1)
+                    .scaleEffect(screenScale(for: .home))
+                    .blur(radius: screenBlur(for: .home))
                     .allowsHitTesting(navigationState.currentScreen == .home)
                     
                     // Details Screen
                     DetailsScreen(controller: controller)
                         .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                         .opacity(navigationState.currentScreen == .details ? navigationState.transitionOpacity : 0)
-                        .scaleEffect(navigationState.currentScreen == .details ? navigationState.contentScale : 0.96)
-                        .blur(radius: navigationState.currentScreen == .details ? 0 : 1)
+                        .scaleEffect(screenScale(for: .details))
+                        .blur(radius: screenBlur(for: .details))
                         .allowsHitTesting(navigationState.currentScreen == .details)
                     
                     // Settings Screen
@@ -119,23 +124,27 @@ struct StarterView: View {
                         SettingsScreen()
                             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                             .opacity(navigationState.currentScreen == .settings ? navigationState.transitionOpacity : 0)
-                            .scaleEffect(navigationState.currentScreen == .settings ? navigationState.contentScale : 0.96)
-                            .blur(radius: navigationState.currentScreen == .settings ? 0 : 1)
+                            .scaleEffect(screenScale(for: .settings))
+                            .blur(radius: screenBlur(for: .settings))
                             .allowsHitTesting(navigationState.currentScreen == .settings)
                     }
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                 .clipped()
-                .animation(.interactiveSpring(
-                    response: 0.35,
-                    dampingFraction: 0.86,
-                    blendDuration: 0.25
-                ), value: navigationState.currentScreen)
-                .animation(.interactiveSpring(
-                    response: 0.2,
-                    dampingFraction: 0.9,
-                    blendDuration: 0
-                ), value: navigationState.contentScale)
+                // Reduce Motion gets a plain cross-fade instead of a springy
+                // scale-and-blur of the entire window contents.
+                .animation(
+                    reduceMotion
+                        ? .easeInOut(duration: 0.2)
+                        : .interactiveSpring(response: 0.35, dampingFraction: 0.86, blendDuration: 0.25),
+                    value: navigationState.currentScreen
+                )
+                .animation(
+                    reduceMotion
+                        ? nil
+                        : .interactiveSpring(response: 0.2, dampingFraction: 0.9, blendDuration: 0),
+                    value: navigationState.contentScale
+                )
                 .ornament(
                     visibility: .visible,
                     attachmentAnchor: .scene(.leading),
@@ -226,6 +235,9 @@ struct StarterView: View {
         }) {
             TutorialHubSheet(isPresented: $sheetState.showTutorial)
         }
+        .overlay(alignment: .top) {
+            immersiveSpaceFailureBanner
+        }
         .overlay {
             LoadingScreen(
                 isLoading: $loadingState.isLoading,
@@ -234,7 +246,56 @@ struct StarterView: View {
             )
         }
     }
-    
+
+    /// Surfaced when `openImmersiveSpace` reports `.error` or `.userCancelled`.
+    /// Silently ignoring those leaves the catalog usable but every placement
+    /// invisible, with nothing on screen to explain why.
+    @ViewBuilder
+    private var immersiveSpaceFailureBanner: some View {
+        if let message = sessionState.immersiveSpaceFailure, !loadingState.isLoading {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.yellow)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Immersive space unavailable")
+                        .font(.headline)
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 8)
+
+                Button("Try Again") {
+                    Task { await ensureImmersiveSpaceOpened() }
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityHint("Reopens the immersive space so placed models can appear in your room")
+            }
+            .padding(16)
+            .frame(maxWidth: 640)
+            .glassBackground(cornerRadius: 20)
+            .padding(.top, 16)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Immersive space unavailable. \(message)")
+        }
+    }
+
+    /// Reduce Motion suppresses the scale/blur depth cue between tabs.
+    private func screenScale(for tab: ScreenTab) -> CGFloat {
+        guard !reduceMotion else { return 1.0 }
+        return navigationState.currentScreen == tab ? navigationState.contentScale : 0.96
+    }
+
+    private func screenBlur(for tab: ScreenTab) -> CGFloat {
+        guard !reduceMotion else { return 0 }
+        return navigationState.currentScreen == tab ? 0 : 1
+    }
+
     private func loadFavorites() {
         guard appSettings.rememberFavoritesEnabled else {
             favoriteModels = []
@@ -252,6 +313,14 @@ struct StarterView: View {
     
     private func performTabTransition(to newTab: ScreenTab) {
         Task { @MainActor in
+            guard !reduceMotion else {
+                // Plain cross-fade: no press-down scale, no spring.
+                navigationState.contentScale = 1.0
+                navigationState.transitionOpacity = 1.0
+                navigationState.currentScreen = newTab
+                return
+            }
+
             // Press down effect
             withAnimation(.easeOut(duration: 0.08)) {
                 navigationState.contentScale = 0.98
@@ -315,16 +384,17 @@ struct StarterView: View {
         }
     }
     
+    @MainActor
     private func ensureImmersiveSpaceOpened() async {
         guard sessionState.isImmersiveOpen == false else { return }
         let result = await openImmersiveSpace(id: "CollaborativeSpace")
-        if case .opened = result {
-            await MainActor.run { sessionState.isImmersiveOpen = true }
+        switch result {
+        case .opened:
+            sessionState.isImmersiveOpen = true
+            sessionState.immersiveSpaceFailure = nil
 
             // Start world tracking for world anchor persistence
-            #if targetEnvironment(simulator)
-            return
-            #else
+            #if !targetEnvironment(simulator)
             do {
                 try await controller.startWorldTracking()
             } catch {
@@ -333,6 +403,18 @@ struct StarterView: View {
                 #endif
             }
             #endif
+
+        case .userCancelled:
+            sessionState.immersiveSpaceFailure =
+                "Opening the immersive space was cancelled, so models can't appear in your room yet."
+
+        case .error:
+            sessionState.immersiveSpaceFailure =
+                "DesignSphere couldn't open its immersive space, so models can't appear in your room."
+
+        @unknown default:
+            sessionState.immersiveSpaceFailure =
+                "DesignSphere couldn't open its immersive space, so models can't appear in your room."
         }
     }
 }

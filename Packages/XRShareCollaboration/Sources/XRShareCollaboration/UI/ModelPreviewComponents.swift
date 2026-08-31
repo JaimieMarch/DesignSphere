@@ -23,6 +23,10 @@ public struct UnifiedModelPreview: View {
 
     // The thumbnail image to display for the model once loaded
     @State private var thumbnail: Image? = nil
+    // Set once a load has run to completion (successfully or not). Without it a
+    // model whose thumbnail can't be resolved renders a spinner forever, which
+    // reads as a permanently stuck tile.
+    @State private var didAttemptLoad = false
 
     public init(modelType: ModelType, size: CGSize = CGSize(width: 80, height: 80), showBackground: Bool = true) {
         self.modelType = modelType
@@ -38,12 +42,19 @@ public struct UnifiedModelPreview: View {
             }
             
             
-            // If thumbnail is available, render it, otherwise show a small progress indicator
+            // Thumbnail when we have one; a spinner only while a load is still
+            // in flight; a neutral glyph once loading finished with nothing.
             if let thumbnail = thumbnail {
                 thumbnail
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size.width, height: size.height)
+            } else if didAttemptLoad {
+                Image(systemName: "cube")
+                    .font(.largeTitle)
+                    .imageScale(.large)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
             } else {
                 ProgressView()
                     .progressViewStyle(CircularProgressViewStyle(tint: .secondary))
@@ -58,6 +69,7 @@ public struct UnifiedModelPreview: View {
             if let cachedThumbnail = ThumbnailCache.shared.getCachedThumbnailSync(for: modelType.rawValue) {
                
                 thumbnail = cachedThumbnail
+                didAttemptLoad = true
                 
             } else {
                 
@@ -65,14 +77,10 @@ public struct UnifiedModelPreview: View {
                 // models fetch their pre-rendered thumbnail; bundled models use
                 // the packaged PNG.
                 Task {
-                    let loadedThumbnail: Image?
-                    if modelType.isRemote {
-                        loadedThumbnail = await ThumbnailCache.shared.getRemoteThumbnail(for: modelType)
-                    } else {
-                        loadedThumbnail = await ThumbnailCache.shared.getCachedThumbnail(for: modelType.rawValue, size: size)
-                    }
+                    let loadedThumbnail = await ThumbnailCache.shared.loadThumbnail(for: modelType)
                     await MainActor.run {
                         thumbnail = loadedThumbnail
+                        didAttemptLoad = true
                     }
             }
             }

@@ -47,7 +47,10 @@ struct HomeScreen: View {
                 ScrollView {
                     if controller.remoteCatalogState == .unavailable {
                         catalogUnavailableView
-                    } else if controller.remoteCatalogState == .loading && filteredModels.isEmpty {
+                    } else if controller.remoteCatalogState == .loading {
+                        // Show the loading state even when a stale list is still
+                        // in `availableModels` — those entries are not
+                        // placeable while the catalog is being refetched.
                         catalogLoadingView
                     } else if filteredModels.isEmpty {
                         catalogNoResultsView
@@ -73,13 +76,21 @@ struct HomeScreen: View {
                                     controller.addModel(descriptor)
                                 }
                             )
+                            .contentShape(Rectangle())
                             .onTapGesture { controller.addModel(descriptor) }
                             .contextMenu {
                                 Button("Add") { controller.addModel(descriptor) }
                             }
+                            // The cell holds several accessible children (favorite
+                            // button, retry button). `.contain` keeps them
+                            // reachable while still giving the tile a name of its
+                            // own, and the explicit action makes the tap gesture
+                            // available to assistive technologies.
+                            .accessibilityElement(children: .contain)
                             .accessibilityLabel("\(descriptor.name)\(isFavorite ? ", favorited" : "")")
                             .accessibilityHint(accessibilityHint(for: descriptor))
                             .accessibilityAddTraits(.isButton)
+                            .accessibilityAction { controller.addModel(descriptor) }
                         }
                     }
                     .padding(16)
@@ -348,7 +359,6 @@ struct HomeScreen: View {
 
             Text(value)
                 .font(.subheadline.weight(.medium))
-                .lineLimit(1)
 
             Image(systemName: "chevron.down")
                 .font(.caption.weight(.semibold))

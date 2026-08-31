@@ -13,7 +13,56 @@ class ProjectManager: ObservableObject {
         case missing(UUID)
     }
 
+    /// How much of a saved project actually made it back into the scene.
+    ///
+    /// Restoring is best-effort: a saved model whose type is no longer in the
+    /// catalog (removed from the manifest, or an import the user deleted), or
+    /// whose usdz fails to download, cannot come back. The caller needs this to
+    /// avoid reporting unconditional success over a half-empty — or entirely
+    /// empty — room.
+    struct LoadSummary: Equatable {
+        var requested: Int = 0
+        var restored: Int = 0
+        var missingModelNames: [String] = []
+
+        var skipped: Int { max(requested - restored, 0) }
+        var isComplete: Bool { skipped == 0 }
+
+        /// Nil when everything came back; otherwise a sentence to append to the
+        /// success message.
+        var shortfallDescription: String? {
+            guard !isComplete else { return nil }
+            if restored == 0 {
+                return requested == 1
+                    ? "The saved model could not be restored."
+                    : "None of the \(requested) saved models could be restored."
+            }
+            return "\(restored) of \(requested) models restored; \(skipped) unavailable."
+        }
+    }
+
+    /// Name → type table used to restore a saved project, keyed case-insensitively.
+    ///
+    /// The live catalog takes precedence; locally discoverable types (bundle
+    /// resources and `Documents/Imports`) only fill gaps, so a user import that
+    /// isn't in the remote manifest still restores.
+    static func modelTypeLookup(
+        catalog: [ModelType],
+        local: [ModelType] = ModelType.allCases()
+    ) -> [String: ModelType] {
+        var table: [String: ModelType] = [:]
+        for modelType in catalog {
+            table[modelType.rawValue.lowercased()] = modelType
+        }
+        for modelType in local where table[modelType.rawValue.lowercased()] == nil {
+            table[modelType.rawValue.lowercased()] = modelType
+        }
+        return table
+    }
+
     @Published var savedProjects: [ProjectData] = []
+    /// Result of the most recent `loadProject` call.
+    @Published private(set) var lastLoadSummary: LoadSummary?
     @Published var currentWorldAnchorID: UUID?
     @Published var currentProjectName: String?
     @Published var isStreamingProject: Bool = false
@@ -292,7 +341,7 @@ class ProjectManager: ObservableObject {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
         let jsonData = try encoder.encode(project)
-        try jsonData.write(to: fileURL, options: [.atomic, .completeFileProtection])
+        try jsonData.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
 
         #if DEBUG
         print("Saved project '\(roomName)' with \(savedModels.count) models to: \(fileURL.path)")
@@ -319,6 +368,17 @@ class ProjectManager: ObservableObject {
         decoder.dateDecodingStrategy = .iso8601
 
         let project = try decoder.decode(ProjectData.self, from: jsonData)
+
+        var summary = LoadSummary(requested: project.models.count)
+        lastLoadSummary = nil
+
+        // The live catalog is the source of truth for what can be placed. The
+        // shipping app bundles no usdz files, so `ModelType.allCases()` — which
+        // only scans the bundle and Documents/Imports — cannot resolve a remote
+        // model at all; looking up there first made every restore silently
+        // no-op. Keep it as a fallback for locally imported models that aren't
+        // in the catalog list yet.
+        let catalogTypes = Self.modelTypeLookup(catalog: controller.availableModels.map(\.type))
 
         // Clear existing models
         controller.beginHistoryRecordingSuppression()
@@ -379,10 +439,11 @@ class ProjectManager: ObservableObject {
             }
 
             // Find the model type
-            guard let modelType = ModelType.allCases().first(where: { $0.rawValue == savedModel.modelTypeName }) else {
+            guard let modelType = catalogTypes[savedModel.modelTypeName.lowercased()] else {
                 #if DEBUG
                 print("Warning: Unknown model type '\(savedModel.modelTypeName)'")
                 #endif
+                summary.missingModelNames.append(savedModel.modelTypeName)
                 continue
             }
 
@@ -415,17 +476,21 @@ class ProjectManager: ObservableObject {
                     print("Restored custom material for \(modelType.displayName)")
                     #endif
                 }
+
+                summary.restored += 1
             } else {
                 #if DEBUG
                 print("Warning: Failed to load model '\(modelType.displayName)'")
                 #endif
+                summary.missingModelNames.append(modelType.displayName)
             }
 
         }
 
         #if DEBUG
-        print("Project '\(roomName)' loaded successfully")
+        print("Project '\(roomName)' loaded: \(summary.restored)/\(summary.requested) models restored")
         #endif
+        lastLoadSummary = summary
         currentProjectName = project.roomName
         return anchorRestoreStatus
     }

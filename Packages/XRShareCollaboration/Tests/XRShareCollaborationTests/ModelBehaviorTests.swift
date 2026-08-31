@@ -144,11 +144,15 @@ final class FocusModeManagerTests: XCTestCase {
         XCTAssertTrue(manager.statusText.contains("Night Gallery"))
     }
 
-    func testFocusModeRequiresSharedAnchor() {
+    /// The status wording deliberately avoids "shared anchor": this build has
+    /// no multi-user session, so collaboration vocabulary in reachable UI
+    /// describes a feature that does not ship.
+    func testFocusModeRequiresSceneAnchor() {
         let manager = FocusModeManager()
         manager.enterFocusMode()
         XCTAssertFalse(manager.isFocusModeActive)
-        XCTAssertTrue(manager.statusText.contains("live shared anchor"))
+        XCTAssertTrue(manager.statusText.contains("scene anchor"))
+        XCTAssertFalse(manager.statusText.lowercased().contains("shared"))
     }
 
     func testRecenterRequiresActiveMode() {

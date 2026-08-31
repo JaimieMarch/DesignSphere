@@ -78,6 +78,50 @@ final class ModelTypeTests: XCTestCase {
         XCTAssertFalse(type.isRemote)
     }
 
+    // MARK: - allCases (local discovery)
+
+    /// `allCases()` used to synthesise `ModelType(rawValue: "placeholder")`
+    /// whenever the bundle scan came up empty — which is the *normal* state for
+    /// the shipping app, since it bundles no .usdz files and serves the catalog
+    /// remotely. That sentinel surfaced as a dead "Placeholder" tile, inflated
+    /// every model count, and made saved-project restore look up real models in
+    /// a one-entry table.
+    func testAllCasesNeverSynthesisesAPlaceholderSentinel() {
+        XCTAssertFalse(
+            ModelType.allCases().contains { $0.id == "placeholder" },
+            "allCases() must report only models that actually exist on disk"
+        )
+    }
+
+    func testAllCasesReportsExactlyTheDiscoverableUSDZFiles() {
+        let discovered = Bundle.xrShareUSDZResources()
+        XCTAssertEqual(
+            ModelType.allCases().count,
+            discovered.count,
+            "allCases() must neither drop nor invent entries relative to the file scan"
+        )
+        if discovered.isEmpty {
+            XCTAssertTrue(
+                ModelType.allCases().isEmpty,
+                "an empty bundle must yield an empty catalog, not a sentinel"
+            )
+        }
+    }
+
+    func testAllCasesEntriesAllResolveToADiscoverableFile() {
+        let discoveredIDs = Set(
+            Bundle.xrShareUSDZResources().map {
+                $0.deletingPathExtension().lastPathComponent.lowercased()
+            }
+        )
+        for modelType in ModelType.allCases() {
+            XCTAssertTrue(
+                discoveredIDs.contains(modelType.id),
+                "\(modelType.rawValue) is listed but has no file behind it"
+            )
+        }
+    }
+
     // MARK: - Helpers
 
     private func makeRemote(id: String, preserve: Bool) -> ModelType {

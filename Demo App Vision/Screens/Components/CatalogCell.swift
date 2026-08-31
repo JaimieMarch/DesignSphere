@@ -38,6 +38,7 @@ struct CatalogCell: View {
                     .imageScale(.large)
                     .foregroundStyle(.secondary)
                     .frame(height: 130)
+                    .accessibilityHidden(true)
             }
             // Display model name and the first-use network cost before a tap
             // starts downloading a remote model.
@@ -51,15 +52,15 @@ struct CatalogCell: View {
                     Label("\(size) download on first use", systemImage: "arrow.down.circle")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                         .accessibilityLabel("Downloads \(size) the first time this model is used")
                 }
             }
-            .frame(height: 46)
+            .frame(minHeight: 46)
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .frame(height: 214)
+        .frame(minHeight: 214)
         .glassBackground(cornerRadius: 20)
         .overlay {
             // Download progress / failure for remote models
@@ -76,6 +77,7 @@ struct CatalogCell: View {
                             .foregroundStyle(.white)
                     }
                 }
+                .accessibilityElement(children: .ignore)
                 .accessibilityLabel("Downloading \(name), \(Int(downloadFraction * 100)) percent")
             } else if downloadFailed {
                 ZStack {
@@ -94,6 +96,7 @@ struct CatalogCell: View {
                         .controlSize(.small)
                     }
                 }
+                .accessibilityElement(children: .contain)
                 .accessibilityLabel("\(name) download failed")
                 .accessibilityHint("Double tap retry to try again")
             }

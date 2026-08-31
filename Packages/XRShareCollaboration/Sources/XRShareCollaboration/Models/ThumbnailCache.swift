@@ -32,6 +32,12 @@ class ThumbnailCache {
 
     private init() {}
 
+    /// Neutral stand-in shown when a model has no artwork of its own. Catalog
+    /// entries legitimately ship without a thumbnail (the render step can fail
+    /// for a single model), and a tile must show *something* rather than
+    /// spinning forever.
+    static let placeholderThumbnail = Image(systemName: "cube")
+
 
 // MARK: - Preloading
 
@@ -50,9 +56,9 @@ class ThumbnailCache {
 
         for modelType in modelTypes {
             currentlyLoadingThumbnail = modelType.displayName
-            _ = await generateThumbnail(for: modelType.rawValue, size: CGSize(width: 240, height: 140))
+            _ = await loadThumbnail(for: modelType)
             loadedCount += 1
-            loadingProgress = loadedCount / totalThumbnails
+            loadingProgress = loadedCount / max(totalThumbnails, 1)
             }
 
         isPreloading = false
@@ -65,9 +71,21 @@ class ThumbnailCache {
     func preloadThumbnails(for modelTypes: [ModelType]) async {
         for modelType in modelTypes {
             if cache[modelType.rawValue] == nil {
-                _ = await generateThumbnail(for: modelType.rawValue, size: CGSize(width: 240, height: 140))
+                _ = await loadThumbnail(for: modelType)
             }
             }
+    }
+
+    /// Routes a model to the right thumbnail source. Remote catalog models have
+    /// a pre-rendered PNG hosted alongside the usdz; only bundled/imported
+    /// models have a packaged PNG to look up. Sending a remote model down the
+    /// bundle path caches the generic "arkit" fallback glyph against its name
+    /// and the real artwork can then never replace it.
+    func loadThumbnail(for modelType: ModelType) async -> Image? {
+        if modelType.isRemote {
+            return await getRemoteThumbnail(for: modelType)
+        }
+        return await generateThumbnail(for: modelType.rawValue, size: CGSize(width: 240, height: 140))
     }
 
 
@@ -85,11 +103,20 @@ class ThumbnailCache {
     }
 
     /// Returns a pre-rendered thumbnail hosted alongside a remote model:
-    /// memory cache → disk cache → download. nil if unavailable.
+    /// memory cache → disk cache → download.
+    ///
+    /// Never returns nil: a manifest entry whose `thumbnail` field is absent
+    /// (the pipeline omits it when thumbnail rendering failed) resolves to the
+    /// neutral placeholder so the tile stops loading instead of spinning
+    /// forever.
     func getRemoteThumbnail(for modelType: ModelType) async -> Image? {
         let key = modelType.rawValue
         if let cached = cache[key] { return cached }
-        guard let url = modelType.remoteThumbnailURL else { return nil }
+        guard let url = modelType.remoteThumbnailURL else {
+            let placeholder = Self.placeholderThumbnail
+            cache[key] = placeholder
+            return placeholder
+        }
 
         let diskURL = remoteThumbnailDiskURL(for: modelType.id)
         if let image = imageFromFile(diskURL) {
@@ -101,7 +128,7 @@ class ThumbnailCache {
             return await inFlight.value
         }
         let task = Task<Image, Never> {
-            await Self.downloadThumbnail(from: url, savingTo: diskURL) ?? Image(systemName: "cube")
+            await Self.downloadThumbnail(from: url, savingTo: diskURL) ?? Self.placeholderThumbnail
         }
         loadingTasks[key] = task
         let image = await task.value

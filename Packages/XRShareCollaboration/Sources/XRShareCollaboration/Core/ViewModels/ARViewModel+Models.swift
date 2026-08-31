@@ -22,11 +22,12 @@ extension ARViewModel {
         let modelTypes = ModelType.allCases()
         
         guard !modelTypes.isEmpty else {
+            // No bundled or imported usdz files. This is the normal state for a
+            // clean install — the catalog is served remotely — so it is not a
+            // user-facing error. It used to write `alertItem`, which nothing
+            // presents, so the "failure" was invisible either way.
+            XRLog.verbose("loadModels: no local model files to load")
             await MainActor.run {
-                self.alertItem = AlertItem(
-                    title: "No Models Found",
-                    message: "No 3D model files were found. Please add .usdz files to the 'models' folder."
-                )
                 self.loadingProgress = 1.0
             }
             return
@@ -53,12 +54,12 @@ extension ARViewModel {
             case .failed(let error):
                 failedModels += 1
                 updateLoadingProgress(loaded: loadedModels, failed: failedModels, total: totalModels)
-                
-                self.alertItem = AlertItem(
-                    title: "Failed to Load Model",
-                    message: "\(modelType.rawValue.capitalized): \(error.localizedDescription)"
-                )
-                
+
+                // `alertItem` has no presenter anywhere in the app, so setting it
+                // silently swallowed the failure. Remote models surface their own
+                // failure through RemoteDownloadProgress + the cell's Retry badge.
+                XRLog.verbose("Failed to load local model \(modelType.rawValue): \(error.localizedDescription)")
+
             default:
                 break
             }

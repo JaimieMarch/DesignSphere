@@ -133,6 +133,11 @@ public final class ModelManager: ObservableObject {
                 #if DEBUG
                 print("Error: Model entity failed to load for \(modelType.rawValue)")
                 #endif
+                // A download that succeeds but whose usdz then fails to parse has
+                // already cleared its progress overlay, so without this the tap
+                // would look like it did nothing at all. Re-raising the failure
+                // puts the catalog cell's Retry affordance back on screen.
+                RemoteDownloadProgress.shared.fail(modelType.id)
                 return
             
             }

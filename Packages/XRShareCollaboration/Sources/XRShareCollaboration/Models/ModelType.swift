@@ -143,10 +143,17 @@ public struct ModelType: Hashable, Identifiable, Sendable {
         return nil
     }
     
-    /// Discovers all available model types by scanning bundle resouces
+    /// Discovers locally available model types by scanning bundle resources and
+    /// the user's `Documents/Imports` folder.
+    ///
+    /// The shipping app bundles no `.usdz` files — the catalog is served
+    /// remotely — so this legitimately returns an empty array on a clean
+    /// install. It must never synthesise a sentinel entry: a fake
+    /// "placeholder" type would surface as a dead tile in the catalog and
+    /// inflate every model count in the UI.
     public static func allCases() -> [ModelType] {
 
-            // 1. Scan bundle for USDZ files
+            // 1. Scan bundle + Documents/Imports for USDZ files
             var canonicalNames: [String: String] = [:]
 
             for url in Bundle.xrShareUSDZResources() {
@@ -155,7 +162,7 @@ public struct ModelType: Hashable, Identifiable, Sendable {
             }
 
             guard !canonicalNames.isEmpty else {
-                return [ModelType(rawValue: "placeholder")]
+                return []
             }
 
 
