@@ -72,7 +72,7 @@ jobs:
         run: xcodebuild -version
 
       - name: Cache Xcode DerivedData
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/Library/Developer/Xcode/DerivedData
           key: ${{ runner.os }}-visionos-deriveddata-${{ hashFiles('**/*.xcodeproj/**') }}-${{ github.sha }}
@@ -80,11 +80,11 @@ jobs:
             ${{ runner.os }}-visionos-deriveddata-${{ hashFiles('**/*.xcodeproj/**') }}-
             ${{ runner.os }}-visionos-deriveddata-
 
-      - name: Install visionOS simulator runtime
-        run: xcodebuild -downloadPlatform visionOS
+      - name: Prepare visionOS simulator
+        run: python3 Tools/prepare-visionos-ci.py 2>&1 | tee "$RUNNER_TEMP/runtime-setup.log"
 
       - name: Run catalog, package, and app regression tests
-        run: Tools/run-tests.sh
+        run: Tools/run-tests.sh 2>&1 | tee "$RUNNER_TEMP/regression-tests.log"
 
       - name: Archive Release for Apple Vision Pro
         run: >-
@@ -92,4 +92,18 @@ jobs:
           -scheme "Demo App Vision" -configuration Release
           -destination "generic/platform=visionOS"
           -archivePath "$RUNNER_TEMP/DesignSphere.xcarchive"
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_ALLOWED=NO 2>&1 | tee "$RUNNER_TEMP/release-archive.log"
+
+      - name: Report validation failure details
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          for name in ('runtime-setup.log', 'regression-tests.log', 'release-archive.log'):
+              path = Path(os.environ['RUNNER_TEMP']) / name
+              if path.exists():
+                  message = '\n'.join(path.read_text(errors='replace').splitlines()[-60:])
+                  message = message.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+                  print(f'::error title={name}::{message}')
+          PY
