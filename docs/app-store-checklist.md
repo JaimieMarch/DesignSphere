@@ -26,12 +26,13 @@ Status of DesignSphere against the App Review Guidelines, split into what is
 | Asset licensing | 4.1 / 5.2 | Independently re-verified 2026-08-30 against `asset_provenance.json`: **182 assets, every one CC0 1.0** (66 Poly Haven across 19 author groups, 116 The Base Mesh), attribution not required, redistribution allowed. App icon is project-owned. No BlenderKit asset present. |
 | Accurate in-app copy | 2.3 | Swept 2026-08-30. Removed claims of video tutorials, LiDAR "scans" filtering, "exact scale" measurement, "shared anchor" collaboration jargon, and "room scans" the app cannot produce. |
 | Declared document type is handled | 2.1 | Fixed 2026-10-11. The plist claims ownership of `.dsbackup`; opening one now asks to restore it instead of launching to nothing. `LSSupportsOpeningDocumentsInPlace = false` is declared, which also clears the upload warning for document types without it. |
+| CI green on `main` | — | 2026-10-11: lint and the visionOS 26 build pass on GitHub Actions for the first time since October 2025. The lint step had crashed on every run (bash 3.2 has no `mapfile`), so the build job never ran. |
 | Accessibility | — | The editor's 24 unlabeled controls now carry labels derived from their real behaviour; gaze targets raised to ~60pt; per-row labels on destructive actions; header traits, announcements, and Reduce Motion support added. |
 
 ## 📋 To do in App Store Connect
 
-- [ ] **Privacy policy URL** and **Support URL** — see the blocker below; the
-  prepared URLs do not resolve yet.
+- [ ] **Privacy policy URL** and **Support URL** — enter the two GitHub URLs
+  listed under step 1 below. Both resolve as of 2026-10-11.
 - [ ] **Privacy nutrition labels** — declare **Other Diagnostic Data**, used for
   **App Functionality**, **not linked to identity**, **not used for tracking**.
   Do not select "Data Not Collected"; that would contradict the shipped privacy
@@ -51,9 +52,12 @@ Status of DesignSphere against the App Review Guidelines, split into what is
 
 ## ⚠️ The path to submission — what actually remains
 
-### 1. Publish the policy and support pages — BLOCKER
+### 1. Publish the policy and support pages — ✅ DONE 2026-10-11
 
-_Re-checked 2026-10-11: the privacy policy blob URL still returns 404._
+`app-store-compliance` was fast-forwarded into `main` and pushed on
+2026-10-11. Both URLs below now return 200, and the in-app "View Online" links
+work. Still worth one look in a signed-out browser before entering them in
+Connect. The original notes follow.
 
 `docs/` exists only on this working branch. **`origin/main` has no `docs/`
 directory at all**, so both prepared URLs currently 404:
