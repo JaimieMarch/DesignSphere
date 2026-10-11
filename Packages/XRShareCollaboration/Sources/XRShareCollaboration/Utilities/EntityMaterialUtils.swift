@@ -53,6 +53,8 @@ extension Entity {
                         temp.baseColor = newMaterial.baseColor
                         newMaterial = temp
                         materials.append(newMaterial)
+                    } else {
+                        materials.append(material)
                     }
                 } else {
                     materials.append(material)
@@ -64,16 +66,14 @@ extension Entity {
         }
 
         children.forEach { child in
-            child.replaceAndStoreOldMaterials(material: material)
+            child.replaceAndStoreOldMaterials(material: material, copyPBRInputs: copyPBRInputs)
         }
     }
 
     public func restoreOriginalMaterials() {
         if var modelComponent = modelComponent,
            let savedMaterials = components[SaveOriginalMaterialComponent.self] {
-            for index in 0..<savedMaterials.originalMaterials.count {
-                modelComponent.materials[index] = savedMaterials.originalMaterials[index]
-            }
+            modelComponent.materials = savedMaterials.originalMaterials
             components.set(modelComponent)
             components.remove(SaveOriginalMaterialComponent.self)
         }

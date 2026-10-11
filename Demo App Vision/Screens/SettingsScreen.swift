@@ -66,9 +66,11 @@ private enum LocalDataResetManager {
         switch target {
         case .savedProjects:
             let deleted = try removeContents(ofDocumentsSubdirectory: "DesignSphereProjects", matchingExtension: "json")
+            NotificationCenter.default.post(name: ProjectData.filesDidChangeNotification, object: nil)
             return "Deleted \(deleted) saved project file(s)."
         case .importedModels:
             let deleted = try removeContents(ofDocumentsSubdirectory: "Imports", matchingExtension: "usdz")
+            NotificationCenter.default.post(name: ProjectData.filesDidChangeNotification, object: nil)
             return "Deleted \(deleted) imported model file(s)."
         case .worldAnchors:
             WorldAnchorProvider.shared.removeAllAnchors(deleteFile: true)

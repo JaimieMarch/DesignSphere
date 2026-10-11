@@ -94,11 +94,7 @@ func simd_almost_equal_elements(_ m1: simd_float4x4, _ m2: simd_float4x4, _ epsi
     
     guard a1.count == a2.count else { return false }
     
-    for i in 0..<a1.count {
-        if abs(a1[i] - a2[i]) > epsilon {
-            return false
-        }
-    }
+    for index in 0..<a1.count where abs(a1[index] - a2[index]) > epsilon { return false }
     
     return true
 }

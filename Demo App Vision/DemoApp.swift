@@ -61,6 +61,10 @@ struct DemoApp: App {
                         }
                     }
             )
+            .onDisappear {
+                NotificationCenter.default.post(name: SessionState.immersiveSpaceDidCloseNotification, object: nil)
+                Task { await controller.stopWorldTracking() }
+            }
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
 #endif

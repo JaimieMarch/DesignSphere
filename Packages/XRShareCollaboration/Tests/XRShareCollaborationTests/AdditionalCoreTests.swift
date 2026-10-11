@@ -28,36 +28,38 @@ final class SessionValueTests: XCTestCase {
 
 @MainActor
 final class ThumbnailCacheTests: XCTestCase {
+    private var cache: ThumbnailCache!
+
     override func setUp() {
         super.setUp()
-        ThumbnailCache.shared.clearCache()
+        cache = ThumbnailCache()
     }
 
     override func tearDown() {
-        ThumbnailCache.shared.clearCache()
+        cache.clearCache()
         super.tearDown()
     }
 
     func testMissingThumbnailUsesFallbackAndIsCached() async {
         let resource = "missing-\(UUID().uuidString)"
-        XCTAssertFalse(ThumbnailCache.shared.isCached(resource))
-        let thumbnail = await ThumbnailCache.shared.getCachedThumbnail(for: resource)
+        XCTAssertFalse(cache.isCached(resource))
+        let thumbnail = await cache.getCachedThumbnail(for: resource)
         XCTAssertNotNil(thumbnail)
-        XCTAssertTrue(ThumbnailCache.shared.isCached(resource))
-        XCTAssertNotNil(ThumbnailCache.shared.getCachedThumbnailSync(for: resource))
+        XCTAssertTrue(cache.isCached(resource))
+        XCTAssertNotNil(cache.getCachedThumbnailSync(for: resource))
     }
 
     func testRemoveAndClearResetCacheState() async {
         let first = "first-\(UUID().uuidString)"
         let second = "second-\(UUID().uuidString)"
-        _ = await ThumbnailCache.shared.getCachedThumbnail(for: first)
-        _ = await ThumbnailCache.shared.getCachedThumbnail(for: second)
-        ThumbnailCache.shared.removeFromCache(first)
-        XCTAssertFalse(ThumbnailCache.shared.isCached(first))
-        XCTAssertTrue(ThumbnailCache.shared.isCached(second))
-        ThumbnailCache.shared.clearCache()
-        XCTAssertFalse(ThumbnailCache.shared.isCached(second))
-        XCTAssertFalse(ThumbnailCache.shared.preloadingComplete)
+        _ = await cache.getCachedThumbnail(for: first)
+        _ = await cache.getCachedThumbnail(for: second)
+        cache.removeFromCache(first)
+        XCTAssertFalse(cache.isCached(first))
+        XCTAssertTrue(cache.isCached(second))
+        cache.clearCache()
+        XCTAssertFalse(cache.isCached(second))
+        XCTAssertFalse(cache.preloadingComplete)
     }
 
     /// A manifest entry can legitimately arrive with no thumbnail — the
@@ -67,15 +69,15 @@ final class ThumbnailCacheTests: XCTestCase {
     func testRemoteModelWithoutThumbnailURLReturnsPlaceholder() async {
         let modelType = ModelType(rawValue: "chair-\(UUID().uuidString)")
         XCTAssertNil(modelType.remoteThumbnailURL)
-        let thumbnail = await ThumbnailCache.shared.getRemoteThumbnail(for: modelType)
+        let thumbnail = await cache.getRemoteThumbnail(for: modelType)
         XCTAssertNotNil(thumbnail)
-        XCTAssertTrue(ThumbnailCache.shared.isCached(modelType.rawValue))
+        XCTAssertTrue(cache.isCached(modelType.rawValue))
     }
 
     func testCacheStatusReportsCount() async {
         let resource = "status-\(UUID().uuidString)"
-        _ = await ThumbnailCache.shared.getCachedThumbnail(for: resource)
-        XCTAssertTrue(ThumbnailCache.shared.cacheStatus.hasPrefix("Cached thumbnails: 1/"))
+        _ = await cache.getCachedThumbnail(for: resource)
+        XCTAssertTrue(cache.cacheStatus.hasPrefix("Cached thumbnails: 1/"))
     }
 }
 
@@ -110,6 +112,29 @@ final class ModelCacheStateTests: XCTestCase {
 
 @MainActor
 final class EntityMaterialUtilitiesTests: XCTestCase {
+    func testRestoreRecoversOriginalArrayAfterMaterialSlotsChange() {
+        let entity = ModelEntity(mesh: .generateBox(size: 1), materials: [SimpleMaterial(), SimpleMaterial()])
+        entity.replaceAndStoreOldMaterials(material: UnlitMaterial())
+        entity.model?.materials = []
+        entity.restoreOriginalMaterials()
+        XCTAssertEqual(entity.model?.materials.count, 2)
+        XCTAssertTrue(entity.model?.materials.allSatisfy { $0 is SimpleMaterial } == true)
+    }
+
+    func testCopyPBRInputsPreservesNestedRoughnessAndHandlesOtherMaterialTypes() {
+        let root = Entity()
+        var original = PhysicallyBasedMaterial()
+        original.roughness = .init(floatLiteral: 0.83)
+        let child = ModelEntity(mesh: .generateBox(size: 1), materials: [original, SimpleMaterial()])
+        root.addChild(child)
+        root.replaceAndStoreOldMaterials(material: PhysicallyBasedMaterial(), copyPBRInputs: true)
+        XCTAssertEqual(child.model?.materials.count, 2)
+        XCTAssertEqual(child.physicallyBasedMaterial?.roughness.scale, 0.83)
+        XCTAssertTrue(child.model?.materials.last is PhysicallyBasedMaterial)
+        root.restoreOriginalMaterials()
+        XCTAssertTrue(child.model?.materials.last is SimpleMaterial)
+    }
+
     func testReplaceStoresAndRestoreRecoversMaterialCountRecursively() throws {
         let root = ModelEntity(mesh: .generateBox(size: 1), materials: [SimpleMaterial(), SimpleMaterial()])
         let child = ModelEntity(mesh: .generateSphere(radius: 0.5), materials: [SimpleMaterial()])

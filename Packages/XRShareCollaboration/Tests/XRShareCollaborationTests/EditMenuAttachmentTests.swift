@@ -13,6 +13,43 @@ import simd
 @MainActor
 final class EditMenuAttachmentTests: XCTestCase {
 
+    func testInvalidNumericEditsCannotCorruptPlacedEntity() {
+        let controller = CollaborativeSessionController()
+        let model = makePlacedModel(in: controller)
+        controller.modelManager.selectModel(instanceID: model.id)
+        let entity = model.modelEntity!
+        let originalScale = entity.scale
+        let originalPosition = entity.position
+        controller.updateSelectedModelScale(SIMD3<Float>(0, 1, 1))
+        controller.updateSelectedModelScale(SIMD3<Float>(.infinity, 1, 1))
+        controller.updateSelectedModelPosition(SIMD3<Float>(.nan, 1, 1))
+        XCTAssertEqual(entity.scale, originalScale)
+        XCTAssertEqual(entity.position, originalPosition)
+        XCTAssertFalse(controller.canUndo)
+    }
+
+    func testUndoAndRedoRestoreNestedMaterialsAndResetState() async {
+        let controller = CollaborativeSessionController()
+        let model = makePlacedModel(in: controller)
+        let child = ModelEntity(mesh: .generateBox(size: 0.2), materials: [SimpleMaterial()])
+        model.modelEntity!.addChild(child)
+        controller.modelManager.selectModel(instanceID: model.id)
+        controller.applyMaterialToSelectedModel(PhysicallyBasedMaterial(), materialType: "wood")
+        controller.commitSelectedModelEditTransaction()
+        XCTAssertTrue(child.model?.materials.first is PhysicallyBasedMaterial)
+        controller.undo()
+        for _ in 0..<10 { await Task.yield() }
+        XCTAssertTrue(controller.canRedo)
+        XCTAssertTrue(child.model?.materials.first is SimpleMaterial)
+        XCTAssertNil(child.components[SaveOriginalMaterialComponent.self])
+        controller.redo()
+        for _ in 0..<10 { await Task.yield() }
+        XCTAssertTrue(child.model?.materials.first is PhysicallyBasedMaterial)
+        XCTAssertNotNil(child.components[SaveOriginalMaterialComponent.self])
+        controller.restoreSelectedModelMaterials()
+        XCTAssertTrue(child.model?.materials.first is SimpleMaterial)
+    }
+
     private func makePlacedModel(
         in controller: CollaborativeSessionController,
         size: SIMD3<Float> = SIMD3<Float>(1, 1, 1)

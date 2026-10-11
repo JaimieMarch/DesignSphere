@@ -30,7 +30,7 @@ class ThumbnailCache {
     // Track which thumbnails are currently being loaded to prevent duplicate loads
     private var loadingTasks: [String: Task<Image, Never>] = [:]
 
-    private init() {}
+    init() {}
 
     /// Neutral stand-in shown when a model has no artwork of its own. Catalog
     /// entries legitimately ship without a thumbnail (the render step can fail

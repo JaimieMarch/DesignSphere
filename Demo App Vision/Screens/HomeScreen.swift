@@ -10,6 +10,7 @@ import XRShareCollaboration
 struct HomeScreen: View {
     @ObservedObject var controller: CollaborativeSessionController
     @Binding var favoriteModels: Set<String>
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     
     private enum Sorting: String, CaseIterable, Identifiable {
         case alphabetical = "Alphabetical"
@@ -41,14 +42,14 @@ struct HomeScreen: View {
     var body: some View {
         GeometryReader { proxy in
             VStack(alignment: .leading, spacing: 18) {
-                headerSection
+                headerSection(availableWidth: proxy.size.width)
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
 
                 ScrollView {
-                    if controller.remoteCatalogState == .unavailable {
+                    if controller.remoteCatalogState == .unavailable && controller.availableModels.isEmpty {
                         catalogUnavailableView
-                    } else if controller.remoteCatalogState == .loading {
+                    } else if controller.remoteCatalogState == .loading && controller.availableModels.isEmpty {
                         // Show the loading state even when a stale list is still
                         // in `availableModels` — those entries are not
                         // placeable while the catalog is being refetched.
@@ -56,6 +57,9 @@ struct HomeScreen: View {
                     } else if filteredModels.isEmpty {
                         catalogNoResultsView
                     } else {
+                    if controller.remoteCatalogState == .unavailable {
+                        catalogUnavailableView
+                    }
                     LazyVGrid(columns: gridColumns(for: proxy.size.width), spacing: 14) {
                         ForEach(filteredModels) { descriptor in
                             let isFavorite = favoriteModels.contains(descriptor.name)
@@ -225,33 +229,46 @@ struct HomeScreen: View {
             }
             .buttonStyle(.borderedProminent)
         }
-        .frame(maxWidth: .infinity, minHeight: 280)
+        .frame(maxWidth: .infinity, minHeight: controller.availableModels.isEmpty ? 280 : 160)
         .padding(24)
     }
 
-    private var headerSection: some View {
-        HStack(alignment: .top, spacing: 20) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Catalog")
-                    .font(.largeTitle.bold())
-                    .lineLimit(1)
-
-                Text(catalogCountText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+    private func headerSection(availableWidth: CGFloat) -> some View {
+        let needsFilterRow = dynamicTypeSize.isAccessibilitySize || availableWidth < 1100
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 20) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Catalog")
+                        .font(.largeTitle.bold())
+                        .lineLimit(1)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(catalogCountText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                if needsFilterRow {
+                    searchField
+                } else {
+                    filterControls(includingSearch: true)
+                }
             }
-
-            Spacer(minLength: 0)
-
-            HStack(spacing: 12) {
-                sourceFilter
-                categoryFilter
-                finishFilter
-                sortFilter
-                searchField
+            if needsFilterRow {
+                ScrollView(.horizontal) { filterControls(includingSearch: false) }
+                    .scrollIndicators(.hidden)
             }
-            .frame(maxWidth: 980, alignment: .trailing)
         }
+    }
+
+    private func filterControls(includingSearch: Bool) -> some View {
+        HStack(spacing: 12) {
+            sourceFilter
+            categoryFilter
+            finishFilter
+            sortFilter
+            if includingSearch { searchField }
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var searchField: some View {
@@ -262,7 +279,7 @@ struct HomeScreen: View {
 
             TextField("Search models", text: $searchText)
                 .textFieldStyle(.plain)
-                .frame(width: 180)
+                .frame(width: dynamicTypeSize.isAccessibilitySize ? 280 : 180)
                 .accessibilityLabel("Search models")
                 .accessibilityHint("Type to filter models by name")
         }

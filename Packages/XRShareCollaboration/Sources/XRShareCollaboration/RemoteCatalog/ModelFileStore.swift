@@ -17,6 +17,7 @@ public actor ModelFileStore {
         case notRemote
         case downloadFailed
         case checksumMismatch
+        case invalidMetadata
         /// The download was deliberately not attempted: this model failed
         /// recently and is still inside its backoff window (or failed its
         /// integrity check, which no amount of retrying can fix).
@@ -79,7 +80,7 @@ public actor ModelFileStore {
     }
 
     private func cacheKey(for modelType: ModelType) -> String {
-        if let sha = modelType.remoteSHA256, !sha.isEmpty { return sha.lowercased() }
+        if let sha = modelType.remoteSHA256, CatalogManifest.Asset.isValidSHA256(sha) { return sha.lowercased() }
         let seed = modelType.remoteURL?.absoluteString ?? modelType.rawValue
         return SHA256.hash(data: Data(seed.utf8)).map { String(format: "%02x", $0) }.joined()
     }
@@ -97,13 +98,21 @@ public actor ModelFileStore {
     /// Returns a local usdz URL, downloading and caching it on first use.
     public func localURL(for modelType: ModelType) async throws -> URL {
         guard let remoteURL = modelType.remoteURL else { throw StoreError.notRemote }
+        guard remoteURL.scheme?.lowercased() == "https",
+              modelType.remoteSHA256.map(CatalogManifest.Asset.isValidSHA256) ?? true else {
+            throw StoreError.invalidMetadata
+        }
         let key = cacheKey(for: modelType)
         let destination = cachePath(for: modelType)
 
         if FileManager.default.fileExists(atPath: destination.path) {
-            touch(destination)
-            failures[key] = nil
-            return destination
+            let isValid = try Self.cachedFileIsValid(at: destination, for: modelType)
+            if isValid {
+                touch(destination)
+                failures[key] = nil
+                return destination
+            }
+            try FileManager.default.removeItem(at: destination)
         }
 
         if let existing = inFlight[key] {
@@ -251,6 +260,23 @@ public actor ModelFileStore {
         try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: url.path)
     }
 
+    private static func cachedFileIsValid(at url: URL, for model: ModelType) throws -> Bool {
+        if let expectedBytes = model.remoteFileBytes {
+            let actualBytes = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize
+            guard actualBytes == expectedBytes else { return false }
+        }
+        if let sha = model.remoteSHA256 { return try checksum(at: url) == sha.lowercased() }
+        return true
+    }
+
+    private static func checksum(at url: URL) throws -> String {
+        let file = try FileHandle(forReadingFrom: url)
+        defer { try? file.close() }
+        var hash = SHA256()
+        while let chunk = try file.read(upToCount: 1_048_576), !chunk.isEmpty { hash.update(data: chunk) }
+        return hash.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
     private static func download(
         _ url: URL,
         to destination: URL,
@@ -267,8 +293,7 @@ public actor ModelFileStore {
             defer { try? FileManager.default.removeItem(at: tempURL) }
 
             if let expectedSHA, !expectedSHA.isEmpty {
-                let data = try Data(contentsOf: tempURL)
-                let actual = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                let actual = try checksum(at: tempURL)
                 guard actual == expectedSHA.lowercased() else { throw StoreError.checksumMismatch }
             }
             try? FileManager.default.removeItem(at: destination)
@@ -311,6 +336,8 @@ private final class ProgressiveDownloader: NSObject, URLSessionDownloadDelegate,
         onProgress: @escaping @Sendable (Double) -> Void
     ) {
         self.configuration = configuration
+        self.configuration.timeoutIntervalForResource = 180
+        self.configuration.timeoutIntervalForRequest = 30
         self.onProgress = onProgress
         super.init()
     }

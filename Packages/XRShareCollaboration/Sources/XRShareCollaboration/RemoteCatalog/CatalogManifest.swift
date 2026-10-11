@@ -24,12 +24,42 @@ public struct CatalogManifest: Codable, Sendable {
         public let file: Asset
         public let thumbnail: Asset?
         public let placement: Placement
+
+        var isValid: Bool {
+            !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && id.utf8.count <= 255
+                && !id.contains("/") && !id.contains("\\")
+                && !id.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+                && !displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && file.isValid(extensions: ["usdz"])
+                && (thumbnail?.isValid(extensions: ["png", "jpg", "jpeg"]) ?? true)
+        }
     }
 
     public struct Asset: Codable, Sendable {
         public let url: String
         public let bytes: Int?
         public let sha256: String?
+
+        func isValid(extensions: Set<String>) -> Bool {
+            guard let decodedPath = url.removingPercentEncoding,
+                  !decodedPath.isEmpty, !decodedPath.hasPrefix("/"),
+                  !decodedPath.contains("\\"), !decodedPath.contains(":"),
+                  !decodedPath.contains("?"), !decodedPath.contains("#"),
+                  !decodedPath.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
+                  decodedPath.split(separator: "/", omittingEmptySubsequences: false)
+                    .allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." }),
+                  extensions.contains((decodedPath as NSString).pathExtension.lowercased()),
+                  bytes.map({ $0 > 0 }) ?? true,
+                  sha256.map(Self.isValidSHA256) ?? true else { return false }
+            return true
+        }
+
+        static func isValidSHA256(_ value: String) -> Bool {
+            value.utf8.count == 64 && value.utf8.allSatisfy {
+                (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0)
+            }
+        }
     }
 
     public struct Placement: Codable, Sendable {
@@ -59,9 +89,15 @@ public struct CatalogManifest: Codable, Sendable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decode(Int.self, forKey: .version)
+        guard version == 1 else {
+            throw DecodingError.dataCorruptedError(forKey: .version, in: container, debugDescription: "Unsupported catalog version")
+        }
         generatedAt = try container.decodeIfPresent(String.self, forKey: .generatedAt)
         let rows = try container.decodeIfPresent([FailableDecodable<Entry>].self, forKey: .models) ?? []
-        models = rows.compactMap(\.value)
+        var identifiers = Set<String>()
+        models = rows.compactMap(\.value).filter {
+            $0.isValid && identifiers.insert($0.id.lowercased()).inserted
+        }
     }
 }
 

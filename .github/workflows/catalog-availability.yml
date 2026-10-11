@@ -27,7 +27,7 @@ jobs:
           curl --fail --silent --show-error --location --retry 3 \
             --max-time 30 "${base_url}/catalog.json" --output catalog.json
           jq --exit-status \
-            '.version == 1 and (.models | length >= 182) and all(.models[]; (.file.url | length > 0) and (.file.bytes > 0))' \
+            '.version == 1 and (.models | length >= 182) and all(.models[]; (.file.url | test("^models/[A-Za-z0-9_-]+\\.usdz$")) and (.file.bytes > 0) and (.file.sha256 | test("^[a-fA-F0-9]{64}$")))' \
             catalog.json
 
       - name: Verify a hosted model is downloadable
@@ -36,5 +36,7 @@ jobs:
           set -euo pipefail
           base_url="https://pub-efd589f26cb24d3db0c409b9416b4ecd.r2.dev"
           model_path="$(jq --raw-output '.models | min_by(.file.bytes) | .file.url' catalog.json)"
+          expected_sha="$(jq --raw-output '.models | min_by(.file.bytes) | .file.sha256' catalog.json)"
           curl --fail --silent --show-error --location --retry 3 \
-            --max-time 60 "${base_url}/${model_path}" --output /dev/null
+            --max-time 60 "${base_url}/${model_path}" --output model.usdz
+          printf '%s  model.usdz\n' "$expected_sha" | sha256sum --check --status

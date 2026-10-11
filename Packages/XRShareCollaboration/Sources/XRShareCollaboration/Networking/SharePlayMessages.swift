@@ -6,11 +6,11 @@
 ////
 //
 //
-//import Foundation
-//import simd
+// import Foundation
+// import simd
 //
 //
-//extension simd_quatf: Codable {
+// extension simd_quatf: Codable {
 //    public func encode(to encoder: Encoder) throws {
 //        var container = encoder.unkeyedContainer()
 //        try container.encode(imag.x)
@@ -28,10 +28,10 @@
 //        let r = try container.decode(Float.self)
 //        self.init(vector: SIMD4<Float>(ix, iy, iz, r))
 //    }
-//}
+// }
 //
 ///// Universal transform for cross-platform coordinate system translation
-//struct UniversalTransform: Codable {
+// struct UniversalTransform: Codable {
 //    let position: SIMD3<Float>
 //    let rotation: simd_quatf
 //    let scale: SIMD3<Float>
@@ -77,41 +77,41 @@
 //        try container.encode(scale, forKey: .scale)
 //        try container.encode(referenceAnchorID, forKey: .referenceAnchorID)
 //    }
-//}
+// }
 //
 ///// Message sent when a user adds a new model
-//struct AddModelMessage: Codable {
+// struct AddModelMessage: Codable {
 //    let modelType: ModelType
 //    let instanceID: UUID
 //    let initialTransform: UniversalTransform
-//}
+// }
 //
 //
 ///// Message sent when a model is removed
-//struct RemoveModelMessage: Codable {
+// struct RemoveModelMessage: Codable {
 //    let instanceID: UUID
-//}
+// }
 //
 ///// Message sent when a model's transform is updated  (user rotates, drags, moves model)
-//struct ModelTransformMessage: Codable {
+// struct ModelTransformMessage: Codable {
 //    let instanceID: UUID
 //    let newTransform: UniversalTransform
-//}
+// }
 //
 ///// Message sent when ownership of a model changes
-//struct OwnershipChangeMessage: Codable {
+// struct OwnershipChangeMessage: Codable {
 //    let entityID: UUID
 //    let newOwner: UUID
-//}
+// }
 //
 ///// Message sent when a model is selected
-//struct SelectModelMessage: Codable {
+// struct SelectModelMessage: Codable {
 //    let entityID: UUID
 //    let participantID: UUID
-//}
+// }
 //
 ///// Message sent to synchronize all models when a new participant joins
-//struct SyncAllModelsMessage: Codable {
+// struct SyncAllModelsMessage: Codable {
 //    struct ModelState: Codable {
 //        let modelType: ModelType
 //        let instanceID: UUID
@@ -120,16 +120,16 @@
 //    }
 //    let models: [ModelState]
 //    let referenceAnchorID: UUID
-//}
+// }
 //
 ///// Message sent to request full state sync
-//struct RequestSyncMessage: Codable {
+// struct RequestSyncMessage: Codable {
 //    let participantID: UUID
-//}
+// }
 //
 //
 ///// Message sent to share anchor information for spatial alignment
-//struct AnchorMessage: Codable {
+// struct AnchorMessage: Codable {
 //    enum AnchorType: String, Codable {
 //        case worldAnchor   // visionOS: WorldAnchor
 //        case worldMap      // iOS: ARWorldMap
@@ -138,10 +138,10 @@
 //    let anchorID: UUID
 //    let anchorType: AnchorType
 //    let anchorData: Data?
-//}
+// }
 //
 ///// Versioned handshake for cross-app compatibility and capability discovery
-//struct ProtocolHandshakeMessage: Codable {
+// struct ProtocolHandshakeMessage: Codable {
 //    let protocolVersion: Int
 //  
 //    
@@ -155,4 +155,4 @@
 //    let supportsModelSync: Bool
 //    let supportsARWorldMap: Bool
 //    let supportsUnreliableTransforms: Bool
-//}
+// }

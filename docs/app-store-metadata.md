@@ -1,6 +1,6 @@
 # App Store Connect Metadata Packet
 
-_Prepared July 26, 2026 for DesignSphere 1.0 (build 1)._
+_Prepared July 26, 2026; release handoff updated October 11, 2026 for DesignSphere 1.0 (build 1)._
 
 This is the copy-ready source of truth for the first visionOS submission. Do a
 final comparison against the uploaded build before pasting it into App Store
@@ -68,13 +68,13 @@ DesignSphere has no accounts, advertising, or subscriptions. Projects and import
 
 ## Public URLs
 
-Publish these files to the repository's public `main` branch and open each URL
-in a signed-out browser before entering it in App Store Connect.
+Both policy and support pages returned HTTP 200 during the October 11 audit.
+Open them in a signed-out browser before entering them in App Store Connect.
 
 | Field | Prepared URL | Status |
 | --- | --- | --- |
-| Privacy Policy URL | `https://github.com/JaimieMarch/DesignSphere/blob/main/docs/privacy-policy.md` | **Pending publication/verification** |
-| Support URL | `https://github.com/JaimieMarch/DesignSphere/blob/main/docs/support.md` | **Pending publication/verification** |
+| Privacy Policy URL | `https://github.com/JaimieMarch/DesignSphere/blob/main/docs/privacy-policy.md` | **HTTP 200 verified October 11, 2026** |
+| Support URL | `https://github.com/JaimieMarch/DesignSphere/blob/main/docs/support.md` | **HTTP 200 verified October 11, 2026** |
 | Marketing URL | `https://github.com/JaimieMarch/DesignSphere` | Optional; verify before use |
 
 Before submission, the legal owner must decide whether the public support page
@@ -150,22 +150,16 @@ from the submitted build. Keep the window straight and the surroundings clean.
 
 ### Capture recipe (verified 2026-08-30)
 
-The visionOS Simulator writes at **exactly 3840 × 2160** — the required size —
-so no resize or crop is needed. It does, however, write **RGBA PNGs**, and
-Apple rejects screenshots that carry an alpha channel, so the conversion step
-below is mandatory:
+The visionOS Simulator captures at **3840 × 2160** on the audited setup.
+Export JPEG directly so the screenshot has no alpha channel:
 
 ```sh
 xcrun simctl bootstatus <device-udid> -b
 xcrun simctl install booted /path/to/DesignSphere.app
-# Skip the first-run sheet: launch arguments land in NSArgumentDomain,
-# so this presets the onboarding flag without touching the container.
+# Skip the first-run sheet using launch arguments.
 xcrun simctl launch booted com.designsphere.app -settings.onboardingCompleted YES
-xcrun simctl io booted screenshot raw.png
-
-# Required: strip the alpha channel. JPEG cannot carry one, and Apple
-# accepts JPEG. Verify with `sips -g hasAlpha shot.jpg` before uploading.
-sips -s format jpeg -s formatOptions best raw.png --out shot.jpg
+xcrun simctl io booted screenshot --type=jpeg shot.jpg
+sips -g pixelWidth -g pixelHeight -g hasAlpha shot.jpg
 ```
 
 Give the app ~25 s after launch before capturing: the catalog fetch has a 20 s
@@ -214,10 +208,11 @@ The app processes project, imported-model, spatial, and assistant data on device
 - [ ] Create the app record with the legal owner's Apple Developer account.
 - [ ] Confirm the SKU, price, territories, DSA trader status, tax category, and
   legal copyright owner.
-- [ ] Enter and verify the public URLs after publication.
+- [ ] Enter the verified public policy and support URLs.
 - [ ] Paste the product-page copy and privacy answers.
 - [ ] Complete the age-rating and app-motion questionnaires.
 - [ ] Capture, validate, and upload the final screenshots.
 - [ ] Enter private review contact details.
-- [ ] Select the uploaded distribution build and submit it to TestFlight before
-  starting App Review.
+- [ ] Test the uploaded distribution build through TestFlight, then select the
+  accepted build for App Review. TestFlight is our recommended release check,
+  not a requirement to submit an app to App Review.

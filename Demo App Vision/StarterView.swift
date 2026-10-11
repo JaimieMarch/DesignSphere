@@ -9,7 +9,9 @@ import AVKit
 
 /// Manages session-related state
 struct SessionState {
+    static let immersiveSpaceDidCloseNotification = Notification.Name("SessionState.immersiveSpaceDidClose")
     var isImmersiveOpen = false
+    var isImmersiveOpening = false
     var hasInitializedSession = false
     /// Set when opening the immersive space failed or was cancelled. Without the
     /// immersive space every placed model is parented to an anchor that is in no
@@ -125,6 +127,7 @@ struct StarterView: View {
                     .scaleEffect(screenScale(for: .home))
                     .blur(radius: screenBlur(for: .home))
                     .allowsHitTesting(navigationState.currentScreen == .home)
+                    .accessibilityHidden(navigationState.currentScreen != .home)
                     
                     // Details Screen
                     DetailsScreen(controller: controller)
@@ -133,6 +136,7 @@ struct StarterView: View {
                         .scaleEffect(screenScale(for: .details))
                         .blur(radius: screenBlur(for: .details))
                         .allowsHitTesting(navigationState.currentScreen == .details)
+                        .accessibilityHidden(navigationState.currentScreen != .details)
                     
                     // Settings Screen
                     if AppFeatureFlags.settingsScreenEnabled {
@@ -142,6 +146,7 @@ struct StarterView: View {
                             .scaleEffect(screenScale(for: .settings))
                             .blur(radius: screenBlur(for: .settings))
                             .allowsHitTesting(navigationState.currentScreen == .settings)
+                            .accessibilityHidden(navigationState.currentScreen != .settings)
                     }
                 }
                 .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
@@ -209,10 +214,14 @@ struct StarterView: View {
             controller.setCollisionMode(mode)
         }
         .onReceive(NotificationCenter.default.publisher(for: AppSettings.favoritesDidResetNotification)) { _ in
-            favoriteModels.removeAll()
+            loadFavorites()
         }
         .onReceive(NotificationCenter.default.publisher(for: AppSettings.tutorialReplayRequestedNotification)) { _ in
             sheetState.showTutorial = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: SessionState.immersiveSpaceDidCloseNotification)) { _ in
+            sessionState.isImmersiveOpen = false
+            sessionState.immersiveSpaceFailure = "The design space was closed. Reopen it to see and place furniture in your room."
         }
         .onChange(of: sheetState.showMeasurementOptions) { _, isPresented in
             guard isPresented else { return }
@@ -401,7 +410,9 @@ struct StarterView: View {
     
     @MainActor
     private func ensureImmersiveSpaceOpened() async {
-        guard sessionState.isImmersiveOpen == false else { return }
+        guard !sessionState.isImmersiveOpen, !sessionState.isImmersiveOpening else { return }
+        sessionState.isImmersiveOpening = true
+        defer { sessionState.isImmersiveOpening = false }
         let result = await openImmersiveSpace(id: "CollaborativeSpace")
         switch result {
         case .opened:

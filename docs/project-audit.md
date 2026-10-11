@@ -1,9 +1,10 @@
 # Project Audit & Backlog
 
-_Last audited: 2026-10-11 (branch `app-store-compliance`). Current release
-verification: 209 Swift tests (1 skipped live-network test) and an unsigned
-generic-device Release archive are green with Xcode 27 against the visionOS 27
-simulator. The 25 pipeline tests were last run on 2026-08-30._
+_Last audited: 2026-10-11. Current local verification: 234 Swift tests
+(including live catalog integration), 25 pipeline tests, strict lint, and an
+unsigned generic-device Release archive. Evidence and newly corrected defects:
+[release-audit-2026-10-11.md](release-audit-2026-10-11.md). Distribution signing,
+physical Vision Pro testing, and App Store Connect setup remain required._
 
 This document records the **true state** of features that are partially shipped,
 deferred, gated behind flags, or removed from the UI — and the prioritized

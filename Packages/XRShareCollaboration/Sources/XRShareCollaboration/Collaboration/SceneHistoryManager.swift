@@ -12,6 +12,55 @@ struct ModelSnapshot {
     let materialType: String?
     let originalBounds: SIMD3<Float>?
     let snapState: SnapStateComponent?
+    var materialStates: [EntityMaterialState] = []
+
+    struct EntityMaterialState {
+        let path: [Int]
+        let materials: [any Material]
+        let originalMaterials: [any Material]?
+    }
+
+    @MainActor
+    static func captureMaterials(from entity: Entity, path: [Int] = []) -> [EntityMaterialState] {
+        var states: [EntityMaterialState] = []
+        if let component = entity.components[ModelComponent.self] {
+            states.append(.init(path: path, materials: component.materials,
+                                originalMaterials: entity.components[SaveOriginalMaterialComponent.self]?.originalMaterials))
+        }
+        for (index, child) in entity.children.enumerated() {
+            states += captureMaterials(from: child, path: path + [index])
+        }
+        return states
+    }
+
+    @MainActor
+    func restoreMaterials(to entity: Entity) {
+        guard !materialStates.isEmpty else {
+            if var component = entity.components[ModelComponent.self] {
+                component.materials = materials
+                entity.components.set(component)
+            }
+            return
+        }
+        for state in materialStates {
+            var target: Entity? = entity
+            for index in state.path {
+                guard let parent = target, parent.children.indices.contains(index) else {
+                    target = nil
+                    break
+                }
+                target = parent.children[index]
+            }
+            guard let target, var component = target.components[ModelComponent.self] else { continue }
+            component.materials = state.materials
+            target.components.set(component)
+            if let original = state.originalMaterials {
+                target.components.set(SaveOriginalMaterialComponent(originalMaterials: original))
+            } else {
+                target.components.remove(SaveOriginalMaterialComponent.self)
+            }
+        }
+    }
 }
 
 enum SceneHistoryEntry {

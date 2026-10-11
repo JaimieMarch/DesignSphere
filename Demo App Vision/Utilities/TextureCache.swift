@@ -27,7 +27,7 @@ final class TextureCache {
 
         // Attempt to load and cache the texture
         do {
-            let texture = try TextureResource.load(named: name)
+            let texture = try TextureResource.load(named: name + ".png", options: .init(semantic: .normal))
             cache[name] = texture
             #if DEBUG
             print("TextureCache: Loaded and cached texture '\(name)'")

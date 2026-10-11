@@ -1,5 +1,3 @@
-
-
 import SwiftUI
 
 struct NavigationOrnament: View {
@@ -50,7 +48,7 @@ struct NavigationOrnament: View {
             previousTab = newValue
         }
         // Parent view changes the current screen
-        .onChange(of: currentScreen) { oldValue, newValue in
+        .onChange(of: currentScreen) { _, newValue in
             guard newValue.isEnabled else { return }
             if selectedTab != newValue.rawValue {
                 // Turn on the boolean to prevent update loop

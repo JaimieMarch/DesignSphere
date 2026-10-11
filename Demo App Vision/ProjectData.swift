@@ -5,6 +5,7 @@ import simd
 struct ProjectData: Codable {
     /// Current schema version - increment when making breaking changes to the data structure
     static let currentSchemaVersion = 1
+    static let filesDidChangeNotification = Notification.Name("ProjectData.filesDidChange")
 
     /// Schema version of this project file (for migration support)
     let schemaVersion: Int
@@ -14,6 +15,49 @@ struct ProjectData: Codable {
     let dateCreated: Date
     var dateModified: Date
     var models: [SavedModel]
+
+    /// Shared by normal loading and backup restoration, before touching the scene.
+    func validate() throws {
+        guard (1...Self.currentSchemaVersion).contains(schemaVersion),
+              Self.isValidName(roomName),
+              models.count <= 10_000,
+              Set(models.map(\.id)).count == models.count,
+              dateCreated.timeIntervalSinceReferenceDate.isFinite,
+              dateModified.timeIntervalSinceReferenceDate.isFinite,
+              models.allSatisfy({ model in
+                  Self.isValidName(model.modelTypeName)
+                      && [model.position.x, model.position.y, model.position.z].allSatisfy(\.isFinite)
+                      && [model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w].allSatisfy(\.isFinite)
+                      && abs(simd_length(model.rotation.quatf.vector) - 1) < 0.01
+                      && [model.scale.x, model.scale.y, model.scale.z].allSatisfy { $0.isFinite && $0 > 0 }
+                      && (model.originalBounds.map {
+                          [$0.x, $0.y, $0.z].allSatisfy { $0.isFinite && $0 > 0 }
+                      } ?? true)
+                      && (model.material.map {
+                          [$0.baseColorR, $0.baseColorG, $0.baseColorB, $0.baseColorA]
+                              .allSatisfy { $0.isFinite && (0...1).contains($0) }
+                              && [$0.roughness, $0.metallic, $0.specular].allSatisfy {
+                                  $0.map { $0.isFinite && (0...1).contains($0) } ?? true
+                              }
+                      } ?? true)
+              }) else { throw ProjectError.invalidData }
+    }
+
+    static func isValidName(_ name: String) -> Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && name.utf8.count <= 255
+            && !name.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+    }
+
+    /// Leave space for import suffixes and the extension within filesystem limits.
+    static func fileStem(for roomName: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " _-"))
+        let filtered = roomName.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" }
+        var result = String(filtered).replacingOccurrences(of: "--", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        while result.utf8.count > 180 { result.removeLast() }
+        return result.isEmpty ? "Project" : result
+    }
 
     /// Standard initializer with current schema version
     init(roomName: String, worldAnchorID: UUID?, dateCreated: Date, dateModified: Date, models: [SavedModel]) {

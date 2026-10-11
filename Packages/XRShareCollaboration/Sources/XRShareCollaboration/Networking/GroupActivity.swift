@@ -5,13 +5,13 @@
 //  Configuring GroupAcitivty for Group Activities
 //
 
-//import Foundation
-//import GroupActivities
-//import UIKit
-//import SwiftUI
-//import CoreTransferable
+// import Foundation
+// import GroupActivities
+// import UIKit
+// import SwiftUI
+// import CoreTransferable
 //
-//public struct DemoActivity: GroupActivity, Transferable, Sendable {
+// public struct DemoActivity: GroupActivity, Transferable, Sendable {
 //    public static let activityIdentifier = "com.Demo.DemoActivity"
 //    
 //    public init() {}
@@ -24,4 +24,4 @@
 //        metadata.type = .generic
 //        return metadata
 //    }
-//}
+// }

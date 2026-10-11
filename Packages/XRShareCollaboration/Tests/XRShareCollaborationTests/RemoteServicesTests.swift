@@ -120,6 +120,44 @@ final class RemoteCatalogServiceTests: XCTestCase {
         XCTAssertEqual(MockURLProtocol.count(), 0)
     }
 
+    func testUnsupportedSchemaKeepsLastKnownGoodCatalog() async throws {
+        let cacheURL = temporaryDirectory.appendingPathComponent("catalog.json")
+        let good = manifestData()
+        try good.write(to: cacheURL)
+        MockURLProtocol.reset { _ in
+            .init(statusCode: 200, data: Data(#"{"version":999,"models":[]}"#.utf8))
+        }
+        let service = makeService(cacheURL: cacheURL)
+        service.configure(baseURL: URL(string: "https://example.test")!, enabled: true)
+        let models = await service.loadCatalog()
+        XCTAssertEqual(models.map(\.id), ["chair_01", "future"])
+        XCTAssertEqual(try Data(contentsOf: cacheURL), good)
+    }
+
+    func testInvalidPathsChecksumsAndDuplicateIDsDoNotReachCatalog() async throws {
+        let original = try XCTUnwrap(JSONSerialization.jsonObject(with: manifestData()) as? [String: Any])
+        let goodEntries = try XCTUnwrap(original["models"] as? [[String: Any]])
+        var duplicate = goodEntries[0]
+        duplicate["id"] = "CHAIR_01"
+        var rows = goodEntries + [duplicate]
+        for path in ["../outside.usdz", "%2e%2e/outside.usdz", "/outside.usdz", "https://other.test/model.usdz", "models/../outside.usdz"] {
+            var invalid = goodEntries[0]
+            invalid["id"] = UUID().uuidString
+            invalid["file"] = ["url": path]
+            rows.append(invalid)
+        }
+        var invalidSHA = goodEntries[0]
+        invalidSHA["id"] = "unsafe_sha"
+        invalidSHA["file"] = ["url": "models/model.usdz", "sha256": "../../escape"]
+        rows.append(invalidSHA)
+        let data = try JSONSerialization.data(withJSONObject: ["version": 1, "models": rows])
+        MockURLProtocol.reset { _ in .init(statusCode: 200, data: data) }
+        let service = makeService(cacheURL: temporaryDirectory.appendingPathComponent("catalog.json"))
+        service.configure(baseURL: URL(string: "https://example.test")!, enabled: true)
+        let models = await service.loadCatalog()
+        XCTAssertEqual(models.map(\.id), ["chair_01", "future"])
+    }
+
     func testSuccessfulManifestMapsEveryModelFieldAndCachesResponse() async throws {
         let data = manifestData()
         MockURLProtocol.reset { request in
@@ -140,7 +178,7 @@ final class RemoteCatalogServiceTests: XCTestCase {
         XCTAssertFalse(chair.preserveRealWorldScale)
         XCTAssertEqual(chair.remoteURL?.absoluteString, "https://example.test/base/models/chair.usdz")
         XCTAssertEqual(chair.remoteThumbnailURL?.absoluteString, "https://example.test/base/thumbs/chair.png")
-        XCTAssertEqual(chair.remoteSHA256, "ABC")
+        XCTAssertEqual(chair.remoteSHA256, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
         XCTAssertEqual(chair.remoteFileBytes, 12)
         XCTAssertNotNil(chair.remoteDownloadSizeLabel)
         XCTAssertFalse(chair.hasBakedMaterials)
@@ -264,7 +302,7 @@ final class RemoteCatalogServiceTests: XCTestCase {
               "models": [
                 {
                   "id": "Chair_01", "displayName": "Chair", "category": "seating", "textured": false,
-                  "file": { "url": "models/chair.usdz", "bytes": 12, "sha256": "ABC" },
+                  "file": { "url": "models/chair.usdz", "bytes": 12, "sha256": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" },
                   "thumbnail": { "url": "thumbs/chair.png" },
                   "placement": {
                     "classification": "FLOOR", "plane": "HORIZONTAL", "canStack": true,
@@ -298,6 +336,17 @@ final class ModelFileStoreTests: XCTestCase {
     override func tearDownWithError() throws {
         try? FileManager.default.removeItem(at: temporaryDirectory)
         MockURLProtocol.handler = nil
+    }
+
+    func testUnsafeChecksumCannotEscapeCacheDirectoryOrTriggerDownload() async {
+        MockURLProtocol.reset { _ in XCTFail("Unsafe metadata must not download"); throw URLError(.badURL) }
+        var model = remoteModel(data: Data("payload".utf8))
+        model.remoteSHA256 = "../../outside"
+        let store = makeStore()
+        let cached = await store.isCached(model)
+        XCTAssertFalse(cached)
+        await assertThrows(.invalidMetadata) { try await store.localURL(for: model) }
+        XCTAssertEqual(MockURLProtocol.count(), 0)
     }
 
     func testBundledModelIsRejectedAndNeverCached() async {
@@ -364,6 +413,18 @@ final class ModelFileStoreTests: XCTestCase {
         XCTAssertEqual(MockURLProtocol.count(), 1)
         let failed = await MainActor.run { RemoteDownloadProgress.shared.isFailed(model.id) }
         XCTAssertFalse(failed)
+    }
+
+    func testDamagedCachedModelIsDownloadedAgainInsteadOfFailingEveryPlacement() async throws {
+        let payload = Data("valid-usdz".utf8)
+        MockURLProtocol.reset { _ in .init(statusCode: 200, data: payload) }
+        let model = remoteModel(data: payload)
+        let store = makeStore()
+        let url = try await store.localURL(for: model)
+        try Data("damaged".utf8).write(to: url)
+        let restored = try await store.localURL(for: model)
+        XCTAssertEqual(try Data(contentsOf: restored), payload)
+        XCTAssertEqual(MockURLProtocol.count(), 2)
     }
 
     func testChecksumMismatchDoesNotCacheAndMarksFailure() async {

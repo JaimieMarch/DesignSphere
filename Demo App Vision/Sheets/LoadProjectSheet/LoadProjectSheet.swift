@@ -9,6 +9,7 @@ struct LoadProjectSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirmation = false
     @State private var projectToDelete: String?
+    @State private var deleteErrorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -53,6 +54,7 @@ struct LoadProjectSheet: View {
                 }
             }
             .navigationTitle("Load Project")
+            .onAppear { projectManager.loadProjectList() }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -73,6 +75,14 @@ struct LoadProjectSheet: View {
                     Text("Are you sure you want to delete '\(name)'? This action cannot be undone.")
                 }
             }
+            .alert("Couldn't delete project", isPresented: Binding(
+                get: { deleteErrorMessage != nil },
+                set: { if !$0 { deleteErrorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) { deleteErrorMessage = nil }
+            } message: {
+                Text(deleteErrorMessage ?? "")
+            }
         }
     }
 
@@ -81,9 +91,7 @@ struct LoadProjectSheet: View {
             do {
                 try await projectManager.deleteProject(roomName: name, controller: controller)
             } catch {
-                #if DEBUG
-                print("Failed to delete project: \(error)")
-                #endif
+                deleteErrorMessage = error.localizedDescription
             }
         }
     }

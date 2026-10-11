@@ -16,7 +16,7 @@ enum Category: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
     
-    //Returns symbol assocaited with each category
+    // Returns symbol assocaited with each category
     var icon: String {
         switch self {
         case .all: return "square.grid.2x2"

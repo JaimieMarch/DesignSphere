@@ -160,5 +160,25 @@
       "Demo App Vision/Assets.xcassets/AppIcon.solidimagestack/Middle.solidimagestacklayer/Content.imageset/Middle.png",
       "Demo App Vision/Assets.xcassets/AppIcon.solidimagestack/Back.solidimagestacklayer/Content.imageset/Back.png"
     ]
+  },
+  "editorTextures": {
+    "author": "DesignSphere project",
+    "license": "Project-owned original procedural output",
+    "generator": "Tools/generate-material-textures.py",
+    "sourceImages": [],
+    "files": [
+      {
+        "path": "Demo App Vision/Textures/wood_grain.png",
+        "sha256": "1573f89754352521e3186b1ce7c2a7f5ce107e70c42486b2b23e26478f7856e9"
+      },
+      {
+        "path": "Demo App Vision/Textures/fabric.png",
+        "sha256": "9e28d1f91a1eaf872ef44b2fc615172ca8407df23277e7c2a6b17155dda50399"
+      },
+      {
+        "path": "Demo App Vision/Textures/leather.png",
+        "sha256": "9c3915615531085d7a62facc9c31b88d8545c0614c8446e1537833eadaecf88b"
+      }
+    ]
   }
 }

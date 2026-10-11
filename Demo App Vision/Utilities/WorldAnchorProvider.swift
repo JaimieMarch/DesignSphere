@@ -18,10 +18,10 @@ final class WorldAnchorProvider {
         }
     }
 
-    private init(fileManager: FileManager = .default) {
+    init(fileURL: URL? = nil, fileManager: FileManager = .default) {
         self.fileManager = fileManager
         let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        self.fileURL = documentsURL.appendingPathComponent("DesignSphereAnchors.json")
+        self.fileURL = fileURL ?? documentsURL.appendingPathComponent("DesignSphereAnchors.json")
         loadFromDisk()
     }
 
@@ -63,12 +63,19 @@ final class WorldAnchorProvider {
         }
     }
 
+    func reloadFromDisk() { loadFromDisk() }
+
     private func loadFromDisk() {
-        guard let data = try? Data(contentsOf: fileURL) else { return }
+        guard let data = try? Data(contentsOf: fileURL) else {
+            storedAnchors = [:]
+            return
+        }
         do {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode([UUID: StoredAnchor].self, from: data)
-            storedAnchors = decoded
+            storedAnchors = decoded.filter { key, anchor in
+                key == anchor.id && anchor.matrix.count == 16 && anchor.matrix.allSatisfy(\.isFinite)
+            }
         } catch {
             #if DEBUG
             print("WorldAnchorProvider: Failed to load anchors – \(error)")

@@ -15,7 +15,7 @@ final class RemoteCatalogTests: XCTestCase {
               "id": "armchair_01",
               "displayName": "Armchair 01",
               "category": "seating",
-              "file": { "url": "models/armchair_01.usdz", "bytes": 123, "sha256": "abc" },
+              "file": { "url": "models/armchair_01.usdz", "bytes": 123, "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
               "placement": {
                 "classification": "floor", "plane": "horizontal",
                 "canStack": true, "needsPhysics": false, "preserveRealWorldScale": true
@@ -120,7 +120,7 @@ final class RemoteCatalogTests: XCTestCase {
           "models": [
             {
               "id": "lamp_01", "displayName": "Lamp 01", "category": "lighting", "textured": false,
-              "file": { "url": "models/lamp_01.usdz", "bytes": 9, "sha256": "def" },
+              "file": { "url": "models/lamp_01.usdz", "bytes": 9, "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" },
               "thumbnail": { "url": "thumbs/lamp_01.png", "bytes": null, "sha256": null },
               "placement": {
                 "classification": "table", "plane": "horizontal",
@@ -148,11 +148,11 @@ final class RemoteCatalogTests: XCTestCase {
             classification: .floor, plane: .horizontal,
             canStack: true, needsPhysics: false, preserveRealWorldScale: true,
             url: URL(string: "https://example.com/models/armchair_01.usdz")!,
-            sha256: "abc",
+            sha256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             fileBytes: 12_345_678
         )
         XCTAssertTrue(type.isRemote)
-        XCTAssertEqual(type.remoteSHA256, "abc")
+        XCTAssertEqual(type.remoteSHA256, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
         XCTAssertEqual(type.remoteFileBytes, 12_345_678)
         XCTAssertNotNil(type.remoteDownloadSizeLabel)
         XCTAssertTrue(type.canStack)

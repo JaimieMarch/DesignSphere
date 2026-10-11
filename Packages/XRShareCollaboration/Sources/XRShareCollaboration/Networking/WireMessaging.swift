@@ -1,7 +1,7 @@
 import Foundation
 
-/// Stable message discriminator for visionOS
-//enum WireKind: String, Codable {
+// Stable message discriminator for visionOS
+// enum WireKind: String, Codable {
 //    case addModel
 //    case removeModel
 //    case modelTransform
@@ -12,14 +12,14 @@ import Foundation
 //    case anchor
 //    case protocolHandshake
 //  
-//}
+// }
 //
-//struct WireEnvelope: Codable {
+// struct WireEnvelope: Codable {
 //    let t: WireKind
 //    let message: Data
-//}
+// }
 //
-//enum WireCodec {
+// enum WireCodec {
 //    static func encode<M: Codable>(_ payload: M, kind: WireKind) throws -> Data {
 //        let payloadData = try jsonEncoder.encode(payload)
 //        let envelope = WireEnvelope(t: kind, message: payloadData)
@@ -44,7 +44,7 @@ import Foundation
 //        // Keep default strategies
 //        return dec
 //    }()
-//}
+// }
 //
 //
 //

@@ -5,14 +5,14 @@
 //  Manages the app's active SharePlay session and handles communication between participants
 //
 
-//import Foundation
-//import GroupActivities
-//import Combine
-//import SwiftUI
-//import RealityKit
+// import Foundation
+// import GroupActivities
+// import Combine
+// import SwiftUI
+// import RealityKit
 //
-//@MainActor
-//class SharePlayCoordinator: ObservableObject {
+// @MainActor
+// class SharePlayCoordinator: ObservableObject {
 //    @Published var isConnected = false
 //    @Published var participantCount = 0
 //    @Published var isHost = false
@@ -552,7 +552,7 @@
 //
 //// MARK: - Wire Helpers
 //
-//func sendWireReliable<M: Codable>(_ payload: M, kind: WireKind, to participants: Set<Participant>? = nil) async throws {
+// func sendWireReliable<M: Codable>(_ payload: M, kind: WireKind, to participants: Set<Participant>? = nil) async throws {
 //    guard let messenger = messenger else {
 //        throw NSError(domain: "SharePlayCoordinator", code: -1, userInfo: [NSLocalizedDescriptionKey: "No messenger"])
 //    }
@@ -565,11 +565,11 @@
 //    } else {
 //        try await messenger.send(data)
 //    }
-//}
+// }
 //    
 //    
 //
-//func sendWireUnreliable<M: Codable>(_ payload: M, kind: WireKind) async throws {
+// func sendWireUnreliable<M: Codable>(_ payload: M, kind: WireKind) async throws {
 //    guard let unreliable = unreliableMessenger else {
 //        throw NSError(domain: "SharePlayCoordinator", code: -2, userInfo: [NSLocalizedDescriptionKey: "No unreliable messenger"])
 //    }
@@ -578,11 +578,11 @@
 //        print("Wire(fast) send: modelTransform (\(data.count) bytes)")
 //    }
 //    try await unreliable.send(data)
-//}
+// }
 //    
 //    
 //
-//func handleWireData(_ data: Data, from context: GroupSessionMessenger.MessageContext? = nil) async {
+// func handleWireData(_ data: Data, from context: GroupSessionMessenger.MessageContext? = nil) async {
 //    do {
 //        let env = try WireCodec.decodeEnvelope(data)
 //        switch env.t {
@@ -626,7 +626,7 @@
 //    } catch {
 //        print("Wire decode error: \(error)")
 //    }
-//}
+// }
 //
 //    
 //    private func handleSessionStateChange(_ state: GroupSession<DemoActivity>.State) {
@@ -779,14 +779,14 @@
 //        deinit {
 //                cleanup()
 //            }
-//}
+// }
 //
 //
 //// MARK: - SharePlayCoordinator Delgate (Inbound)
 //
 ///// Receives remote messages and events decoded by SharePlayCoordinator
-//@MainActor
-//protocol SharePlayCoordinatorDelegate: AnyObject {
+// @MainActor
+// protocol SharePlayCoordinatorDelegate: AnyObject {
 //    func sharePlayCoordinator(_ coordinator: SharePlayCoordinator, didReceiveAddModel message: AddModelMessage) async
 //    
 //    func sharePlayCoordinator(_ coordinator: SharePlayCoordinator, didReceiveRemoveModel message: RemoveModelMessage) async
@@ -803,12 +803,12 @@
 //    
 //        
 //    func sharePlayCoordinator(_ coordinator: SharePlayCoordinator, didUpdateParticipantStates states: [UUID: SystemCoordinator.ParticipantState]) async
-//}
+// }
 //
 //
 //// MARK: - Late join Resync
 //
-//private extension SharePlayCoordinator {
+// private extension SharePlayCoordinator {
 //    
 //    
 //    func startLateJoinResyncs() {
@@ -860,4 +860,4 @@
 //                print("Platform flags updated: hasVisionParticipants=\(hasVision)")
 //            }
 //        }
-//}
+// }

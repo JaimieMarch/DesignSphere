@@ -5,12 +5,12 @@
 //  Participant synchronization and message observation for Shareplay
 //
 
-//import Foundation
-//import GroupActivities
-//import Combine
-//import SwiftUI
+// import Foundation
+// import GroupActivities
+// import Combine
+// import SwiftUI
 //
-//extension SharePlayCoordinator {
+// extension SharePlayCoordinator {
 //    
 //    /// Sets up all related observers for active shareplay session
 //    func observeRemoteParticipantUpdates() {
@@ -156,15 +156,15 @@
 //    /// Send a protocol / version handshake to participatns for capacbilities
 //    func sendHandshake(to participants: Set<Participant>? = nil) async {
 //        
-//#if os(visionOS)
+// #if os(visionOS)
 //        
 //        let platformName = "visionOS"
 //        
-//#else
+// #else
 //        
 //        let platformName = "iOS"
 //        
-//#endif
+// #endif
 //        
 //        let sender = self.localParticipantID ?? self.groupSession?.localParticipant.id ?? UUID()
 //        
@@ -196,7 +196,7 @@
 //        
 //        
 //    }
-//}
+// }
 //
 //
 //

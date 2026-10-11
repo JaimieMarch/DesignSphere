@@ -27,6 +27,7 @@ public final class ModelManager: ObservableObject {
     var onModelWillRemove: ((Model) -> Void)?
 
     private let minimumVisionHeight: Float = 1.2
+    private var sceneRevision: UInt64 = 0
 
     init() {
         loadModelTypes()
@@ -123,10 +124,11 @@ public final class ModelManager: ObservableObject {
 // MARK: - Loading a ModelEntity
     
     func loadModel(for modelType: ModelType, arViewModel: ARViewModel?) {
-        
-        
+        let revision = sceneRevision
         Task { @MainActor in
+            guard revision == self.sceneRevision else { return }
             let model = await Model.load(modelType: modelType, arViewModel: arViewModel)
+            guard revision == self.sceneRevision else { return }
 
             // Use the entity that was already loaded inside Model.load.
             guard let entity = model.modelEntity else {
@@ -180,6 +182,7 @@ public final class ModelManager: ObservableObject {
                     translatedPosition = initialPosition - placementOffset
                 }
 
+                guard revision == self.sceneRevision else { return }
                 anchor.addChild(entity)
                 // Directly assign the local position so it works even before the anchor
                 // is part of the live RealityKit scene (move(to:) can no-op in that case).
@@ -210,6 +213,10 @@ public final class ModelManager: ObservableObject {
                 #endif
             }
 
+            guard revision == self.sceneRevision else {
+                entity.removeFromParent()
+                return
+            }
             self.modelDict[model.id] = model
             self.placedModels.append(model)
             self.onModelDidAdd?(model)
@@ -394,6 +401,8 @@ public final class ModelManager: ObservableObject {
     
     
     @MainActor func reset(broadcast: Bool = false) {
+        // In-flight loads belong to the previous scene and must not reappear.
+        sceneRevision &+= 1
         // Remove all models
         let modelsToRemove = placedModels
         for model in modelsToRemove {

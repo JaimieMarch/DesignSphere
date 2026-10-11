@@ -1,13 +1,20 @@
 #!/bin/bash
 
-# Get a list of Swift files that are staged for commit
-files=$(git diff --cached --name-only --diff-filter=ACMR | grep "\.swift$")
+# Preserve spaces in source paths and use SwiftLint's supported input interface.
+count=0
+while IFS= read -r -d '' file; do
+  if [[ "$file" == *.swift ]]; then
+    export "SCRIPT_INPUT_FILE_${count}=${file}"
+    count=$((count + 1))
+  fi
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+export SCRIPT_INPUT_FILE_COUNT="$count"
 
-if [ -n "$files" ]; then
+if [ "$count" -gt 0 ]; then
   echo "Running SwiftLint on changed Swift files"
   
   # Run swiftlint on the staged Swift files
-  swiftlint lint --quiet --strict --path $files
+  swiftlint lint --quiet --strict --use-script-input-files
   
   if [ $? -ne 0 ]; then
     echo "SwiftLint found issues with your code. Please fix them before committing."

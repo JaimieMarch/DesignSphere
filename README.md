@@ -197,16 +197,16 @@ A full feature-by-feature audit (what's done, gated, or deferred) lives in [docs
 
 **DesignSphere is currently a work in progress**, developed as a course project for CPSC 575. While the core design experience is functional and demonstrates the vision for spatial computing in interior design, several advanced features remain in various stages of development.
 
-App Store submission readiness is tracked in [docs/app-store-checklist.md](docs/app-store-checklist.md) — repo-side compliance is verified there, alongside the remaining App Store Connect work and content-license checks.
+The latest full audit and fixes are recorded in [docs/release-audit-2026-10-11.md](docs/release-audit-2026-10-11.md). App Store submission readiness is tracked in [docs/app-store-checklist.md](docs/app-store-checklist.md) — repo-side compliance is verified there, alongside the remaining App Store Connect work and content-license checks.
 
 ### App Store Release Blockers
 
 Work through these one at a time. Do not submit the app for review until every
 required item is checked off.
 
-- [ ] **1. Add in-app privacy and support information (required)**
-  - [ ] Publish the prepared DesignSphere privacy policy and support/contact
-    pages by merging them into the public `main` branch, then verify both URLs.
+- [x] **1. Add in-app privacy and support information (required)**
+  - [x] Privacy and support/contact pages are published on `main`; both public
+    URLs returned HTTP 200 during the October 11 audit.
   - [x] Add easily accessible Privacy Policy, Support, and contact links in Settings.
   - [x] Document local project/import storage, spatial permissions, the remote
     catalog, on-device Foundation Models, data retention, deletion, and backups.
@@ -214,6 +214,8 @@ required item is checked off.
   - Audited all 182 production models, their generated thumbnails and embedded
     textures, plus all three app-icon layers; see
     [the evidence and per-ID registry](docs/asset-license-audit.md).
+  - The October 11 audit also replaced the three editor JPEGs with original,
+    reproducible normal maps and recorded their provenance.
   - Every model maps to a CC0 Poly Haven or The Base Mesh source record. No
     BlenderKit or other unproven asset remains, and future catalog builds fail
     when a model lacks audited provenance.

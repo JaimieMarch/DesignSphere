@@ -112,7 +112,6 @@ enum BackupManager {
     private static let maximumAnchorFileBytes = 5 * 1_024 * 1_024
     private static let maximumTotalEmbeddedBytes = 384 * 1_024 * 1_024
     private static let maximumEmbeddedFileCount = 500
-    private static let maximumProjectModelCount = 10_000
     private static let maximumAnchorCount = 10_000
     private static let maximumFavoriteCount = 10_000
     private static let maximumNameLength = 255
@@ -213,7 +212,7 @@ enum BackupManager {
     }
 
     @MainActor
-    static func importBackupData(_ data: Data, appSettings: AppSettings) throws -> BackupImportSummary {
+    static func importBackupData(_ data: Data, appSettings: AppSettings, documentsURL documentsOverride: URL? = nil) throws -> BackupImportSummary {
         try validateBackupFileSize(Int64(data.count))
 
         let decoder = JSONDecoder()
@@ -233,22 +232,89 @@ enum BackupManager {
         // malformed backups cannot result in a partial import.
         try validatePayload(payload)
 
-        let documentsURL = try documentsDirectory()
+        let documentsURL = try documentsOverride ?? documentsDirectory()
         var summary = BackupImportSummary()
 
         let projectsDirectory = documentsURL.appendingPathComponent("DesignSphereProjects", isDirectory: true)
-        summary.projectsAdded = try writeFiles(payload.projects, to: projectsDirectory)
-
         let importsDirectory = documentsURL.appendingPathComponent("Imports", isDirectory: true)
-        summary.importsAdded = try writeFiles(payload.importedModels, to: importsDirectory)
+        let files = FileManager.default
+        try files.createDirectory(at: projectsDirectory, withIntermediateDirectories: true)
+        try files.createDirectory(at: importsDirectory, withIntermediateDirectories: true)
 
-        if let anchorsData = payload.worldAnchorsData {
-            summary.anchorsAdded = try mergeAnchors(with: anchorsData, documentsURL: documentsURL)
+        // Resolve every destination before writing. Renaming an imported model
+        // must also change its references in projects and favorites.
+        var modelNames: [String: String] = [:]
+        var favoriteNames: [String: String] = [:]
+        var reservedImports = Set((try files.contentsOfDirectory(atPath: importsDirectory.path)).map { $0.lowercased() })
+        reservedImports.formUnion(payload.importedModels.map { $0.name.lowercased() })
+        var plannedFiles: [(url: URL, data: Data)] = []
+        for modelFile in payload.importedModels {
+            let oldName = URL(fileURLWithPath: modelFile.name).deletingPathExtension().lastPathComponent
+            let initialURL = importsDirectory.appendingPathComponent(modelFile.name)
+            let conflictsWithCatalog = RemoteCatalogService.shared.manifestCategory(forID: oldName) != nil
+                || Bundle.xrShareBuiltinUSDZNames().contains(oldName.lowercased())
+            let destination: URL
+            if files.fileExists(atPath: initialURL.path) || conflictsWithCatalog {
+                destination = uniqueDestinationURL(for: modelFile.name, in: importsDirectory, reservedNames: reservedImports)
+            } else {
+                destination = initialURL
+            }
+            reservedImports.insert(destination.lastPathComponent.lowercased())
+            modelNames[oldName.lowercased()] = destination.deletingPathExtension().lastPathComponent
+            let newName = destination.deletingPathExtension().lastPathComponent
+            favoriteNames[oldName.lowercased()] = newName
+            favoriteNames[ModelType(rawValue: oldName).displayName.lowercased()] = ModelType(rawValue: newName).displayName
+            plannedFiles.append((destination, modelFile.data))
         }
 
-        if let importedFavorites = payload.favorites {
-            summary.favoritesAdded = mergeFavorites(importedFavorites)
+        let projectDecoder = JSONDecoder()
+        projectDecoder.dateDecodingStrategy = .iso8601
+        let projectEncoder = JSONEncoder()
+        projectEncoder.dateEncodingStrategy = .iso8601
+        projectEncoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        var reservedProjects = Set((try files.contentsOfDirectory(atPath: projectsDirectory.path)).map { $0.lowercased() })
+        for projectFile in payload.projects {
+            var project = try projectDecoder.decode(ProjectData.self, from: projectFile.data)
+            let name = ProjectData.fileStem(for: project.roomName) + ".json"
+            let destination = uniqueDestinationURL(for: name, in: projectsDirectory, reservedNames: reservedProjects)
+            reservedProjects.insert(destination.lastPathComponent.lowercased())
+            if destination.lastPathComponent != name {
+                project.roomName = destination.deletingPathExtension().lastPathComponent
+            }
+            project.models = project.models.map { model in
+                .init(
+                    id: model.id,
+                    modelTypeName: modelNames[model.modelTypeName.lowercased()] ?? model.modelTypeName,
+                    position: model.position, rotation: model.rotation, scale: model.scale,
+                    material: model.material, originalBounds: model.originalBounds
+                )
+            }
+            plannedFiles.append((destination, try projectEncoder.encode(project)))
         }
+
+        // Roll back new files if a disk write fails; existing user files are
+        // never replaced. Anchor merging is the last throwing operation.
+        var writtenURLs: [URL] = []
+        do {
+            for file in plannedFiles {
+                let expectedParent = file.url.pathExtension.lowercased() == "usdz" ? importsDirectory : projectsDirectory
+                guard file.url.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL
+                        == expectedParent.resolvingSymlinksInPath().standardizedFileURL else {
+                    throw BackupManagerError.invalidBackupFile
+                }
+                try file.data.write(to: file.url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                writtenURLs.append(file.url)
+            }
+            if let anchorsData = payload.worldAnchorsData {
+                summary.anchorsAdded = try mergeAnchors(with: anchorsData, documentsURL: documentsURL)
+                if documentsOverride == nil { WorldAnchorProvider.shared.reloadFromDisk() }
+            }
+        } catch {
+            for url in writtenURLs { try? files.removeItem(at: url) }
+            throw error
+        }
+        summary.projectsAdded = payload.projects.count
+        summary.importsAdded = payload.importedModels.count
 
         if let importedPreferences = payload.preferences {
             appSettings.highContrastTextEnabled = importedPreferences.highContrastTextEnabled
@@ -260,6 +326,13 @@ enum BackupManager {
             summary.appliedPreferences = true
         }
 
+        if let importedFavorites = payload.favorites, appSettings.rememberFavoritesEnabled {
+            summary.favoritesAdded = mergeFavorites(importedFavorites.map { favoriteNames[$0.lowercased()] ?? $0 })
+        } else if !appSettings.rememberFavoritesEnabled {
+            appSettings.clearStoredFavorites()
+        }
+
+        NotificationCenter.default.post(name: ProjectData.filesDidChangeNotification, object: nil)
         return summary
     }
 
@@ -299,45 +372,22 @@ enum BackupManager {
             }
     }
 
-    private static func writeFiles(_ files: [DesignSphereBackupPayload.BackupFile], to directoryURL: URL) throws -> Int {
-        let fileManager = FileManager.default
-        try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
-        let standardizedDirectory = directoryURL.resolvingSymlinksInPath().standardizedFileURL
-        var writtenCount = 0
-        for file in files {
-            let destination = uniqueDestinationURL(for: file.name, in: directoryURL)
-            let standardizedParent = destination
-                .deletingLastPathComponent()
-                .resolvingSymlinksInPath()
-                .standardizedFileURL
-            guard standardizedParent == standardizedDirectory else {
-                throw BackupManagerError.invalidBackupFile
-            }
-            try file.data.write(to: destination, options: .atomic)
-            try fileManager.setAttributes(
-                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
-                ofItemAtPath: destination.path
-            )
-            writtenCount += 1
-        }
-        return writtenCount
-    }
-
-    private static func uniqueDestinationURL(for filename: String, in directory: URL) -> URL {
+    private static func uniqueDestinationURL(for filename: String, in directory: URL, reservedNames: Set<String>) -> URL {
         let fileManager = FileManager.default
         var candidate = directory.appendingPathComponent(filename)
-        if !fileManager.fileExists(atPath: candidate.path) {
+        if !fileManager.fileExists(atPath: candidate.path), !reservedNames.contains(candidate.lastPathComponent.lowercased()) {
             return candidate
         }
 
         let ext = candidate.pathExtension
-        let base = candidate.deletingPathExtension().lastPathComponent
+        var base = candidate.deletingPathExtension().lastPathComponent
+        while base.utf8.count > 180 { base.removeLast() }
         var index = 1
         while true {
             let suffix = "-imported-\(index)"
             let generatedName = ext.isEmpty ? "\(base)\(suffix)" : "\(base)\(suffix).\(ext)"
             candidate = directory.appendingPathComponent(generatedName)
-            if !fileManager.fileExists(atPath: candidate.path) {
+            if !fileManager.fileExists(atPath: candidate.path), !reservedNames.contains(candidate.lastPathComponent.lowercased()) {
                 return candidate
             }
             index += 1
@@ -366,11 +416,7 @@ enum BackupManager {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let serialized = try encoder.encode(currentDictionary)
-        try serialized.write(to: anchorsURL, options: .atomic)
-        try fileManager.setAttributes(
-            [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
-            ofItemAtPath: anchorsURL.path
-        )
+        try serialized.write(to: anchorsURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         return added
     }
 
@@ -400,13 +446,7 @@ enum BackupManager {
         projectDecoder.dateDecodingStrategy = .iso8601
         for file in payload.projects {
             guard let project = try? projectDecoder.decode(ProjectData.self, from: file.data),
-                  project.schemaVersion > 0,
-                  project.schemaVersion <= ProjectData.currentSchemaVersion,
-                  isValidText(project.roomName),
-                  project.models.count <= maximumProjectModelCount,
-                  project.dateCreated.timeIntervalSinceReferenceDate.isFinite,
-                  project.dateModified.timeIntervalSinceReferenceDate.isFinite,
-                  project.models.allSatisfy(isValidSavedModel) else {
+                  (try? project.validate()) != nil else {
                 throw BackupManagerError.invalidBackupFile
             }
         }
@@ -477,22 +517,6 @@ enum BackupManager {
         return !trimmed.isEmpty
             && value.utf8.count <= maximumNameLength
             && !value.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
-    }
-
-    private static func isValidSavedModel(_ model: ProjectData.SavedModel) -> Bool {
-        isValidText(model.modelTypeName)
-            && [model.position.x, model.position.y, model.position.z].allSatisfy(\.isFinite)
-            && [model.rotation.x, model.rotation.y, model.rotation.z, model.rotation.w].allSatisfy(\.isFinite)
-            && [model.scale.x, model.scale.y, model.scale.z].allSatisfy(\.isFinite)
-            && (model.originalBounds.map {
-                [$0.x, $0.y, $0.z].allSatisfy(\.isFinite)
-            } ?? true)
-            && (model.material.map {
-                [$0.baseColorR, $0.baseColorG, $0.baseColorB, $0.baseColorA].allSatisfy(\.isFinite)
-                    && ($0.roughness.map(\.isFinite) ?? true)
-                    && ($0.metallic.map(\.isFinite) ?? true)
-                    && ($0.specular.map(\.isFinite) ?? true)
-            } ?? true)
     }
 
     private static func isLoadableUSDZ(_ data: Data) -> Bool {

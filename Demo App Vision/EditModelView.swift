@@ -331,8 +331,8 @@ struct EditModelView: View {
                                 String(format: "%.2f", value.wrappedValue)
                             },
                             set: { newText in
-                                if let cmValue = Float(newText) {
-                                    value.wrappedValue = cmValue
+                                if let cmValue = Float(newText), cmValue.isFinite {
+                                    value.wrappedValue = min(maxValue, max(minValue, cmValue))
                                 }
                             }
                         )
@@ -407,7 +407,7 @@ struct EditModelView: View {
                                 String(format: "%.2f", value.wrappedValue)
                             },
                             set: { newText in
-                                if let v = Double(newText) {
+                                if let v = Double(newText), v.isFinite {
                                     value.wrappedValue = min(4.0, max(-4.0, v))
                                 }
                             }

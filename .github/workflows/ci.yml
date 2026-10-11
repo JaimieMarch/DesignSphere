@@ -2,9 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [ main, master, TestingUI ]
+    branches: [ main, master, TestingUI, 'release/**' ]
   pull_request:
     branches: [ main, master ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
@@ -52,11 +59,12 @@ jobs:
         run: echo "No Swift files changed. Skipping SwiftLint."
 
   build-visionos:
-    name: Build visionOS
+    name: Test and archive visionOS
     # The app targets visionOS 26, whose SDK ships with Xcode 26; older runner
     # images cannot build it at all.
     runs-on: macos-26
     needs: lint
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
 
@@ -72,8 +80,16 @@ jobs:
             ${{ runner.os }}-visionos-deriveddata-${{ hashFiles('**/*.xcodeproj/**') }}-
             ${{ runner.os }}-visionos-deriveddata-
 
-      # The only package is local (Packages/XRShareCollaboration) with no remote
-      # dependencies, so there is nothing to resolve. A generic simulator
-      # destination needs the visionOS SDK but not a downloaded simulator runtime.
-      - name: Build visionOS target
-        run: xcodebuild -project "Demo App.xcodeproj" -scheme "Demo App Vision" -destination "generic/platform=visionOS Simulator" clean build CODE_SIGNING_ALLOWED=NO
+      - name: Install visionOS simulator runtime
+        run: xcodebuild -downloadPlatform visionOS
+
+      - name: Run catalog, package, and app regression tests
+        run: Tools/run-tests.sh
+
+      - name: Archive Release for Apple Vision Pro
+        run: >-
+          xcodebuild archive -project "Demo App.xcodeproj"
+          -scheme "Demo App Vision" -configuration Release
+          -destination "generic/platform=visionOS"
+          -archivePath "$RUNNER_TEMP/DesignSphere.xcarchive"
+          CODE_SIGNING_ALLOWED=NO

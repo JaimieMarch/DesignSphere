@@ -612,7 +612,6 @@ public final class CollaborativeSessionController: ObservableObject {
 
     private func snapshot(for model: Model) -> ModelSnapshot? {
         guard let entity = model.modelEntity else { return nil }
-        guard let modelComponent = entity.components[ModelComponent.self] else { return nil }
 
         let materialType = entity.components[MaterialTypeComponent.self]?.materialType
         let originalBounds = entity.components[OriginalBoundsComponent.self]?.originalSize
@@ -624,10 +623,11 @@ public final class CollaborativeSessionController: ObservableObject {
             position: entity.position(relativeTo: sharedAnchorEntity),
             rotation: entity.orientation(relativeTo: sharedAnchorEntity),
             scale: entity.scale(relativeTo: sharedAnchorEntity),
-            materials: modelComponent.materials,
+            materials: entity.components[ModelComponent.self]?.materials ?? [],
             materialType: materialType,
             originalBounds: originalBounds,
-            snapState: snapState
+            snapState: snapState,
+            materialStates: ModelSnapshot.captureMaterials(from: entity)
         )
     }
 
@@ -672,10 +672,7 @@ public final class CollaborativeSessionController: ObservableObject {
         entity.setOrientation(snapshot.rotation, relativeTo: sharedAnchorEntity)
         entity.setScale(snapshot.scale, relativeTo: sharedAnchorEntity)
 
-        if var modelComponent = entity.components[ModelComponent.self] {
-            modelComponent.materials = snapshot.materials
-            entity.components.set(modelComponent)
-        }
+        snapshot.restoreMaterials(to: entity)
 
         if let materialType = snapshot.materialType {
             entity.components.set(MaterialTypeComponent(materialType: materialType))
@@ -966,6 +963,7 @@ public final class CollaborativeSessionController: ObservableObject {
     }
 
     public func updateSelectedModelScale(_ scale: SIMD3<Float>) {
+        guard [scale.x, scale.y, scale.z].allSatisfy({ $0.isFinite && $0 > 0 }) else { return }
         guard let model = returnSelectedModel(),
               let entity = model.modelEntity else { return }
         beginSelectedModelEditTransactionIfNeeded()
@@ -973,6 +971,7 @@ public final class CollaborativeSessionController: ObservableObject {
     }
 
     public func updateSelectedModelPosition(_ position: SIMD3<Float>) {
+        guard [position.x, position.y, position.z].allSatisfy(\.isFinite) else { return }
         guard let model = returnSelectedModel(),
               let entity = model.modelEntity else { return }
         beginSelectedModelEditTransactionIfNeeded()
@@ -1933,10 +1932,7 @@ public final class CollaborativeSessionController: ObservableObject {
     private func applyDuplicatedVisualState(from snapshot: ModelSnapshot, to model: Model) {
         guard let entity = model.modelEntity else { return }
 
-        if var modelComponent = entity.components[ModelComponent.self] {
-            modelComponent.materials = snapshot.materials
-            entity.components.set(modelComponent)
-        }
+        snapshot.restoreMaterials(to: entity)
 
         if let materialType = snapshot.materialType {
             entity.components.set(MaterialTypeComponent(materialType: materialType))

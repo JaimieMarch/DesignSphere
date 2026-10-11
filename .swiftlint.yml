@@ -1,11 +1,14 @@
 included:
   - "Demo App Vision"
+  - "Demo App VisionTests"
   - Packages
 
 excluded:
   - DerivedData
   - .build
   - .swiftpm
+  - Packages/XRShareCollaboration/.build
+  - Packages/XRShareCollaboration/.swiftpm
 
 disabled_rules:
   - trailing_whitespace

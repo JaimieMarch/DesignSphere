@@ -42,7 +42,7 @@ struct DetailsScreen: View {
                                     .padding(.vertical, 8)
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(roomName.isEmpty)
+                            .disabled(roomName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || projectManager.isStreamingProject)
                             .accessibilityLabel("Save project")
                             .accessibilityHint("Save the current scene as a project")
 
@@ -52,6 +52,7 @@ struct DetailsScreen: View {
                                     .padding(.vertical, 8)
                             }
                             .buttonStyle(.bordered)
+                            .disabled(projectManager.isStreamingProject)
                             .accessibilityLabel("Load project")
                             .accessibilityHint("Open a previously saved project")
                         }
@@ -175,6 +176,7 @@ struct DetailsScreen: View {
                         }
                         .buttonStyle(.bordered)
                         .tint(.red)
+                        .disabled(projectManager.isStreamingProject)
                         .padding(16)
                         .accessibilityLabel("Clear all models")
                         .accessibilityHint("Remove all placed models from the scene")
@@ -194,6 +196,9 @@ struct DetailsScreen: View {
                     loadProject(roomName: selectedRoomName)
                 }
             )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: ProjectData.filesDidChangeNotification)) { _ in
+            projectManager.loadProjectList()
         }
         .alert("Project", isPresented: $showAlert) {
             Button("OK") { }
@@ -263,7 +268,9 @@ struct DetailsScreen: View {
                 if let existingAnchorID = projectManager.currentWorldAnchorID {
                     worldAnchorID = existingAnchorID
                 } else {
-                    worldAnchorID = try await projectManager.createWorldAnchor(controller: controller)
+                    // Layouts remain saveable when surface detection is denied,
+                    // tracking is unavailable, or the app runs in the simulator.
+                    worldAnchorID = try? await projectManager.createWorldAnchor(controller: controller)
                 }
 
                 // Save the project to JSON
@@ -275,6 +282,9 @@ struct DetailsScreen: View {
                 )
 
                 alertMessage = "Project '\(roomName)' saved successfully!"
+                if worldAnchorID == nil {
+                    alertMessage += " Room alignment is unavailable; the layout was saved without a world anchor."
+                }
                 showAlert = true
                 // Keep the room name after save so user can easily update the project
                 #else

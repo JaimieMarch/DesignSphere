@@ -71,12 +71,17 @@ class ProjectManager: ObservableObject {
     // app data is sandboxed **************************
     private let fileManager = FileManager.default
     private let anchorProvider = WorldAnchorProvider.shared
+    private let projectsDirectoryOverride: URL?
+    private var projectURLsByName: [String: URL] = [:]
+    private var recoveredNamesByURL: [URL: String] = [:]
     private var projectsDirectory: URL {
+        if let projectsDirectoryOverride { return projectsDirectoryOverride }
         let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return documentsPath.appendingPathComponent("DesignSphereProjects", isDirectory: true)
     }
 
-    init() {
+    init(projectsDirectory: URL? = nil) {
+        projectsDirectoryOverride = projectsDirectory
         createProjectsDirectoryIfNeeded()
         loadProjectList()
     }
@@ -106,26 +111,27 @@ class ProjectManager: ObservableObject {
     }
 
     private func projectFileURL(for roomName: String) -> URL {
-        let sanitized = sanitize(roomName: roomName)
-        return projectsDirectory.appendingPathComponent("\(sanitized).json")
-    }
-
-    private func sanitize(roomName: String) -> String {
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " _-"))
-        let filtered = roomName.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" }
-        let collapsed = String(filtered).replacingOccurrences(of: "--", with: "-")
-        let trimmed = collapsed.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "Project" : trimmed
+        if let existing = projectURLsByName[roomName] { return existing }
+        let stem = ProjectData.fileStem(for: roomName)
+        return projectsDirectory.appendingPathComponent("\(stem).json")
     }
 
     // MARK: - Material Helpers
 
     /// Extracts material data from an entity for saving
-    private func extractMaterialData(from entity: Entity) -> ProjectData.SavedMaterial? {
+    func extractMaterialData(from entity: Entity) -> ProjectData.SavedMaterial? {
+        // Only edited materials should replace the asset's original textures.
+        guard entity.components[MaterialTypeComponent.self] != nil else { return nil }
+        return extractEditedMaterialData(from: entity, materialType: entity.components[MaterialTypeComponent.self]?.materialType)
+    }
+
+    private func extractEditedMaterialData(from entity: Entity, materialType materialTypeName: String?) -> ProjectData.SavedMaterial? {
         // Check if entity has a ModelComponent with materials
         guard let modelComponent = entity.components[ModelComponent.self],
               !modelComponent.materials.isEmpty else {
-            return nil
+            return entity.children.lazy.compactMap {
+                self.extractEditedMaterialData(from: $0, materialType: materialTypeName)
+            }.first
         }
 
         // Get the first material (typically all materials are the same after editing)
@@ -145,9 +151,9 @@ class ProjectManager: ObservableObject {
 
         // Read material type from component (set explicitly in EditModelView)
         var materialType: ProjectData.MaterialType? = nil
-        if let materialTypeComp = entity.components[MaterialTypeComponent.self] {
+        if let materialTypeName {
             // Map string to enum
-            switch materialTypeComp.materialType {
+            switch materialTypeName {
             case "wood":
                 materialType = .wood
             case "metal":
@@ -275,6 +281,9 @@ class ProjectManager: ObservableObject {
         worldAnchorID: UUID?,
         sharedAnchor: AnchorEntity
     ) throws {
+        guard !isStreamingProject else { throw ProjectError.operationInProgress }
+        guard ProjectData.isValidName(roomName) else { throw ProjectError.invalidData }
+        loadProjectList()
         // Create saved models array
         let savedModels = placedModels.compactMap { model -> ProjectData.SavedModel? in
             guard let entity = model.modelEntity else { return nil }
@@ -338,6 +347,7 @@ class ProjectManager: ObservableObject {
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
+        try project.validate()
         let jsonData = try encoder.encode(project)
         try jsonData.write(to: fileURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
 
@@ -358,14 +368,27 @@ class ProjectManager: ObservableObject {
         controller: CollaborativeSessionController,
         sharedAnchor: AnchorEntity
     ) async throws -> AnchorRestoreStatus {
+        guard !isStreamingProject else { throw ProjectError.operationInProgress }
+        loadProjectList()
         let fileURL = projectFileURL(for: roomName)
 
         // Read the JSON file
+        let values = try fileURL.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
+        guard values.isRegularFile == true,
+              let fileSize = values.fileSize,
+              fileSize <= BackupManager.maximumProjectFileBytes else { throw ProjectError.invalidData }
         let jsonData = try Data(contentsOf: fileURL)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
         let project = try decoder.decode(ProjectData.self, from: jsonData)
+        try project.validate()
+        isStreamingProject = true
+        streamingProgress = 0
+        defer {
+            isStreamingProject = false
+            streamingProgress = 0
+        }
 
         var summary = LoadSummary(requested: project.models.count)
         lastLoadSummary = nil
@@ -384,16 +407,6 @@ class ProjectManager: ObservableObject {
             controller.endHistoryRecordingSuppression()
         }
         await controller.removeAllModels()
-        await MainActor.run {
-            isStreamingProject = true
-            streamingProgress = 0
-        }
-        defer {
-            Task { @MainActor in
-                self.isStreamingProject = false
-                self.streamingProgress = 0
-            }
-        }
 
         let anchorRestoreStatus: AnchorRestoreStatus
         if let anchorID = project.worldAnchorID {
@@ -431,9 +444,7 @@ class ProjectManager: ObservableObject {
         for (index, savedModel) in project.models.enumerated() {
             defer {
                 let progress = Double(index + 1) / Double(max(project.models.count, 1))
-                Task { @MainActor in
-                    self.streamingProgress = progress
-                }
+                self.streamingProgress = progress
             }
 
             // Find the model type
@@ -489,7 +500,7 @@ class ProjectManager: ObservableObject {
         print("Project '\(roomName)' loaded: \(summary.restored)/\(summary.requested) models restored")
         #endif
         lastLoadSummary = summary
-        currentProjectName = project.roomName
+        currentProjectName = roomName
         return anchorRestoreStatus
     }
 
@@ -497,6 +508,7 @@ class ProjectManager: ObservableObject {
 
     /// Loads the list of all saved projects
     func loadProjectList() {
+        projectURLsByName.removeAll()
         do {
             let fileURLs = try fileManager.contentsOfDirectory(
                 at: projectsDirectory,
@@ -507,14 +519,41 @@ class ProjectManager: ObservableObject {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
 
-            savedProjects = fileURLs.compactMap { url in
-                guard url.pathExtension == "json",
+            let records: [(project: ProjectData, url: URL)] = fileURLs.compactMap { url in
+                guard url.pathExtension.lowercased() == "json",
+                      let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+                      size <= BackupManager.maximumProjectFileBytes,
                       let data = try? Data(contentsOf: url),
-                      let project = try? decoder.decode(ProjectData.self, from: data) else {
+                      let project = try? decoder.decode(ProjectData.self, from: data),
+                      (try? project.validate()) != nil else {
                     return nil
                 }
+                return (project, url)
+            }.sorted {
+                $0.project.dateModified == $1.project.dateModified
+                    ? $0.url.lastPathComponent < $1.url.lastPathComponent
+                    : $0.project.dateModified > $1.project.dateModified
+            }
+            var names = Set<String>()
+            savedProjects = records.map { record in
+                var project = record.project
+                if let recoveredName = recoveredNamesByURL[record.url] {
+                    project.roomName = recoveredName
+                }
+                if names.contains(project.roomName.lowercased()) {
+                    let base = ProjectData.fileStem(for: record.url.deletingPathExtension().lastPathComponent)
+                    project.roomName = base
+                    var suffix = 1
+                    while names.contains(project.roomName.lowercased()) {
+                        project.roomName = "\(base)-recovered-\(suffix)"
+                        suffix += 1
+                    }
+                    recoveredNamesByURL[record.url] = project.roomName
+                }
+                names.insert(project.roomName.lowercased())
+                projectURLsByName[project.roomName] = record.url
                 return project
-            }.sorted { $0.dateModified > $1.dateModified }
+            }
 
         } catch {
             #if DEBUG
@@ -527,19 +566,22 @@ class ProjectManager: ObservableObject {
     /// Deletes a project by room name
     func deleteProject(roomName: String, controller: CollaborativeSessionController? = nil) async throws {
         let fileURL = projectFileURL(for: roomName)
-        if let data = try? Data(contentsOf: fileURL),
-           let project = try? projectDecoder().decode(ProjectData.self, from: data),
-           let anchorID = project.worldAnchorID {
+        let deletedProject = (try? Data(contentsOf: fileURL)).flatMap {
+            try? projectDecoder().decode(ProjectData.self, from: $0)
+        }
+        try fileManager.removeItem(at: fileURL)
+        recoveredNamesByURL[fileURL] = nil
+        loadProjectList()
+        if let anchorID = deletedProject?.worldAnchorID,
+           !savedProjects.contains(where: { $0.worldAnchorID == anchorID }) {
             if let controller {
                 await controller.removePersistentWorldAnchor(id: anchorID)
             }
             anchorProvider.removeAnchor(id: anchorID)
         }
-        try fileManager.removeItem(at: fileURL)
         #if DEBUG
         print("Deleted project '\(roomName)'")
         #endif
-        loadProjectList()
         if currentProjectName == roomName {
             currentProjectName = nil
             currentWorldAnchorID = nil
@@ -553,7 +595,11 @@ class ProjectManager: ObservableObject {
 
     /// Gets a specific project by room name
     func getProject(named roomName: String) -> ProjectData? {
-        return savedProjects.first { $0.roomName == roomName }
+        let targetURL = projectFileURL(for: roomName)
+        return savedProjects.first {
+            $0.roomName == roomName
+                || projectURLsByName[$0.roomName]?.path.lowercased() == targetURL.path.lowercased()
+        }
     }
 }
 
@@ -563,6 +609,7 @@ enum ProjectError: LocalizedError {
     case projectNotFound
     case worldAnchorNotFound
     case invalidData
+    case operationInProgress
 
     var errorDescription: String? {
         switch self {
@@ -571,7 +618,9 @@ enum ProjectError: LocalizedError {
         case .worldAnchorNotFound:
             return "World anchor not found. Make sure you're in the same physical location."
         case .invalidData:
-            return "Invalid project data"
+            return "The project contains invalid or unsupported data."
+        case .operationInProgress:
+            return "Wait for the current project to finish loading."
         }
     }
 }

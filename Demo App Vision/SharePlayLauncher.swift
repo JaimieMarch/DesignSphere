@@ -39,9 +39,9 @@ struct SharePlayLauncher: View {
 }
 
 ///// Show apple's shareplay menu (bottom of the window text to the move tab) 
-//#if canImport(UIKit)
-//@available(visionOS 26.0, *)
-//private struct ShareSheetView: UIViewControllerRepresentable {
+// #if canImport(UIKit)
+// @available(visionOS 26.0, *)
+// private struct ShareSheetView: UIViewControllerRepresentable {
 //    func makeUIViewController(context: Context) -> GroupActivitySharingController {
 //        GroupActivitySharingController(preparationHandler: {
 //            DemoActivity()
@@ -49,5 +49,5 @@ struct SharePlayLauncher: View {
 //    }
 //
 //    func updateUIViewController(_ controller: GroupActivitySharingController, context: Context) {}
-//}
-//#endif
+// }
+// #endif

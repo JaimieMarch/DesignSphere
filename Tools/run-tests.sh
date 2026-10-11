@@ -9,7 +9,7 @@ python3 -m unittest discover -s "$ROOT/Tools/catalog-pipeline/tests" -v
 
 (
     cd "$ROOT/Packages/XRShareCollaboration"
-    xcodebuild test \
+    TEST_RUNNER_RUN_LIVE_CATALOG_TESTS="${RUN_LIVE_CATALOG_TESTS:-0}" xcodebuild test \
         -scheme XRShareCollaboration \
         -destination "$DESTINATION" \
         -derivedDataPath "$DERIVED_DATA_ROOT/Package" \

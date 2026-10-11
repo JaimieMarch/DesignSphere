@@ -1,0 +1,96 @@
+# DesignSphere release audit — October 11, 2026
+
+Status: **repository fixes completed; submission remains gated on distribution signing, physical-device validation, and App Store Connect setup.**
+
+This audit reviewed the app, its local Swift package, catalog pipeline, tests,
+CI, persistence and backup formats, permissions, privacy declarations, bundled
+and hosted asset provenance, accessibility, and release configuration. It does
+not certify App Review approval or physical-device behavior.
+
+## Problems corrected
+
+| Area | Problem | Result |
+| --- | --- | --- |
+| Backup projects | Collision handling renamed JSON files without updating their room names, making restored projects open or delete the wrong file. | New backups resolve unique project names and filenames together. Existing renamed files load by their actual URLs; legacy duplicate names remain individually accessible. |
+| Backup models | Renamed USDZ files left saved models and favorites pointing at the old catalog item. | Restoration remaps both model identifiers and the display names used by favorites. Existing files remain intact. |
+| Backup writes | A disk failure after earlier writes could leave an incomplete import. | Failed file or anchor writes roll back new project and model files. Preferences change only after successful file restoration. |
+| Anchor cache | Backup restoration merged anchors on disk without refreshing the singleton, so a later save could discard restored anchors. | The provider reloads restored anchors, validates records, and preserves them on subsequent saves. Deleting a project retains anchors referenced by other projects. |
+| Project validation | Direct loading bypassed the stronger backup validation; invalid transforms or duplicate instance UUIDs could reach RealityKit. | Normal loading and backups share schema, size, name, transform, material-range, and instance-uniqueness checks before replacing scene content. |
+| Project saves | Saving required a world anchor, so denying surface detection or using the simulator prevented saving a layout. | Layouts save without an anchor when tracking is unavailable, with an explanation that room alignment was not saved. |
+| Materials | Saving original PBR assets flattened their materials on restoration, while custom materials on nested meshes could be lost. | Only explicit material edits are persisted, and nested edited materials are found. Original asset materials remain intact. |
+| Undo and duplicate | History captured only the root mesh's materials; reset could index into an array with changed material slots. | History captures materials and original-material state throughout the entity hierarchy. Restore assigns complete arrays and propagates PBR input preservation to children. |
+| Editor inputs | Typed negative, zero, or nonfinite values could create invalid model transforms. | Size fields honor their bounds and finite-value checks; controller transform updates reject invalid values. |
+| Model import | Security-scoped file metadata was inspected before obtaining access, and invalid USDZ content was copied straight into the catalog. | Imports acquire access first, check size and name collisions, validate staged 3D content asynchronously, and commit only valid files. |
+| Scene reset | A pending model load could add an object after the scene had been cleared. | Loads check the scene revision after asynchronous work and discard results from a cleared scene. |
+| Catalog | Unsupported schemas, duplicate IDs, unsafe paths, and malformed checksums reached runtime caches. | Invalid entries are filtered, duplicate IDs are removed, unsupported schema versions fall back to the last good catalog, and download cache paths cannot use arbitrary checksum strings. |
+| Downloads | Damaged cached models were reused indefinitely, and checksum calculation loaded the entire model into memory. | Cached content is checked before reuse and repaired by downloading again; hashing streams bounded chunks, and downloads have explicit timeouts. |
+| Offline imports | Catalog failure hid locally imported models. | Local models remain browsable while the unavailable catalog shows its retry action. |
+| Accessibility | Hidden tabs remained discoverable by VoiceOver; delete failures were only logged. | Inactive tabs are hidden from accessibility navigation, filters move to a scrollable row at accessibility text sizes, favorites refresh after backup restoration, project lists refresh after local data changes, and delete failures are visible. |
+| Immersive lifecycle | Closing the immersive space left stale tracking/open state and no way to understand invisible placements. | Closing stops tracking, updates state, and offers a visible reopen action. Repeated open requests are coalesced. |
+| Texture rights | Three editor JPEGs had no recorded source or license and were interpreted as normal maps. | Removed the photos and replaced them with original, reproducible 256 × 256 PNG normal maps generated by `Tools/generate-material-textures.py`; provenance and hashes are recorded. |
+| Verification | CI built without running regression tests; strict lint included generated SwiftPM output; the local hook broke on paths with spaces; live test opt-in was not forwarded to XCTest. | CI runs the pipeline, package, and app tests and creates an unsigned device Release archive. Lint excludes generated output and includes app tests. The hook preserves paths. Live tests receive their environment variable. The daily catalog canary verifies model checksums. Thumbnail-cache tests use isolated instances so background preloading cannot alter their assertions. |
+
+## Verification evidence
+
+- Xcode 27.0 (27A266a), visionOS 27 simulator; minimum deployment stays visionOS 26.
+- **234 Swift tests passed:** 181 package tests, including the live production
+  catalog/model integration test, and 53 app tests.
+- Repeated on the minimum supported **visionOS 26.0 simulator:** 233 passed,
+  zero failures; the optional live catalog test was skipped in this run.
+- **25 catalog pipeline tests passed.**
+- Strict SwiftLint over all app, package, and test sources: **zero violations**.
+- `git diff --check` and shell syntax checks: **passed**.
+- Simulator visual checks passed for the catalog, settings, and catalog header
+  at the largest accessibility text size. Filters remain usable in a scrolling
+  row and search remains visible.
+- Generic Apple Vision Pro **Release archive passed**, unsigned, at
+  `/tmp/DesignSphere-Release-Audit.xcarchive`. Payload verified: arm64 executable,
+  production Info.plist, v1.0/build 1, visionOS 26 minimum, icon assets, privacy
+  manifest, and all three replacement normal maps. This is a local validation
+  artifact, not an uploadable distribution-signed build.
+- Production manifest: **182 models**, SHA-256
+  `cd24d5c53df41da4b5a6db5e3ba57834a0c24a9f50bc9f1d03fd5392369dd036`;
+  every model ID matches the audited provenance registry.
+- **364 hosted model/thumbnail URLs** passed HTTP availability and declared-size
+  checks. The smallest USDZ matched its declared SHA-256; the live package test
+  also loaded the catalog and downloaded a model through the production code.
+- Public privacy and support URLs both returned **HTTP 200**:
+  [privacy policy](https://github.com/JaimieMarch/DesignSphere/blob/main/docs/privacy-policy.md)
+  and [support](https://github.com/JaimieMarch/DesignSphere/blob/main/docs/support.md).
+- Existing two staged store screenshots are 3840 × 2160 JPEGs without alpha.
+  They are not a complete feature screenshot set.
+
+Repeat deterministic verification with `Tools/run-tests.sh`. Use
+`RUN_LIVE_CATALOG_TESTS=1 Tools/run-tests.sh` to include the live integration test.
+The new GitHub Actions workflow still needs a run after these changes are pushed;
+local results do not establish that a hosted CI run has passed.
+
+## Remaining submission gates
+
+1. **Distribution signing / TestFlight.** The local keychain contains one Apple
+   Development identity, no distribution identity, and no installed provisioning
+   profile for `com.designsphere.app`. The paid developer team must supply signing
+   assets or let authenticated Xcode create them. Then archive, export, and upload
+   the distribution build. No account credentials or signing team were changed.
+2. **Physical Vision Pro acceptance.** Test first launch and permission denial,
+   placement and gestures, closing/reopening the immersive space, editor undo,
+   measurements, save/load and anchor relocalization, backup collisions, imports,
+   large backups, Focus Mode, Foundation Models, and offline/slow-network behavior.
+   Simulator tests cannot establish tracking accuracy, comfort, or real-room
+   placement behavior. Check at least the minimum supported visionOS release.
+3. **App Store Connect.** Use the prepared [metadata packet](app-store-metadata.md)
+   and [privacy declaration](production-privacy-declaration.md). Enter the verified
+   policy/support URLs, account/legal details, privacy and age-rating answers,
+   motion information, private review contact, representative feature screenshots,
+   and the uploaded build. Confirm the build number has not already been used.
+4. **Production catalog domain.** The current public `r2.dev` endpoint works but
+   remains a development endpoint. A custom production domain needs the owner's
+   Cloudflare/DNS configuration; no replacement domain was invented or purchased.
+   Configure and validate it before relying on production scale.
+
+Apple requires complete metadata, accessible services, and working features for
+review: [App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/).
+The archive's SDK meets the current minimum:
+[SDK upload requirements](https://developer.apple.com/news/upcoming-requirements/?id=04282026a).
+These requirements were checked against Apple's current documentation; final
+approval remains Apple's decision.
