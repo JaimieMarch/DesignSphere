@@ -1,8 +1,9 @@
 # Project Audit & Backlog
 
-_Last audited: 2026-08-30 (branch `app-store-compliance`). Current release
-verification: 25 pipeline tests, 200 Swift tests (1 skipped live-network test),
-and an unsigned generic-device Release archive are green._
+_Last audited: 2026-10-11 (branch `app-store-compliance`). Current release
+verification: 209 Swift tests (1 skipped live-network test) and an unsigned
+generic-device Release archive are green with Xcode 27 against the visionOS 27
+simulator. The 25 pipeline tests were last run on 2026-08-30._
 
 This document records the **true state** of features that are partially shipped,
 deferred, gated behind flags, or removed from the UI — and the prioritized
@@ -186,6 +187,39 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
   (repo-side items verified 2026-07-05; Connect-side work and license risks
   listed there).
 
+- [x] **Release-readiness pass, 2026-10-11.**
+  - A model whose hosted file fails its checksum now reads "Unavailable right
+    now" with no Retry button, since retrying could only fail again. Server and
+    network errors keep Retry.
+  - Opening a `.dsbackup` file from Files, Mail or AirDrop now asks to restore
+    it. The plist has declared DesignSphere the owner of that file type all
+    along, but nothing handled the open, so the app launched and did nothing.
+    `LSSupportsOpeningDocumentsInPlace = false` is declared to match: the app
+    reads a copy and never edits the original.
+  - Restoring a backup from Settings now refreshes the catalog, so restored
+    imported models appear without a relaunch.
+  - The catalog loads behind the app instead of in front of it. The launch
+    overlay now clears as soon as the immersive space opens; the catalog
+    screen shows its own spinner, which says it is still connecting after
+    4 s. A cached manifest is used after at most 6 s instead of 20 s.
+    Restoring a project waits for the catalog first, and the Design Assistant
+    says the catalog is still loading instead of "no models for that room".
+  - A tile whose download failed transiently shows "Retry in N min" with Retry
+    disabled until the store's backoff ends, instead of a button that is
+    silently refused.
+  - SwiftLint is clean in strict mode on every file changed since `main`. CI's
+    lint job had failed on every run since October 2025, so its build job had
+    never run; that job also targeted a runner without the visionOS 26 SDK and
+    resolved a root `Package.swift` that does not exist. Both are fixed. The
+    lint config now allows conventional one-letter math names and the
+    placement engines' long parameter lists and tuples; refactoring those is
+    device-only work. 86 older violations remain in files untouched since
+    `main`, which CI does not lint until they change.
+  - Ambiguous `.none` matches on mesh classification are spelled out. No
+    behavior changed. The remaining "switch must be exhaustive" warnings come
+    from visionOS 27's new `.slanted` plane alignment; the app only requests
+    horizontal and vertical planes, and `@unknown default` covers it safely.
+
 ### Medium-term
 
 - [ ] Performance budget for 180+ streamed models — LOD, occlusion culling,
@@ -208,15 +242,6 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
 
 ### Known, deliberately not fixed
 
-- **A permanently failed model still offers "Retry".** After the download
-  backoff work, a checksum mismatch is suppressed rather than re-attempted, so
-  tapping Retry re-shows the failure badge instead of silently doing nothing.
-  It is honest but unexplained; distinguishing permanent from transient
-  failure in the cell would need the error type plumbed to the UI.
-- **A slow first launch shows 20 s of dead air** at 70% / "Loading models…"
-  while the manifest request runs out its timeout. Shortening the timeout
-  would break genuinely slow networks; the real fix is rendering the catalog
-  shell immediately and loading the manifest behind it.
 - **The nav ornament nests a `TabView` inside a manual `.ornament()`**, which
   duplicates a system affordance, and `ToolbarOrnament` declares a
   `bottomOrnament` toolbar while itself being hosted in another manual

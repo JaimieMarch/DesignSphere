@@ -181,6 +181,29 @@ final class RemoteCatalogTests: XCTestCase {
     }
 
     @MainActor
+    func testPermanentFailureSurvivesALaterPlainFailureUntilRetried() {
+        let progress = RemoteDownloadProgress.shared
+        let id = "unit_test_model_\(UUID().uuidString)"
+
+        progress.begin(id)
+        progress.fail(id, permanent: true)
+        XCTAssertTrue(progress.isPermanentlyFailed(id.uppercased()))
+
+        // The model manager re-raises a failure the store already classified.
+        progress.fail(id)
+        XCTAssertTrue(progress.isPermanentlyFailed(id), "a plain failure must not downgrade it")
+        XCTAssertTrue(progress.isFailed(id))
+
+        // A fresh attempt starts from a clean slate.
+        progress.begin(id)
+        XCTAssertFalse(progress.isPermanentlyFailed(id))
+        progress.fail(id, permanent: true)
+        progress.clearFailure(id)
+        XCTAssertFalse(progress.isFailed(id))
+        XCTAssertFalse(progress.isPermanentlyFailed(id))
+    }
+
+    @MainActor
     func testProgressUpdateAfterCompletionDoesNotStrandTheTile() {
         // Progress hops to the main actor on its own Task, separately from
         // finish/fail, so a trailing update can land after the download ends.
@@ -202,6 +225,36 @@ final class RemoteCatalogTests: XCTestCase {
         XCTAssertNil(progress.fraction(for: id), "a late update after failure is ignored")
         XCTAssertTrue(progress.isFailed(id), "and it does not hide the retry affordance")
         progress.clearFailure(id)
+    }
+
+    // MARK: - Background catalog load
+
+    @available(visionOS 26.0, *)
+    @MainActor
+    func testBackgroundPreloadShowsLoadingAtOnceAndCanBeAwaited() async {
+        // Nothing listens on port 1, so the manifest request fails fast and the
+        // load settles on whatever the disk cache holds (ready or unavailable).
+        let service = RemoteCatalogService.shared
+        let previousURL = service.baseURL
+        let previousEnabled = service.isEnabled
+        service.configure(baseURL: URL(string: "https://127.0.0.1:1")!, enabled: true)
+        defer { service.configure(baseURL: previousURL, enabled: previousEnabled) }
+
+        let controller = CollaborativeSessionController()
+        controller.startPreload()
+        XCTAssertEqual(controller.remoteCatalogState, .loading,
+                       "the grid must never flash an empty result before the load starts")
+
+        await controller.waitForCatalog()
+        XCTAssertNotEqual(controller.remoteCatalogState, .loading)
+    }
+
+    @available(visionOS 26.0, *)
+    @MainActor
+    func testWaitingWithoutABackgroundLoadReturnsImmediately() async {
+        let controller = CollaborativeSessionController()
+        await controller.waitForCatalog()
+        XCTAssertEqual(controller.remoteCatalogState, .ready)
     }
 
     // MARK: - Live integration (requires network + the R2 bucket)

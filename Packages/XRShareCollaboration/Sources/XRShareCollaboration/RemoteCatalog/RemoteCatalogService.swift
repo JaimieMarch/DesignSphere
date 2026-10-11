@@ -20,6 +20,17 @@ public final class RemoteCatalogService {
     public private(set) var baseURL: URL?
     public private(set) var isEnabled: Bool = false
 
+    /// How long a launch waits for the manifest when there is nothing to fall
+    /// back on. A first launch has no catalog without the network, so a slow
+    /// connection deserves the full budget.
+    static let coldManifestTimeout: TimeInterval = 20
+
+    /// How long a launch waits when a cached manifest is already on disk. The
+    /// cache is a complete, working catalog, so making a user on a poor
+    /// connection stare at the loading screen for the full cold budget before
+    /// using it is pure dead air.
+    static let warmManifestTimeout: TimeInterval = 6
+
     /// manifest id -> category rawValue (e.g. "seating"), for the catalog UI.
     private var categoryByID: [String: String] = [:]
 
@@ -47,8 +58,9 @@ public final class RemoteCatalogService {
         // A fetch that yields no usable entries (empty document, every row
         // malformed) must not overwrite a good disk cache or blank the catalog,
         // because "Catalog unavailable" invites a Retry tap and another fetch.
+        let timeout = hasCachedManifest ? Self.warmManifestTimeout : Self.coldManifestTimeout
         let manifest: CatalogManifest?
-        if let fetched = await fetchManifest(from: manifestURL), !fetched.models.isEmpty {
+        if let fetched = await fetchManifest(from: manifestURL, timeout: timeout), !fetched.models.isEmpty {
             cacheManifest(fetched)
             manifest = fetched
         } else {
@@ -101,7 +113,7 @@ public final class RemoteCatalogService {
 
     // MARK: - Networking
 
-    private func fetchManifest(from url: URL) async -> CatalogManifest? {
+    private func fetchManifest(from url: URL, timeout: TimeInterval) async -> CatalogManifest? {
         var request = URLRequest(url: url)
         // Revalidate rather than ignore the cache: the manifest carries an ETag
         // and Last-Modified, so an unchanged catalog costs a 304 with no body
@@ -109,7 +121,7 @@ public final class RemoteCatalogService {
         // Retry tap. URLSession serves the stored body on a 304, so the decode
         // below sees the same JSON it would have downloaded.
         request.cachePolicy = .reloadRevalidatingCacheData
-        request.timeoutInterval = 20
+        request.timeoutInterval = timeout
         do {
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
@@ -147,6 +159,11 @@ public final class RemoteCatalogService {
         var values = URLResourceValues()
         values.isExcludedFromBackup = true
         try? cacheURL.setResourceValues(values)
+    }
+
+    private var hasCachedManifest: Bool {
+        guard let cacheURL else { return false }
+        return FileManager.default.fileExists(atPath: cacheURL.path)
     }
 
     private func cachedManifest() -> CatalogManifest? {

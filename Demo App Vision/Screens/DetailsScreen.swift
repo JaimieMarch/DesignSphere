@@ -291,6 +291,11 @@ struct DetailsScreen: View {
     private func loadProject(roomName: String) {
         Task {
             do {
+                // On a fresh launch the catalog may still be loading in the
+                // background. Restoring before it lands would resolve none of
+                // the saved models, so wait for it first.
+                await controller.waitForCatalog()
+
                 // Load the project from JSON
                 let anchorStatus = try await projectManager.loadProject(
                     roomName: roomName,

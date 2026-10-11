@@ -189,6 +189,29 @@ enum BackupManager {
         return data
     }
 
+    /// Reads and imports a backup file chosen in the file importer or opened
+    /// from another app. Both entry points need the same security-scope,
+    /// regular-file and size checks before any bytes are read.
+    @MainActor
+    static func importBackup(at url: URL, appSettings: AppSettings) throws -> BackupImportSummary {
+        guard url.isFileURL else { throw BackupManagerError.invalidBackupFile }
+        let hasSecurityScope = url.startAccessingSecurityScopedResource()
+        defer {
+            if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
+        }
+
+        let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+        guard values.isRegularFile != false else {
+            throw BackupManagerError.invalidBackupFile
+        }
+        if let fileSize = values.fileSize {
+            try validateBackupFileSize(Int64(fileSize))
+        }
+
+        let data = try Data(contentsOf: url)
+        return try importBackupData(data, appSettings: appSettings)
+    }
+
     @MainActor
     static func importBackupData(_ data: Data, appSettings: AppSettings) throws -> BackupImportSummary {
         try validateBackupFileSize(Int64(data.count))
@@ -476,7 +499,7 @@ enum BackupManager {
         let signatures: [[UInt8]] = [
             [0x50, 0x4B, 0x03, 0x04],
             [0x50, 0x4B, 0x05, 0x06],
-            [0x50, 0x4B, 0x07, 0x08],
+            [0x50, 0x4B, 0x07, 0x08]
         ]
         guard signatures.contains(where: { data.prefix($0.count).elementsEqual($0) }) else {
             return false

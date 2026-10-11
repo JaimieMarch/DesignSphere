@@ -72,7 +72,7 @@ public struct DesignAdvisor {
         "beds": ["storage", "tables", "lighting", "decor"],
         "storage": ["lighting", "decor", "tables"],
         "lighting": ["seating", "tables", "decor"],
-        "decor": ["seating", "tables", "lighting"],
+        "decor": ["seating", "tables", "lighting"]
     ]
 
     // MARK: - Room sets

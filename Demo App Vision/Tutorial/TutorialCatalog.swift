@@ -49,7 +49,7 @@ enum TutorialCatalog {
             summary: "Enter a themed neutral room shell for a distraction-free design space.",
             durationLabel: "1:20",
             source: .bundled(name: "tutorial_focus_mode", fileExtension: "mp4")
-        ),
+        )
     ]
 }
 

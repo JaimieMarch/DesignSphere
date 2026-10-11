@@ -54,7 +54,7 @@ enum SupportSurfacePolicy {
             return 0.97
         case .floor:
             return 0.95
-        case .none, .stairs, .homeAppliance, .plant, nil:
+        case .some(.none), .stairs, .homeAppliance, .plant, nil:
             return 0.95
         @unknown default:
             return 0.95

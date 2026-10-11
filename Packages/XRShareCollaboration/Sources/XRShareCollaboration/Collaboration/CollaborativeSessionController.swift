@@ -1090,6 +1090,33 @@ public final class CollaborativeSessionController: ObservableObject {
         remoteCatalogState = .ready
     }
 
+    /// The launch-time catalog load started by `startPreload`, kept so work
+    /// that needs the catalog (restoring a project) can wait for it.
+    private var preloadTask: Task<Void, Never>?
+
+    /// Starts loading the catalog without blocking the caller, so the app can
+    /// show its UI at once and let the catalog screen present its own loading
+    /// state. The state flips to `.loading` synchronously, so the grid never
+    /// flashes an empty "no results" before the load begins.
+    public func startPreload(strategy: PreloadStrategy = .minimal) {
+        guard preloadTask == nil else { return }
+        if RemoteCatalogService.shared.isEnabled {
+            remoteCatalogState = .loading
+        }
+        preloadTask = Task { [weak self] in
+            await self?.preloadIfNeeded(strategy: strategy)
+        }
+    }
+
+    /// Returns once the launch-time catalog load has finished (immediately if
+    /// none was started). The thumbnail preload that follows it is not awaited.
+    public func waitForCatalog() async {
+        guard preloadTask != nil else { return }
+        for await state in $remoteCatalogState.values where state != .loading {
+            return
+        }
+    }
+
     public func preloadIfNeeded(strategy: PreloadStrategy = .minimal) async {
         // Remote catalog: the model list comes from the manifest and entities
         // download lazily on placement, so we skip the bundle's eager load.

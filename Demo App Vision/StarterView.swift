@@ -121,7 +121,7 @@ struct StarterView: View {
                     
                     // Settings Screen
                     if AppFeatureFlags.settingsScreenEnabled {
-                        SettingsScreen()
+                        SettingsScreen(onModelsImported: { controller.refreshAvailableModels() })
                             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
                             .opacity(navigationState.currentScreen == .settings ? navigationState.transitionOpacity : 0)
                             .scaleEffect(screenScale(for: .settings))
@@ -359,15 +359,15 @@ struct StarterView: View {
         loadingState.progress = 0.5
         await ensureImmersiveSpaceOpened()
 
-        loadingState.message = "Loading models..."
-        loadingState.progress = 0.7
         // Point the catalog at the remote manifest (R2) before preloading.
         RemoteCatalogService.shared.configure(
             baseURL: AppFeatureFlags.remoteCatalogBaseURL,
             enabled: AppFeatureFlags.remoteCatalogEnabled
         )
-        // Preload models AFTER opening immersive space for faster perceived startup
-        await controller.preloadIfNeeded(strategy: .minimal)
+        // The manifest can take many seconds on a slow network. Load it behind
+        // the app instead of in front of it: the catalog screen shows its own
+        // loading state, and every other screen is usable meanwhile.
+        controller.startPreload(strategy: .minimal)
 
         loadingState.message = "Ready!"
         loadingState.progress = 1.0
@@ -506,7 +506,7 @@ private struct InteractiveWalkthroughView: View {
             icon: "square.and.arrow.down.fill",
             title: "Save your room",
             description: "Save layouts as projects from the Details screen, and reload them whenever you return."
-        ),
+        )
     ]
 
     private var step: Step { steps[currentStepIndex] }

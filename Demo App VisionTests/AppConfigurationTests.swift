@@ -87,7 +87,7 @@ final class AppSettingsTests: XCTestCase {
         "settings.rememberFavoritesEnabled",
         "settings.collisionMode",
         "settings.onboardingCompleted",
-        AppSettings.favoritesDefaultsKey,
+        AppSettings.favoritesDefaultsKey
     ]
 
     override func setUp() {
@@ -217,6 +217,32 @@ final class BackupValueTests: XCTestCase {
     }
 
     @MainActor
+    func testOpenedBackupFileGoesThroughTheSameValidation() throws {
+        // A backup opened from Files reaches the app as a URL, not as bytes the
+        // file importer already vetted, so the URL path must reject anything
+        // that is not a readable, well-formed backup file.
+        func assertInvalid(_ url: URL, _ name: String) {
+            XCTAssertThrowsError(try BackupManager.importBackup(at: url, appSettings: AppSettings()), name) { error in
+                guard case BackupManagerError.invalidBackupFile = error else {
+                    return XCTFail("\(name): unexpected error \(error)")
+                }
+            }
+        }
+
+        assertInvalid(URL(string: "https://example.com/evil.dsbackup")!, "remote URL")
+
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("BackupOpen-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        assertInvalid(directory, "directory")
+
+        let malformed = directory.appendingPathComponent("broken.dsbackup")
+        try Data("not-json".utf8).write(to: malformed)
+        assertInvalid(malformed, "malformed file")
+    }
+
+    @MainActor
     func testInvalidBackupDataIsRejectedWithoutWritingFiles() {
         XCTAssertThrowsError(try BackupManager.importBackupData(Data("not-json".utf8), appSettings: AppSettings())) { error in
             guard case BackupManagerError.invalidBackupFile = error else {
@@ -256,7 +282,7 @@ final class BackupValueTests: XCTestCase {
             "..\\outside.json",
             "/tmp/outside.json",
             ".hidden.json",
-            "room.txt",
+            "room.txt"
         ]
 
         for name in unsafeNames {
@@ -289,7 +315,7 @@ final class BackupValueTests: XCTestCase {
             backupData(
                 categories: [.worldAnchors],
                 worldAnchorsData: Data(#"{"not-a-uuid":{"id":"bad","matrix":[]}}"#.utf8)
-            ),
+            )
         ]
 
         for data in payloads {
@@ -309,7 +335,7 @@ final class BackupValueTests: XCTestCase {
             categories: [.projects, .appPreferences],
             projects: [
                 .init(name: "valid.json", data: try validProjectData()),
-                .init(name: "invalid.json", data: Data("invalid".utf8)),
+                .init(name: "invalid.json", data: Data("invalid".utf8))
             ],
             preferences: .init(
                 highContrastTextEnabled: true,
@@ -390,5 +416,18 @@ final class BackupValueTests: XCTestCase {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         return try encoder.encode(payload)
+    }
+}
+
+final class CatalogCellTests: XCTestCase {
+    func testRetryWaitTextCountsDownThenDisappears() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        XCTAssertNil(CatalogCell.retryWaitText(until: nil, now: now))
+        XCTAssertNil(CatalogCell.retryWaitText(until: now, now: now), "a retry is allowed at the boundary")
+        XCTAssertNil(CatalogCell.retryWaitText(until: now.addingTimeInterval(-5), now: now))
+        XCTAssertEqual(CatalogCell.retryWaitText(until: now.addingTimeInterval(0.2), now: now), "Retry in 1 s")
+        XCTAssertEqual(CatalogCell.retryWaitText(until: now.addingTimeInterval(45), now: now), "Retry in 45 s")
+        XCTAssertEqual(CatalogCell.retryWaitText(until: now.addingTimeInterval(60), now: now), "Retry in 1 min")
+        XCTAssertEqual(CatalogCell.retryWaitText(until: now.addingTimeInterval(61), now: now), "Retry in 2 min")
     }
 }

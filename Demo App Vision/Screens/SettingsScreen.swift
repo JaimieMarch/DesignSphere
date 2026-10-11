@@ -317,6 +317,9 @@ private struct LocalDataResetDetailView: View {
 
 struct SettingsScreen: View {
     @EnvironmentObject private var appSettings: AppSettings
+    /// Called after a restore writes imported models to disk, so the catalog
+    /// can pick them up without a relaunch.
+    var onModelsImported: () -> Void = {}
     @State private var showLocalDataManagement = false
     @State private var showBackupExportOptions = false
     @State private var showBackupImporter = false
@@ -528,21 +531,10 @@ struct SettingsScreen: View {
         do {
             let urls = try result.get()
             guard let url = urls.first else { return }
-            let hasSecurityScope = url.startAccessingSecurityScopedResource()
-            defer {
-                if hasSecurityScope { url.stopAccessingSecurityScopedResource() }
+            let summary = try BackupManager.importBackup(at: url, appSettings: appSettings)
+            if summary.importsAdded > 0 {
+                onModelsImported()
             }
-
-            let values = try url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
-            guard values.isRegularFile != false else {
-                throw BackupManagerError.invalidBackupFile
-            }
-            if let fileSize = values.fileSize {
-                try BackupManager.validateBackupFileSize(Int64(fileSize))
-            }
-
-            let data = try Data(contentsOf: url)
-            let summary = try BackupManager.importBackupData(data, appSettings: appSettings)
             backupResultMessage = summary.summaryText
             backupErrorMessage = nil
         } catch {

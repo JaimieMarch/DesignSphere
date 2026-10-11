@@ -32,6 +32,7 @@ struct HomeScreen: View {
     @State private var selectedCategory: CollaborativeSessionController.ModelCategory = .all
     @State private var selectedFinish: Finish = .all
     @State private var searchText: String = ""
+    @State private var catalogLoadingSince: Date?
 
     private let searchEngine = ModelSearchEngine()
 
@@ -71,6 +72,8 @@ struct HomeScreen: View {
                                 modelType: descriptor.type,
                                 downloadFraction: downloads.fraction(for: descriptor.id),
                                 downloadFailed: downloads.isFailed(descriptor.id),
+                                downloadUnavailable: downloads.isPermanentlyFailed(descriptor.id),
+                                retryDate: downloads.retryDate(for: descriptor.id),
                                 onRetry: {
                                     downloads.clearFailure(descriptor.id)
                                     controller.addModel(descriptor)
@@ -120,13 +123,21 @@ struct HomeScreen: View {
     }
 
     private var catalogLoadingView: some View {
-        VStack(spacing: 14) {
-            ProgressView()
-            Text("Loading catalog…")
-                .font(.body)
-                .foregroundStyle(.secondary)
+        // A slow network can hold this for many seconds; after a few, say so,
+        // rather than leaving a spinner that reads as a hang.
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let waited = context.date.timeIntervalSince(catalogLoadingSince ?? context.date)
+            VStack(spacing: 14) {
+                ProgressView()
+                Text(waited >= 4 ? "Still connecting to the furniture catalog…" : "Loading catalog…")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 280)
+            .accessibilityElement(children: .combine)
         }
-        .frame(maxWidth: .infinity, minHeight: 280)
+        .onAppear { catalogLoadingSince = Date() }
+        .onDisappear { catalogLoadingSince = nil }
     }
 
     private var catalogCountText: String {

@@ -69,11 +69,9 @@ class ThumbnailCache {
 
     /// Preload specific thumbnails
     func preloadThumbnails(for modelTypes: [ModelType]) async {
-        for modelType in modelTypes {
-            if cache[modelType.rawValue] == nil {
-                _ = await loadThumbnail(for: modelType)
-            }
-            }
+        for modelType in modelTypes where cache[modelType.rawValue] == nil {
+            _ = await loadThumbnail(for: modelType)
+        }
     }
 
     /// Routes a model to the right thumbnail source. Remote catalog models have

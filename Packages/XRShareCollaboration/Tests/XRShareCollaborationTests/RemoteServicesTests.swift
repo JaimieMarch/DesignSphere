@@ -27,8 +27,8 @@ private final class MockURLProtocol: URLProtocol {
         return requestCount
     }
 
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override static func canInit(with request: URLRequest) -> Bool { true }
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
         Self.lock.lock()
@@ -86,6 +86,29 @@ final class RemoteCatalogServiceTests: XCTestCase {
     override func tearDownWithError() throws {
         try? FileManager.default.removeItem(at: temporaryDirectory)
         MockURLProtocol.handler = nil
+    }
+
+    func testManifestWaitsLessWhenACachedCatalogCanStandIn() async {
+        let data = manifestData()
+        var observedTimeouts: [TimeInterval] = []
+        MockURLProtocol.reset { request in
+            observedTimeouts.append(request.timeoutInterval)
+            return .init(statusCode: 200, data: data)
+        }
+        let cacheURL = temporaryDirectory.appendingPathComponent("catalog.json")
+        let service = makeService(cacheURL: cacheURL)
+        service.configure(baseURL: URL(string: "https://example.test")!, enabled: true)
+
+        // First launch: nothing on disk, so the request gets the full budget.
+        _ = await service.loadCatalog()
+        // Later launches: the cache written above can stand in for a slow network.
+        _ = await service.loadCatalog()
+
+        XCTAssertEqual(observedTimeouts, [
+            RemoteCatalogService.coldManifestTimeout,
+            RemoteCatalogService.warmManifestTimeout
+        ])
+        XCTAssertLessThan(RemoteCatalogService.warmManifestTimeout, RemoteCatalogService.coldManifestTimeout)
     }
 
     func testDisabledCatalogReturnsEmptyWithoutRequest() async {
@@ -324,6 +347,8 @@ final class ModelFileStoreTests: XCTestCase {
         XCTAssertFalse(cached)
         let failed = await MainActor.run { RemoteDownloadProgress.shared.isFailed(model.id) }
         XCTAssertTrue(failed)
+        let permanent = await MainActor.run { RemoteDownloadProgress.shared.isPermanentlyFailed(model.id) }
+        XCTAssertTrue(permanent, "retrying cannot fix bytes that fail their checksum")
     }
 
     func testHTTPErrorIsReportedAsDownloadFailure() async {
@@ -336,6 +361,8 @@ final class ModelFileStoreTests: XCTestCase {
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
+        let permanent = await MainActor.run { RemoteDownloadProgress.shared.isPermanentlyFailed(model.id) }
+        XCTAssertFalse(permanent, "a server error may clear up, so the cell keeps offering Retry")
     }
 
     func testConcurrentRequestsAreCoalesced() async throws {
@@ -408,6 +435,34 @@ final class ModelFileStoreTests: XCTestCase {
         clock.advance(60)
         await assertThrows(.downloadFailed) { try await store.localURL(for: model) }
         XCTAssertEqual(MockURLProtocol.count(), 3)
+    }
+
+    func testCatalogIsToldWhenATransientFailureCanBeRetried() async {
+        MockURLProtocol.reset { _ in .init(statusCode: 503, data: Data()) }
+        let model = remoteModel(data: Data("payload".utf8))
+        let clock = TestClock()
+        let store = makeStore(clock: clock)
+        let firstFailure = clock.now
+
+        await assertThrows(.downloadFailed) { try await store.localURL(for: model) }
+        var retryDate = await MainActor.run { RemoteDownloadProgress.shared.retryDate(for: model.id) }
+        XCTAssertEqual(retryDate, firstFailure.addingTimeInterval(60))
+
+        // A tap inside the window is refused and reports the same moment.
+        clock.advance(30)
+        await assertThrows(.retrySuppressed) { try await store.localURL(for: model) }
+        retryDate = await MainActor.run { RemoteDownloadProgress.shared.retryDate(for: model.id) }
+        XCTAssertEqual(retryDate, firstFailure.addingTimeInterval(60))
+    }
+
+    func testIntegrityFailureHasNoRetryDate() async {
+        MockURLProtocol.reset { _ in .init(statusCode: 200, data: Data("wrong".utf8)) }
+        let model = remoteModel(data: Data("expected".utf8))
+        let store = makeStore()
+
+        await assertThrows(.checksumMismatch) { try await store.localURL(for: model) }
+        let retryDate = await MainActor.run { RemoteDownloadProgress.shared.retryDate(for: model.id) }
+        XCTAssertNil(retryDate, "waiting cannot fix a damaged file, so there is no countdown")
     }
 
     func testBackoffDoublesPerFailureAndIsCapped() {

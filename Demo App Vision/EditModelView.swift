@@ -14,9 +14,9 @@ struct EditModelView: View {
     @State private var modelHeight: Float = 10
     @State private var modelWidth: Float = 10
     @State private var selectedTab = 0
-    @State private var X: Double = 0
-    @State private var Y: Double = 0
-    @State private var Z: Double = 0
+    @State private var positionX: Double = 0
+    @State private var positionY: Double = 0
+    @State private var positionZ: Double = 0
     @State private var selectedColor: Color = .gray
     @State private var customColor: Color = .cyan
     @State private var selectedEntity: Entity? = nil
@@ -100,11 +100,11 @@ struct EditModelView: View {
                         } else if selectedTab == 1 {
                             nudgePad
                                 .padding(.bottom, 10)
-                            coordinateControl(title: "X Position", value: $X)
+                            coordinateControl(title: "X Position", value: $positionX)
                                 .padding(.vertical, 8)
-                            coordinateControl(title: "Y Position", value: $Y)
+                            coordinateControl(title: "Y Position", value: $positionY)
                                 .padding(.vertical, 8)
-                            coordinateControl(title: "Z Position", value: $Z)
+                            coordinateControl(title: "Z Position", value: $positionZ)
                                 .padding(.vertical, 8)
                         } else {
                             paletteSection
@@ -271,9 +271,9 @@ struct EditModelView: View {
                 modelDepth  = currentSize.z * 100
 
                 let position = entity.position
-                X = Double(position.x)
-                Y = Double(position.y)
-                Z = Double(position.z)
+                positionX = Double(position.x)
+                positionY = Double(position.y)
+                positionZ = Double(position.z)
             }
         }
         .onChange(of: controller.selectedModelInstanceIDVar) {
@@ -291,9 +291,9 @@ struct EditModelView: View {
         .onChange(of: modelWidth) { updateEntityScale() }
         .onChange(of: modelHeight) { updateEntityScale() }
         .onChange(of: modelDepth) { updateEntityScale() }
-        .onChange(of: X) { updateEntityPosition() }
-        .onChange(of: Y) { updateEntityPosition() }
-        .onChange(of: Z) { updateEntityPosition() }
+        .onChange(of: positionX) { updateEntityPosition() }
+        .onChange(of: positionY) { updateEntityPosition() }
+        .onChange(of: positionZ) { updateEntityPosition() }
     }
 
     private func sizeControl(title: String, value: Binding<Float>) -> some View {
@@ -573,7 +573,7 @@ struct EditModelView: View {
         guard let model = controller.returnSelectedModel(),
               model.modelEntity != nil else { return }
 
-        controller.updateSelectedModelPosition(SIMD3<Float>(Float(X), Float(Y), Float(Z)))
+        controller.updateSelectedModelPosition(SIMD3<Float>(Float(positionX), Float(positionY), Float(positionZ)))
     }
 
     private func updateSelectedEntity() {
@@ -601,9 +601,9 @@ struct EditModelView: View {
         modelDepth  = currentSize.z * 100
 
         let position = entity.position
-        X = Double(position.x)
-        Y = Double(position.y)
-        Z = Double(position.z)
+        positionX = Double(position.x)
+        positionY = Double(position.y)
+        positionZ = Double(position.z)
     }
 
     private func removeSelectedModel() {

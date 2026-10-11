@@ -46,8 +46,7 @@ public struct UnifiedModelPreview: View {
             // in flight; a neutral glyph once loading finished with nothing.
             if let thumbnail = thumbnail {
                 thumbnail
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
+                    .resizable().scaledToFit()
                     .frame(width: size.width, height: size.height)
             } else if didAttemptLoad {
                 Image(systemName: "cube")

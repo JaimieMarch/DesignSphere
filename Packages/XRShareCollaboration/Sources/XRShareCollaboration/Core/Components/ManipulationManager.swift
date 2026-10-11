@@ -232,7 +232,7 @@ class ManipulationManager {
     }
     
     
-    /// Called when a model is selected
+    // Called when a model is selected
 //    func handleSelection(for entity: Entity, instanceID: UUID) async {
 //        
 //        // Only send to SharePlay if we're connected and have a coordinator

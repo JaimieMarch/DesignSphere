@@ -1,6 +1,6 @@
 # App Store Launch Checklist
 
-_Last verified: 2026-08-30 (branch `app-store-compliance`)._
+_Last verified: 2026-10-11 (branch `app-store-compliance`)._
 
 Status of DesignSphere against the App Review Guidelines, split into what is
 **verified in this repo**, what must be done **in App Store Connect**, and the
@@ -25,6 +25,7 @@ Status of DesignSphere against the App Review Guidelines, split into what is
 | Generic Release archive | 2.1 / 2.5 | Passes unsigned for `generic/platform=visionOS`. Payload verified to contain the production Info.plist, privacy manifest, icon and executable. Distribution signing and upload remain open. |
 | Asset licensing | 4.1 / 5.2 | Independently re-verified 2026-08-30 against `asset_provenance.json`: **182 assets, every one CC0 1.0** (66 Poly Haven across 19 author groups, 116 The Base Mesh), attribution not required, redistribution allowed. App icon is project-owned. No BlenderKit asset present. |
 | Accurate in-app copy | 2.3 | Swept 2026-08-30. Removed claims of video tutorials, LiDAR "scans" filtering, "exact scale" measurement, "shared anchor" collaboration jargon, and "room scans" the app cannot produce. |
+| Declared document type is handled | 2.1 | Fixed 2026-10-11. The plist claims ownership of `.dsbackup`; opening one now asks to restore it instead of launching to nothing. `LSSupportsOpeningDocumentsInPlace = false` is declared, which also clears the upload warning for document types without it. |
 | Accessibility | — | The editor's 24 unlabeled controls now carry labels derived from their real behaviour; gaze targets raised to ~60pt; per-row labels on destructive actions; header traits, announcements, and Reduce Motion support added. |
 
 ## 📋 To do in App Store Connect
@@ -51,6 +52,8 @@ Status of DesignSphere against the App Review Guidelines, split into what is
 ## ⚠️ The path to submission — what actually remains
 
 ### 1. Publish the policy and support pages — BLOCKER
+
+_Re-checked 2026-10-11: the privacy policy blob URL still returns 404._
 
 `docs/` exists only on this working branch. **`origin/main` has no `docs/`
 directory at all**, so both prepared URLs currently 404:

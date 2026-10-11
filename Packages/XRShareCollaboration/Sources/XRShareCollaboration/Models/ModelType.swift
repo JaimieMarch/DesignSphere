@@ -63,9 +63,9 @@ public struct ModelType: Hashable, Identifiable, Sendable {
     }
 
     public init(rawValue: String,
-                    classification: AnchoringComponent.Target.Classification = .any,
-                    plane: AnchoringComponent.Target.Alignment = .horizontal,
-                    needsPhysics: Bool = false,
+                classification: AnchoringComponent.Target.Classification = .any,
+                plane: AnchoringComponent.Target.Alignment = .horizontal,
+                needsPhysics: Bool = false,
                 canStack: Bool = false) {
             self.rawValue = rawValue
             self.classification = classification

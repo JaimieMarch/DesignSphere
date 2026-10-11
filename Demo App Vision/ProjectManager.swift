@@ -226,7 +226,6 @@ class ProjectManager: ObservableObject {
             case .metal:
                 materialTypeString = "metal"
                 // Metal has no normal texture, just metallic properties (already restored above)
-                break
             case .fabric:
                 materialTypeString = "fabric"
                 if let texture = TextureCache.shared.texture(named: "fabric") {
@@ -240,7 +239,6 @@ class ProjectManager: ObservableObject {
             case .custom:
                 materialTypeString = "custom"
                 // Custom color only, no texture
-                break
             }
         }
 

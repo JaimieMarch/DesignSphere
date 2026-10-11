@@ -18,6 +18,7 @@ struct DemoApp: App {
         WindowGroup("StarterView") {
             StarterView(controller: controller)
                 .modifier(HighContrastAdaptive())
+                .modifier(BackupOpenHandler(controller: controller))
                 .environmentObject(appSettings)
         }
         .defaultSize(width: 1280, height: 720)

@@ -43,6 +43,31 @@ identifier_name:
     - x
     - y
     - z
+    # Conventional single letters in geometry and color math: plane/line
+    # coefficients (a, b, c), points and vectors (p, v, w), interpolation
+    # parameter (t), color channels (r, g), and a matrix (m).
+    - a
+    - b
+    - c
+    - g
+    - m
+    - p
+    - r
+    - t
+    - v
+    - w
+
+# The placement engines pass whole surface/model/bounds contexts and return
+# small labelled tuples from geometry helpers. Splitting those into parameter
+# structs is a refactor that can only be verified on device, so the limits sit
+# just above the current code rather than at SwiftLint's defaults.
+function_parameter_count:
+  warning: 10
+  error: 11
+
+large_tuple:
+  warning: 7
+  error: 8
 
 type_name:
   min_length: 3

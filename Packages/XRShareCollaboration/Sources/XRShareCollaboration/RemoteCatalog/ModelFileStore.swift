@@ -114,7 +114,11 @@ public actor ModelFileStore {
         // manifest checksum re-fetches the whole usdz forever, and a flaky
         // network re-fetches it as fast as the user can tap.
         if isSuppressed(key) {
-            await RemoteDownloadProgress.shared.fail(modelType.id)
+            await RemoteDownloadProgress.shared.fail(
+                modelType.id,
+                permanent: failures[key]?.isIntegrityFailure == true
+            )
+            await RemoteDownloadProgress.shared.setRetryDate(modelType.id, nextAttemptDate(for: key))
             throw StoreError.retrySuppressed
         }
 
@@ -139,6 +143,7 @@ public actor ModelFileStore {
             return url
         } catch {
             recordFailure(key, error: error)
+            await RemoteDownloadProgress.shared.setRetryDate(id, nextAttemptDate(for: key))
             throw error
         }
     }
@@ -163,6 +168,13 @@ public actor ModelFileStore {
             lastFailure: now(),
             isIntegrityFailure: (error as? StoreError) == .checksumMismatch
         )
+    }
+
+    /// When a transient failure's backoff ends; `nil` for no failure or for an
+    /// integrity failure, which no amount of waiting fixes.
+    private func nextAttemptDate(for key: String) -> Date? {
+        guard let record = failures[key], !record.isIntegrityFailure else { return nil }
+        return record.lastFailure.addingTimeInterval(Self.backoff(forAttempt: record.attempts))
     }
 
     /// 60s, 2m, 4m, ... capped at an hour.
@@ -238,7 +250,10 @@ public actor ModelFileStore {
             await RemoteDownloadProgress.shared.finish(id)
             return destination
         } catch {
-            await RemoteDownloadProgress.shared.fail(id)
+            await RemoteDownloadProgress.shared.fail(
+                id,
+                permanent: (error as? StoreError) == .checksumMismatch
+            )
             throw error
         }
     }

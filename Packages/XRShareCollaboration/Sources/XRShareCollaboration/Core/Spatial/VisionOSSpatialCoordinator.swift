@@ -108,7 +108,7 @@ class VisionOSSpatialCoordinator {
 //        } catch {
 //            print("visionOS: Failed to archive world anchor – \(error)")
 //            return nil
-//}
+// }
 //    }
     
     

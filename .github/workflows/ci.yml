@@ -51,24 +51,18 @@ jobs:
 
   build-visionos:
     name: Build visionOS
-    runs-on: macos-14
+    # The app targets visionOS 26, whose SDK ships with Xcode 26; older runner
+    # images cannot build it at all.
+    runs-on: macos-26
     needs: lint
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache SwiftPM dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            .build
-            .swiftpm
-            ~/Library/Caches/org.swift.swiftpm
-          key: ${{ runner.os }}-swiftpm-${{ hashFiles('**/Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-swiftpm-
+      - name: Show Xcode version
+        run: xcodebuild -version
 
       - name: Cache Xcode DerivedData
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/Library/Developer/Xcode/DerivedData
           key: ${{ runner.os }}-visionos-deriveddata-${{ hashFiles('**/*.xcodeproj/**') }}-${{ github.sha }}
@@ -76,8 +70,8 @@ jobs:
             ${{ runner.os }}-visionos-deriveddata-${{ hashFiles('**/*.xcodeproj/**') }}-
             ${{ runner.os }}-visionos-deriveddata-
 
-      - name: Install dependencies
-        run: swift package resolve
-
+      # The only package is local (Packages/XRShareCollaboration) with no remote
+      # dependencies, so there is nothing to resolve. A generic simulator
+      # destination needs the visionOS SDK but not a downloaded simulator runtime.
       - name: Build visionOS target
-        run: xcodebuild -project "Demo App.xcodeproj" -scheme "Demo App Vision" -destination "platform=visionOS Simulator,name=Apple Vision Pro,OS=latest" clean build CODE_SIGNING_ALLOWED=NO
+        run: xcodebuild -project "Demo App.xcodeproj" -scheme "Demo App Vision" -destination "generic/platform=visionOS Simulator" clean build CODE_SIGNING_ALLOWED=NO

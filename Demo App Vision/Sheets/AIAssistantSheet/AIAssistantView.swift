@@ -197,6 +197,11 @@ struct AIAssistantView: View {
     // MARK: - Actions
 
     private func furnish(_ room: DesignAdvisor.RoomType) {
+        guard controller.remoteCatalogState != .loading else {
+            suggestions = []
+            headline = "The catalog is still loading. Try again in a moment."
+            return
+        }
         suggestions = advisor.roomSet(for: room, from: controller.availableModels)
         headline = suggestions.isEmpty ? "No catalog models for that room yet." : "A \(room.title.lowercased()) set — tap any piece to place it"
         placedIDs = []

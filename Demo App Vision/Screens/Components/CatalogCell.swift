@@ -19,7 +19,24 @@ struct CatalogCell: View {
     var downloadFraction: Double? = nil
     // Set when the last download attempt failed; tapping retry re-attempts.
     var downloadFailed: Bool = false
+    // Set when retrying cannot help (the hosted file is damaged), so the cell
+    // explains that instead of offering a Retry that would fail again.
+    var downloadUnavailable: Bool = false
+    // After a transient failure the download is held back until this moment;
+    // until then a Retry would be refused, so the cell counts down instead.
+    var retryDate: Date? = nil
     var onRetry: (() -> Void)? = nil
+
+    /// "Retry in 2 min" while a backoff is running, `nil` once a retry is allowed.
+    static func retryWaitText(until retryDate: Date?, now: Date) -> String? {
+        guard let retryDate else { return nil }
+        let remaining = retryDate.timeIntervalSince(now)
+        guard remaining > 0 else { return nil }
+        if remaining < 60 {
+            return "Retry in \(max(Int(remaining.rounded(.up)), 1)) s"
+        }
+        return "Retry in \(Int((remaining / 60).rounded(.up))) min"
+    }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -86,19 +103,43 @@ struct CatalogCell: View {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.title3)
                             .foregroundStyle(.yellow)
-                        Text("Download failed")
-                            .font(.caption2)
-                            .foregroundStyle(.white)
-                        Button { onRetry?() } label: {
-                            Label("Retry", systemImage: "arrow.clockwise")
+                        if downloadUnavailable {
+                            Text("Unavailable right now")
+                                .font(.caption2)
+                                .foregroundStyle(.white)
+                            Text("This model's file is damaged. It will return once the catalog is fixed.")
+                                .font(.caption2)
+                                .foregroundStyle(.white.opacity(0.85))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 10)
+                        } else {
+                            Text("Download failed")
+                                .font(.caption2)
+                                .foregroundStyle(.white)
+                            TimelineView(.periodic(from: .now, by: 5)) { context in
+                                let waiting = Self.retryWaitText(until: retryDate, now: context.date)
+                                VStack(spacing: 6) {
+                                    if let waiting {
+                                        Text(waiting)
+                                            .font(.caption2)
+                                            .foregroundStyle(.white.opacity(0.85))
+                                    }
+                                    Button { onRetry?() } label: {
+                                        Label("Retry", systemImage: "arrow.clockwise")
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .controlSize(.small)
+                                    .disabled(waiting != nil)
+                                }
+                            }
                         }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
                     }
                 }
-                .accessibilityElement(children: .contain)
-                .accessibilityLabel("\(name) download failed")
-                .accessibilityHint("Double tap retry to try again")
+                .accessibilityElement(children: downloadUnavailable ? .combine : .contain)
+                .accessibilityLabel(downloadUnavailable
+                    ? "\(name) is unavailable right now because its file is damaged"
+                    : "\(name) download failed")
+                .accessibilityHint(downloadUnavailable ? "" : "Double tap retry to try again")
             }
         }
         .overlay(alignment: .topLeading) {

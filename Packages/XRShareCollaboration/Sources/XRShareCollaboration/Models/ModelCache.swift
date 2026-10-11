@@ -67,10 +67,8 @@ class ModelCache {
     
     /// Preload specific models if needed
     func preloadModels(_ modelTypes: [ModelType]) async {
-        for modelType in modelTypes {
-            if cache[modelType] == nil {
-                _ = await loadModel(modelType)
-            }
+        for modelType in modelTypes where cache[modelType] == nil {
+            _ = await loadModel(modelType)
         }
     }
     

@@ -895,7 +895,10 @@ enum RoomMeshPlacementEngine {
 
         switch description {
         case "none":
-            return .none
+            // "none" means no surface preference, not "prefer unclassified
+            // mesh". This was always the behavior (`.none` here resolved to
+            // Optional.none); it is spelled out so it can't be misread.
+            return nil
         case "wall":
             return .wall
         case "floor":
