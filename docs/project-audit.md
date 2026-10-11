@@ -220,6 +220,23 @@ The README WISHLIST item "add removed screens back into workflow" refers to:
     from visionOS 27's new `.slanted` plane alignment; the app only requests
     horizontal and vertical planes, and `@unknown default` covers it safely.
 
+- [x] **Settings finished for release, 2026-10-11.**
+  - **Permissions** shows whether surface detection is allowed. A denial was
+    invisible before: tracking failed and only debug builds logged it. Denied
+    now explains the effect and offers Open Settings.
+  - **Storage** shows how much space downloaded models and thumbnails use
+    (up to the 500 MB cache budget) and clears them. Projects, imports and
+    the cached manifest are untouched, and clearing resets download backoff.
+  - **About** shows the version and build, which the support page asks users
+    to quote, plus Support & Contact and a new Acknowledgements page crediting
+    Poly Haven and The Base Mesh under CC0. The support page lists the
+    running app and visionOS versions.
+- [ ] **Record where the three bundled textures came from.** `fabric.jpeg`,
+  `leather.jpeg` and `wood_grain.jpeg` in `Demo App Vision/Textures/` were
+  added on 2025-11-27 with no source or license on record, and the asset
+  license audit does not cover them. Find their source and license, or
+  replace them with CC0 textures, before submitting (guideline 5.2).
+
 ### Medium-term
 
 - [ ] Performance budget for 180+ streamed models — LOD, occlusion culling,

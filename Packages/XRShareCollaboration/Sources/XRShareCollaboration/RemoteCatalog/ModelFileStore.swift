@@ -193,6 +193,32 @@ public actor ModelFileStore {
         return remaining > 0 ? remaining : nil
     }
 
+    // MARK: - User-visible storage
+
+    /// Bytes held by downloaded models on disk.
+    func downloadedBytes() -> Int64 {
+        CatalogDownloads.totalBytes(in: cacheDirectory, withExtension: "usdz")
+    }
+
+    /// Deletes every downloaded model except those still downloading, and
+    /// forgets past failures so a cleared model downloads fresh next time.
+    /// Returns the number of files removed.
+    func removeAllDownloads() -> Int {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(at: cacheDirectory, includingPropertiesForKeys: nil) else {
+            return 0
+        }
+        var removed = 0
+        for file in files where file.pathExtension == "usdz" {
+            // A finished download is moved into place atomically, so the only
+            // file that can be mid-write belongs to an in-flight key.
+            guard inFlight[file.deletingPathExtension().lastPathComponent] == nil else { continue }
+            if (try? fm.removeItem(at: file)) != nil { removed += 1 }
+        }
+        failures.removeAll()
+        return removed
+    }
+
     /// Evict least-recently-used usdz files when the cache exceeds its budget.
     private func enforceBudget(keeping: URL) {
         let fm = FileManager.default

@@ -3,6 +3,7 @@ import SwiftUI
 enum AppInformationDestination: String, Identifiable, CaseIterable {
     case privacyPolicy
     case support
+    case acknowledgements
 
     var id: String { rawValue }
 
@@ -12,6 +13,8 @@ enum AppInformationDestination: String, Identifiable, CaseIterable {
             return "Privacy Policy"
         case .support:
             return "Support & Contact"
+        case .acknowledgements:
+            return "Acknowledgements"
         }
     }
 
@@ -21,6 +24,8 @@ enum AppInformationDestination: String, Identifiable, CaseIterable {
             return "hand.raised"
         case .support:
             return "questionmark.circle"
+        case .acknowledgements:
+            return "heart.text.square"
         }
     }
 
@@ -36,6 +41,8 @@ enum AppInformationDestination: String, Identifiable, CaseIterable {
             return URL(string: "https://github.com/JaimieMarch/DesignSphere/blob/main/docs/privacy-policy.md")
         case .support:
             return URL(string: "https://github.com/JaimieMarch/DesignSphere/blob/main/docs/support.md")
+        case .acknowledgements:
+            return URL(string: "https://github.com/JaimieMarch/DesignSphere/blob/main/docs/asset-license-audit.md")
         }
     }
 }
@@ -56,6 +63,8 @@ struct AppInformationView: View {
                         privacyPolicy
                     case .support:
                         supportInformation
+                    case .acknowledgements:
+                        acknowledgements
                     }
 
                     if let onlineURL = destination.onlineURL {
@@ -63,9 +72,11 @@ struct AppInformationView: View {
                             .buttonStyle(.bordered)
                     }
 
-                    Text("Last updated July 26, 2026")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    if destination != .acknowledgements {
+                        Text("Last updated July 26, 2026")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(32)
@@ -144,6 +155,12 @@ struct AppInformationView: View {
                 text: "Include the app version, visionOS version, what you expected, what happened, and reproducible steps. Do not attach project files, backups, or other private content to a public report."
             )
 
+            informationSection(
+                title: "Your Versions",
+                text: "DesignSphere \(AppVersion.current.replacingOccurrences(of: "Version ", with: "")), visionOS \(ProcessInfo.processInfo.operatingSystemVersionString.replacingOccurrences(of: "Version ", with: ""))"
+            )
+            .textSelection(.enabled)
+
             if let issueURL = URL(string: "https://github.com/JaimieMarch/DesignSphere/issues/new") {
                 Link("Contact Support on GitHub", destination: issueURL)
                     .buttonStyle(.borderedProminent)
@@ -152,6 +169,32 @@ struct AppInformationView: View {
             if let issuesURL = URL(string: "https://github.com/JaimieMarch/DesignSphere/issues") {
                 Link("View Known Issues", destination: issuesURL)
             }
+        }
+    }
+
+    private var acknowledgements: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            informationSection(
+                title: "Furniture Models",
+                text: "The furniture catalog is built from models published by Poly Haven and The Base Mesh, including the textures embedded in them. Both libraries release their work under the CC0 1.0 Universal public domain dedication. Credit isn't required, but DesignSphere wouldn't exist without the artists who share their work this way."
+            )
+
+            VStack(alignment: .leading, spacing: 10) {
+                if let polyHavenURL = URL(string: "https://polyhaven.com/models") {
+                    Link("Poly Haven", destination: polyHavenURL)
+                }
+                if let baseMeshURL = URL(string: "https://www.thebasemesh.com/model-library") {
+                    Link("The Base Mesh: Tim Steer and contributors", destination: baseMeshURL)
+                }
+                if let cc0URL = URL(string: "https://creativecommons.org/publicdomain/zero/1.0/") {
+                    Link("CC0 1.0 Universal", destination: cc0URL)
+                }
+            }
+
+            informationSection(
+                title: "App Icon",
+                text: "The DesignSphere icon was made for this project."
+            )
         }
     }
 

@@ -431,3 +431,36 @@ final class CatalogCellTests: XCTestCase {
         XCTAssertEqual(CatalogCell.retryWaitText(until: now.addingTimeInterval(61), now: now), "Retry in 2 min")
     }
 }
+
+final class SettingsRowsTests: XCTestCase {
+    func testVersionStringShowsVersionAndBuild() {
+        XCTAssertEqual(
+            AppVersion.displayString(from: ["CFBundleShortVersionString": "1.0", "CFBundleVersion": "7"]),
+            "Version 1.0 (7)"
+        )
+        XCTAssertEqual(AppVersion.displayString(from: ["CFBundleShortVersionString": "1.0"]), "Version 1.0")
+        XCTAssertEqual(AppVersion.displayString(from: ["CFBundleShortVersionString": "", "CFBundleVersion": "7"]), "Version unknown")
+        XCTAssertEqual(AppVersion.displayString(from: nil), "Version unknown")
+    }
+
+    func testShippedBundleReportsARealVersion() {
+        // The test host is the app, so this reads the production Info.plist.
+        XCTAssertNotEqual(AppVersion.current, "Version unknown")
+        XCTAssertTrue(AppVersion.current.hasPrefix("Version 1."), AppVersion.current)
+    }
+
+    func testOnlyADenialOffersTheWayToSettings() {
+        XCTAssertEqual(SurfaceDetectionPermission(.allowed), .allowed)
+        XCTAssertEqual(SurfaceDetectionPermission(.denied), .denied)
+        XCTAssertEqual(SurfaceDetectionPermission(.notDetermined), .notDetermined)
+        XCTAssertEqual(SurfaceDetectionPermission(nil), .unavailable)
+
+        let all: [SurfaceDetectionPermission] = [.allowed, .denied, .notDetermined, .unavailable]
+        for permission in all {
+            XCTAssertFalse(permission.title.isEmpty)
+            XCTAssertFalse(permission.detail.isEmpty)
+        }
+        XCTAssertTrue(SurfaceDetectionPermission.denied.detail.contains("Open Settings"),
+                      "the denial copy must point at the button shown beside it")
+    }
+}

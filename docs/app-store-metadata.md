@@ -173,6 +173,8 @@ timeout and the grid is empty until it resolves.
 
 Two limitations found while capturing:
 
+- **Debug builds can start on another tab:** add `-debug.initialTab settings`
+  (or `details`) to the launch command. Release builds ignore it.
 - **Scripted taps do not work.** Driving the Simulator with `osascript`/System
   Events needs Accessibility permission for the calling terminal (System
   Settings → Privacy & Security → Accessibility). Without it, only states

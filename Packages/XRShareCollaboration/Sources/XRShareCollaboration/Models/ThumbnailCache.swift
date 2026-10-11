@@ -152,10 +152,15 @@ class ThumbnailCache {
     }
 
     private func remoteThumbnailDiskURL(for id: String) -> URL {
-        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        let dir = base.appendingPathComponent("RemoteThumbnails", isDirectory: true)
+        let dir = Self.remoteThumbnailDirectory
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent(id + ".png")
+    }
+
+    /// Where downloaded catalog thumbnails are kept on disk.
+    nonisolated static var remoteThumbnailDirectory: URL {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("RemoteThumbnails", isDirectory: true)
     }
 
     private func imageFromFile(_ url: URL) -> Image? {

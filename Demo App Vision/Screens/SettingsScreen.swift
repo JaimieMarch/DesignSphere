@@ -337,7 +337,7 @@ struct SettingsScreen: View {
                     Text("Settings")
                         .font(.largeTitle.bold())
 
-                    Text("Preferences, backups, and experimental tools.")
+                    Text("Preferences, permissions, storage, and backups.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -355,6 +355,10 @@ struct SettingsScreen: View {
                     .toggleStyle(.switch)
                     .accessibilityLabel("High contrast text")
                     .accessibilityHint("Increases text contrast and legibility across the app")
+                }
+
+                SettingsCard(title: "Permissions") {
+                    SurfaceDetectionPermissionRow()
                 }
 
                 SettingsCard(title: "Privacy") {
@@ -385,15 +389,6 @@ struct SettingsScreen: View {
                     .accessibilityHint("Opens the DesignSphere privacy policy")
 
                     Button {
-                        selectedInformation = .support
-                    } label: {
-                        settingsNavigationLabel("Support & Contact", systemImage: "questionmark.circle")
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Support and contact")
-                    .accessibilityHint("Opens support information and contact links")
-
-                    Button {
                         showLocalDataManagement = true
                     } label: {
                         settingsNavigationLabel("Manage Local Data", systemImage: "internaldrive")
@@ -402,6 +397,10 @@ struct SettingsScreen: View {
                     .padding(.top, 4)
                     .accessibilityLabel("Manage local data")
                     .accessibilityHint("Opens options to wipe saved projects, imports, anchors, or favorites")
+                }
+
+                SettingsCard(title: "Storage") {
+                    CatalogDownloadsRow()
                 }
 
                 SettingsCard(title: "Labs") {
@@ -464,6 +463,37 @@ struct SettingsScreen: View {
                     Text("Replay the Interactive Walkthrough anytime, then exit when you're done.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                }
+
+                SettingsCard(title: "About") {
+                    HStack {
+                        Text("DesignSphere")
+                            .font(.headline)
+                        Spacer()
+                        Text(AppVersion.current)
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                    .accessibilityElement(children: .combine)
+
+                    Button {
+                        selectedInformation = .support
+                    } label: {
+                        settingsNavigationLabel("Support & Contact", systemImage: "questionmark.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Support and contact")
+                    .accessibilityHint("Opens support information and contact links")
+
+                    Button {
+                        selectedInformation = .acknowledgements
+                    } label: {
+                        settingsNavigationLabel("Acknowledgements", systemImage: "heart.text.square")
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Acknowledgements")
+                    .accessibilityHint("Credits for the furniture models and their licenses")
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

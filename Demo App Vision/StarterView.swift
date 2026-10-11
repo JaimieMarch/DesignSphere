@@ -26,7 +26,22 @@ struct LoadingState {
 
 /// Manages navigation and transition animation state
 struct NavigationState {
-    var currentScreen: StarterView.ScreenTab = .home
+    var currentScreen: StarterView.ScreenTab = Self.initialScreen
+
+    /// Debug builds accept `-debug.initialTab settings` (or `details`) so a
+    /// screen can be captured in the Simulator, which cannot be driven by
+    /// scripted taps. Release builds always start on the catalog.
+    private static var initialScreen: StarterView.ScreenTab {
+        #if DEBUG
+        switch UserDefaults.standard.string(forKey: "debug.initialTab") {
+        case "details": return .details
+        case "settings": return .settings
+        default: return .home
+        }
+        #else
+        return .home
+        #endif
+    }
     var contentScale: CGFloat = 1.0
     var transitionOpacity: Double = 1.0
 }

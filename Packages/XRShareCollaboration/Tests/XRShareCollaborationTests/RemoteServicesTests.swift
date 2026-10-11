@@ -314,6 +314,40 @@ final class ModelFileStoreTests: XCTestCase {
         }
     }
 
+    func testClearingDownloadsFreesTheSpaceAndTheModelDownloadsAgain() async throws {
+        let payload = Data("clear-me".utf8)
+        MockURLProtocol.reset { _ in .init(statusCode: 200, data: payload) }
+        let model = remoteModel(data: payload)
+        let store = makeStore()
+
+        _ = try await store.localURL(for: model)
+        let used = await store.downloadedBytes()
+        XCTAssertEqual(used, Int64(payload.count))
+
+        let removed = await store.removeAllDownloads()
+        XCTAssertEqual(removed, 1)
+        let usedAfter = await store.downloadedBytes()
+        XCTAssertEqual(usedAfter, 0)
+        let cached = await store.isCached(model)
+        XCTAssertFalse(cached)
+
+        _ = try await store.localURL(for: model)
+        XCTAssertEqual(MockURLProtocol.count(), 2, "a cleared model is fetched again on next use")
+    }
+
+    func testClearingDownloadsAlsoForgetsPastFailures() async throws {
+        MockURLProtocol.reset { _ in .init(statusCode: 503, data: Data()) }
+        let payload = Data("recovers".utf8)
+        let model = remoteModel(data: payload)
+        let store = makeStore()
+        await assertThrows(.downloadFailed) { try await store.localURL(for: model) }
+
+        // Without the reset this would still be inside its 60 s backoff.
+        _ = await store.removeAllDownloads()
+        MockURLProtocol.handler = { _ in .init(statusCode: 200, data: payload) }
+        _ = try await store.localURL(for: model)
+    }
+
     func testDownloadVerifiesChecksumCachesAndReusesFile() async throws {
         let payload = Data("valid-usdz".utf8)
         MockURLProtocol.reset { _ in .init(statusCode: 200, data: payload) }
