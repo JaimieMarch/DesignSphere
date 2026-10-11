@@ -40,6 +40,11 @@ not certify App Review approval or physical-device behavior.
 - **25 catalog pipeline tests passed.**
 - Strict SwiftLint over all app, package, and test sources: **zero violations**.
 - `git diff --check` and shell syntax checks: **passed**.
+- Hosted [GitHub Actions release validation](https://github.com/JaimieMarch/DesignSphere/actions/runs/38159512223)
+  **passed** for commit `fb0798950fa0df674a5a8a51b485d5abd4bf9af7`: strict lint,
+  catalog pipeline tests, package and app tests, and the unsigned device Release
+  archive. CI now selects a compatible installed simulator by UUID and downloads
+  a matching runtime only if needed. Both jobs use supported macOS 26 runners.
 - Simulator visual checks passed for the catalog, settings, and catalog header
   at the largest accessibility text size. Filters remain usable in a scrolling
   row and search remains visible.
@@ -59,11 +64,15 @@ not certify App Review approval or physical-device behavior.
   and [support](https://github.com/JaimieMarch/DesignSphere/blob/main/docs/support.md).
 - Existing two staged store screenshots are 3840 × 2160 JPEGs without alpha.
   They are not a complete feature screenshot set.
+- A current-build catalog screenshot is staged locally at
+  `AppStore-Screenshots/01-catalog-current-build.jpg`, also verified at
+  3840 × 2160 with no alpha. It replaces the older catalog capture for that slot;
+  editor, measurement, assistant, and furnished-room scenes still need capture.
 
 Repeat deterministic verification with `Tools/run-tests.sh`. Use
 `RUN_LIVE_CATALOG_TESTS=1 Tools/run-tests.sh` to include the live integration test.
-The new GitHub Actions workflow still needs a run after these changes are pushed;
-local results do not establish that a hosted CI run has passed.
+The hosted release-branch result is linked above. The same workflow runs on
+`main` pushes; distribution signing and physical-device acceptance remain open.
 
 ## Remaining submission gates
 

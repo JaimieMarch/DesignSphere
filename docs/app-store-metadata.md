@@ -165,6 +165,12 @@ sips -g pixelWidth -g pixelHeight -g hasAlpha shot.jpg
 Give the app ~25 s after launch before capturing: the catalog fetch has a 20 s
 timeout and the grid is empty until it resolves.
 
+A current-build catalog capture is staged locally in
+`AppStore-Screenshots/01-catalog-current-build.jpg` (October 11, 2026), verified
+at 3840 × 2160 with no alpha. Use it instead of the older catalog capture.
+The screenshot folder is excluded from Git; remaining feature scenes still
+need capture after physical-device acceptance.
+
 Two limitations found while capturing:
 
 - **Debug builds can start on another tab:** add `-debug.initialTab settings`
