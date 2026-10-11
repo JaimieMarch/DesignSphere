@@ -11,7 +11,7 @@ jobs:
     name: Lint Code
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -32,14 +32,16 @@ jobs:
             base_sha="$(git rev-list --max-parents=0 HEAD)"
           fi
 
-          mapfile -t swift_files < <(git diff --name-only --diff-filter=ACMR "$base_sha" "${{ github.sha }}" -- '*.swift')
+          # macOS runners ship bash 3.2, which has no `mapfile`; a plain read
+          # loop works everywhere (the old step exited 127 on every run).
+          count=0
+          while IFS= read -r file; do
+            echo "SCRIPT_INPUT_FILE_${count}=${file}" >> "$GITHUB_ENV"
+            count=$((count + 1))
+          done < <(git diff --name-only --diff-filter=ACMR "$base_sha" "${{ github.sha }}" -- '*.swift')
 
-          echo "count=${#swift_files[@]}" >> "$GITHUB_OUTPUT"
-          echo "SCRIPT_INPUT_FILE_COUNT=${#swift_files[@]}" >> "$GITHUB_ENV"
-
-          for index in "${!swift_files[@]}"; do
-            echo "SCRIPT_INPUT_FILE_${index}=${swift_files[$index]}" >> "$GITHUB_ENV"
-          done
+          echo "count=${count}" >> "$GITHUB_OUTPUT"
+          echo "SCRIPT_INPUT_FILE_COUNT=${count}" >> "$GITHUB_ENV"
 
       - name: Run SwiftLint On Changed Files
         if: steps.changed-swift-files.outputs.count != '0'
@@ -56,7 +58,7 @@ jobs:
     runs-on: macos-26
     needs: lint
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Show Xcode version
         run: xcodebuild -version
