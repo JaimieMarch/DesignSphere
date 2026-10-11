@@ -197,71 +197,103 @@ A full feature-by-feature audit (what's done, gated, or deferred) lives in [docs
 
 **DesignSphere is currently a work in progress**, developed as a course project for CPSC 575. While the core design experience is functional and demonstrates the vision for spatial computing in interior design, several advanced features remain in various stages of development.
 
-The latest full audit and fixes are recorded in [docs/release-audit-2026-10-11.md](docs/release-audit-2026-10-11.md). App Store submission readiness is tracked in [docs/app-store-checklist.md](docs/app-store-checklist.md) — repo-side compliance is verified there, alongside the remaining App Store Connect work and content-license checks.
+The latest full audit and fixes are recorded in [docs/release-audit-2026-10-11.md](docs/release-audit-2026-10-11.md). App Store submission readiness is tracked in [docs/app-store-checklist.md](docs/app-store-checklist.md), including completed repository checks and remaining account and device validation.
 
-### App Store Release Blockers
+### App Store release steps (owner checklist)
 
-Work through these one at a time. Do not submit the app for review until every
-required item is checked off.
+The repository audit fixes are merged into `main`. Lint, regression tests, and
+the unsigned Release archive passed locally and in
+[GitHub CI on `main`](https://github.com/JaimieMarch/DesignSphere/actions/runs/38160617594).
+Asset licensing, backup validation, privacy/support pages, and catalog
+availability checks are documented in the audit. No known repository blocker
+remains from that audit; the steps below need the owner's accounts or a physical
+Apple Vision Pro.
 
-- [x] **1. Add in-app privacy and support information (required)**
-  - [x] Privacy and support/contact pages are published on `main`; both public
-    URLs returned HTTP 200 during the October 11 audit.
-  - [x] Add easily accessible Privacy Policy, Support, and contact links in Settings.
-  - [x] Document local project/import storage, spatial permissions, the remote
-    catalog, on-device Foundation Models, data retention, deletion, and backups.
-- [x] **2. Complete the asset-license audit (required)** — completed July 26, 2026
-  - Audited all 182 production models, their generated thumbnails and embedded
-    textures, plus all three app-icon layers; see
-    [the evidence and per-ID registry](docs/asset-license-audit.md).
-  - The October 11 audit also replaced the three editor JPEGs with original,
-    reproducible normal maps and recorded their provenance.
-  - Every model maps to a CC0 Poly Haven or The Base Mesh source record. No
-    BlenderKit or other unproven asset remains, and future catalog builds fail
-    when a model lacks audited provenance.
-- [x] **3. Secure backup imports (required)** — completed July 26, 2026
-  - Sanitize embedded filenames, enforce the expected extensions, and verify
-    every standardized destination remains inside its intended app directory.
-  - Add limits for backup size, file count, and embedded-file size; validate
-    imported project, anchor, and model data before writing it.
-  - Add tests for path traversal, malformed data, invalid extensions, and
-    oversized backups.
-- [ ] **4. Complete physical-device and TestFlight validation (required)**
-  - [x] Fix the target's invalid Development Assets setting and produce a
-    generic Apple Vision Pro Release archive with the production Info.plist,
-    privacy manifest, icon/assets, and arm64 executable (unsigned local check).
-  - [ ] Produce a distribution-signed Release archive and upload it to TestFlight.
-    The July 26 local check found one valid signing identity but no installed
-    provisioning profiles for `com.designsphere.app`; an authenticated Apple
-    Developer account must create/install the profile before this can pass.
-  - On a physical Apple Vision Pro, test first launch, permission grant/denial,
-    placement, editing, measurement, save/load and world-anchor restoration,
-    imports/backups, Focus Mode, Foundation Models, and offline/slow-network
-    behavior.
-- [ ] **5. Finish App Store Connect setup (required)**
-  - [x] Prepare character-limit-checked product copy, privacy and age-rating
-    answers, required visionOS motion information, review notes, and a compliant
-    screenshot shot list in [the metadata packet](docs/app-store-metadata.md).
-  - [ ] Supply the published Privacy Policy and Support URLs, legal/account
-    details, final screenshots, private review contact, and uploaded build in
-    App Store Connect.
-  - Keep public metadata limited to features that are actually enabled; do not
-    advertise SharePlay, LiDAR scanning, voice commands, or other roadmap work.
-- [x] **6. Verify production privacy declarations (required)** — completed July 26, 2026
-  - Cloudflare may retain IP/request diagnostic metadata, so “Data Not
-    Collected” is not used. The manifest, policy, and prepared App Store Connect
-    answers consistently declare non-linked, non-tracking **Other Diagnostic
-    Data** used for **App Functionality**; see
-    [the production privacy decision](docs/production-privacy-declaration.md).
-- [ ] **7. Productionize remote catalog delivery (strongly recommended)**
-  - [ ] Move from the public `r2.dev` development endpoint to a production
-    custom domain, update `AppFeatureFlags.remoteCatalogBaseURL`, and verify it.
-  - [x] Add daily manifest/model availability monitoring; the prepared GitHub
-    Actions workflow becomes active after it reaches the default branch.
-    (Was hourly; a canary does not need 24 manifest + 24 model GETs a day
-    against the bucket to re-learn the same answer.)
-  - [x] Show each model's download size before first-use fetching and preserve
-    catalog/model failure states with accessible retry actions.
+1. [ ] **Set up Apple Developer membership and signing.**
+   Ensure the paid membership is active and accept any pending agreements.
+   In Xcode, open **Settings → Accounts** and sign in, then open
+   `Demo App.xcodeproj`. Select the app target, open **Signing & Capabilities**,
+   enable **Automatically manage signing**, and select the paid developer team.
+   Keep the bundle identifier `com.designsphere.app`.
+   See [Apple's signing instructions](https://help.apple.com/xcode/mac/current/en.lproj/dev23aab79b4.html).
+
+2. [ ] **Create or confirm the App Store Connect app record.**
+   In **Apps → + → New App**, choose visionOS, the name `DesignSphere`, and the
+   matching bundle identifier; reuse an existing matching record if present.
+   The suggested SKU is `DesignSphere-visionOS-1`, primary language is English
+   (Canada), and initial version is `1.0`. Use the
+   [metadata packet](docs/app-store-metadata.md) for the remaining fields.
+   See [Apple's app-record instructions](https://developer.apple.com/help/app-store-connect/create-an-app-record/add-a-new-app/).
+
+3. [ ] **Connect a production catalog domain (strongly recommended).**
+   In Cloudflare, open the R2 catalog bucket's **Settings → Custom Domains** and
+   connect a domain or subdomain you own. The current `r2.dev` endpoint is a
+   rate-limited development endpoint; using a custom domain is a reliability
+   recommendation, not a separate Apple submission requirement. Provide the
+   final catalog URL so the app configuration and availability canary can be
+   updated and the hosted assets verified before the final build.
+   See [Cloudflare's public-bucket instructions](https://developers.cloudflare.com/r2/buckets/public-buckets/).
+
+4. [ ] **Archive and upload a signed release.**
+   Use the latest `main` after any catalog configuration changes. Choose the
+   `Demo App Vision` scheme and a visionOS device destination, then select
+   **Product → Archive**. In Organizer, choose **Distribute App → App Store
+   Connect** and upload. Use an unused build number; the audited version is
+   `1.0` (build `1`). The unsigned audit archive cannot be uploaded as-is.
+   See [Apple's distribution guide](https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases).
+
+5. [ ] **Validate the release on a physical Apple Vision Pro.**
+   TestFlight is the recommended way to install and check the uploaded build.
+   Check onboarding, permission grant and denial, model placement and gestures,
+   undo/redo, materials, measurements, save/load after restart and world-anchor
+   relocation, USDZ imports, backup restores with conflicting names/IDs,
+   closing and reopening the immersive space, Focus Mode, Design Assistant,
+   offline/slow-network behavior, and comfort/responsiveness during an extended
+   session. Test the minimum supported visionOS 26 where possible. Report any
+   failures so they can be fixed, then upload and retest a replacement build.
+   Physical-device validation is a release gate; running a TestFlight beta is
+   recommended rather than an Apple Review prerequisite.
+
+6. [ ] **Capture the final App Store screenshots.**
+   Aim for five or six images showing a furnished scene/catalog, search and
+   filters, editing/materials, measurements, Design Assistant, and saved
+   projects or Focus Mode. Use **3840 × 2160 JPEGs without transparency**, showing
+   features enabled in the submitted build. A current catalog screenshot has
+   been prepared locally as `AppStore-Screenshots/01-catalog-current-build.jpg`;
+   the remaining scenes need capture. Follow the shot list in the
+   [metadata packet](docs/app-store-metadata.md) and
+   [Apple's screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/).
+
+7. [ ] **Finish the listing and account decisions.**
+   Copy the prepared product text and review notes from the
+   [metadata packet](docs/app-store-metadata.md). Supply the legal owner name and
+   copyright, price, territories, public support contact, and private App Review
+   contact in App Store Connect. Complete trader status, tax, banking, and
+   agreements where applicable. Enter the published
+   [Privacy Policy](https://github.com/JaimieMarch/DesignSphere/blob/main/docs/privacy-policy.md)
+   and [Support](https://github.com/JaimieMarch/DesignSphere/blob/main/docs/support.md)
+   URLs, then upload the screenshots. Confirm the final hosting setup matches
+   the prepared privacy answers: **Other Diagnostic Data**, **App Functionality**,
+   **not linked to the user**, and **not used for tracking**. Do not select
+   “Data Not Collected” while Cloudflare retains request metadata; see the
+   [privacy declaration](docs/production-privacy-declaration.md). Complete the
+   age-rating questionnaire and confirm the prepared **No High Motion** answer
+   against device testing. The prepared export-compliance answer treats the
+   app's HTTPS use as exempt encryption; confirm it still matches the final
+   build. Advertise enabled features only.
+
+8. [ ] **Submit the final build for review.**
+   Select the successfully processed, device-tested build in App Store Connect.
+   Confirm the metadata, screenshots, privacy answers, and review details, and
+   choose automatic or manual release. Select **Add for Review**, then
+   **Submit for Review**. If you chose manual release, release the app after
+   approval when ready.
+   See [Apple's submission instructions](https://developer.apple.com/help/app-store-connect/manage-submissions-to-app-review/submit-an-app/).
+
+Repository follow-up is conditional: a new catalog URL needs a configuration
+update and verification; device-test failures need fixes and a replacement
+build; supplied screenshot captures can be prepared for upload. Complete those
+changes before submitting the final build.
 
 ### Future Development Roadmap
 
@@ -298,7 +330,7 @@ Our roadmap is driven by both user feedback and the evolution of spatial computi
 - ~~resolve removed/orphaned UI: decide SharePlay's fate (delete vs. wire)~~ — **decided** (2026-07-05): the dormant SharePlay code stays in the repo for future wiring; it is unreachable from the app
 - ~~complete the measurement tools~~ — **done**: dimensions, distance, ruler, units all wired (`MeasurementManager`) and graduated from Labs into the default toolbar; remaining work is on-device verification
 - ~~audit `Info.plist` privacy/usage strings (ARKit world-sensing, hand tracking, persistence) before submission~~ — **done** (2026-07-05, revised 2026-08-30): `NSWorldSensingUsageDescription` is the only usage string the app needs and now states the user benefit. The camera and hand-tracking strings were both removed as unused — nothing instantiates a `HandTrackingProvider` — and the duplicate `INFOPLIST_KEY_*` build settings are gone, leaving `DesignSphere-Info.plist` as the single source of truth. See [docs/app-store-checklist.md](docs/app-store-checklist.md)
-- ~~go through apple guidelines and conform~~ — **substantially done** (2026-08-30): metadata accuracy, permissions, accessibility, and a set of guideline-2.1 defects are fixed and tracked in [docs/app-store-checklist.md](docs/app-store-checklist.md). What remains is account- and hardware-gated: publishing the policy URLs, a paid developer account with a provisioning profile, and one physical-device pass
+- ~~go through apple guidelines and conform~~ — **substantially done** (2026-08-30; release audit updated 2026-10-11): metadata accuracy, permissions, accessibility, and a set of guideline-2.1 defects are fixed and tracked in [docs/app-store-checklist.md](docs/app-store-checklist.md). Policy/support pages are published; the remaining account and hardware work is listed in the owner checklist above.
 - ~~AI design assistant: wire the assistant shell to real catalog-driven suggestions~~ — **done**: on-device recommender + optional Foundation Models layer ([docs/design-assistant.md](docs/design-assistant.md))
 
 ### Contributing to Development
